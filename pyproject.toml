@@ -1,7 +1,7 @@
 [project]
 name = "cohere-document-intelligence"
 version = "0.2.0"
-description = "Streamlit studio for Cohere North Micro Vision (bf16) on Apple Silicon via MLX"
+description = "Streamlit app for Cohere North Micro Vision (bf16) on Apple Silicon via MLX"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/darylalim/cohere-document-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/darylalim/cohere-document-intelligence/actions/workflows/ci.yml)
 
-Streamlit studio for running
+Streamlit app for running
 [Cohere North Micro Vision](https://huggingface.co/CohereLabs/North-Micro-Vision-Instruct)
 locally on Apple Silicon with MLX.
 
@@ -11,7 +11,7 @@ images at their **native resolution** rather than squashing them to a fixed squa
 strengths are documents, charts, OCR and visual grounding — exactly the workload where
 running locally beats shipping scans to an API.
 
-This studio runs the **bf16** conversion only
+This app runs the **bf16** conversion only
 (`mlx-community/North-Micro-Vision-Instruct-bf16`, ~5 GB), so results stay comparable to
 Cohere's published numbers. Quantised conversions exist upstream if you ever need the
 footprint down.
@@ -55,7 +55,7 @@ uv sync
 uv run streamlit run streamlit_app.py
 ```
 
-The first launch pulls ~5 GB of weights into the Hugging Face cache. The studio loads a
+The first launch pulls ~5 GB of weights into the Hugging Face cache. The app loads a
 fixed commit of the checkpoint rather than whatever `main` points at, so to fetch them
 ahead of time, ask for that same commit:
 
@@ -137,7 +137,7 @@ therefore mirrors mlx-vlm's `smart_resize` as plain arithmetic instead of import
 
 ### The model's own limits
 
-- No system prompts — Cohere notes it was not trained to follow them, so the studio never
+- No system prompts — Cohere notes it was not trained to follow them, so the app never
   sends one. Task instructions go in the user turn.
 - Weak text-only reasoning (MMLU 0.504). No tool calling, no agentic workflows, limited
   maths and code.
@@ -194,7 +194,7 @@ Reproduce with `assets/sample-invoice.png`.
 
 ## License
 
-The studio's own code is Apache-2.0 — see [`LICENSE`](LICENSE). Apache-2.0 rather than MIT
+The app's own code is Apache-2.0 — see [`LICENSE`](LICENSE). Apache-2.0 rather than MIT
 for the patent grant (§3) and, more to the point here, for the explicit statement that no
 trademark rights travel with it (§6). *Cohere* and *North Micro Vision* are Cohere's
 marks; this is an unaffiliated project that runs their published checkpoint.
@@ -203,5 +203,5 @@ No weights are vendored here: `uv sync` installs no checkpoint, and the ~5 GB ar
 from the Hugging Face cache on first run. Both
 [CohereLabs/North-Micro-Vision-Instruct](https://huggingface.co/CohereLabs/North-Micro-Vision-Instruct)
 and the [mlx-community bf16 conversion](https://huggingface.co/mlx-community/North-Micro-Vision-Instruct-bf16)
-this studio loads are Apache-2.0 as well, so the two halves line up — but they are
+this app loads are Apache-2.0 as well, so the two halves line up — but they are
 governed by their own model cards, not by this repository's `LICENSE`.

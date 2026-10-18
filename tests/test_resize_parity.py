@@ -98,7 +98,7 @@ print(f"{stable} plan targets survive mlx-vlm's own resize untouched")
 # --- the real end-to-end guarantee -----------------------------------------
 # What actually matters is that mlx-vlm's own processor, running its own
 # defaults on our already-resized image, reports the same token count the UI
-# printed. This is the claim the studio makes to the user.
+# printed. This is the claim the app makes to the user.
 processor = CohereCompassImageProcessor()
 merge = processor.merge_size**2
 agreed = 0

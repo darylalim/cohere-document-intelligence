@@ -3,7 +3,7 @@
 Only bf16 is used here — the full-precision MLX conversion, ~5 GB resident.
 On a 32 GB Apple Silicon machine that leaves ample headroom for the KV cache,
 and it keeps results comparable to the published numbers, which is what a
-research studio wants. Quantised conversions exist upstream if the footprint
+research app wants. Quantised conversions exist upstream if the footprint
 ever needs to come down.
 
 Every mlx-vlm import in this module is deliberately function-local and runs on
@@ -37,7 +37,7 @@ MODEL_REPO = "mlx-community/North-Micro-Vision-Instruct-bf16"
 MODEL_REVISION = "614b36574d6ecf1c2a79ff3ea28aa89bbc7fcd13"
 
 # The checkpoint's own generation_config.json. Cohere also notes the model was
-# not trained to follow system prompts, so the studio never sends one — task
+# not trained to follow system prompts, so the app never sends one — task
 # instructions are prepended to the user turn instead.
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_TOP_P = 0.8
