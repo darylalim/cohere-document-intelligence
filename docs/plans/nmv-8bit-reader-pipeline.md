@@ -212,12 +212,56 @@ body that runs on the worker.**
 
 Transcription is the slow stage: seconds per page, and minutes for a long
 document. Losing it on every refresh or restart is the worst cost in the
-pipeline. Persist transcripts to disk:
+pipeline. Persist transcripts in **SQLite**, using Python's built-in `sqlite3`.
 
-- **Location:** `~/.cache/cohere-document-intelligence/transcripts/`.
+Why SQLite: it adds no dependency and no server process, and needs no RAM
+beyond the models. It provides transactions, single-query `prune`/`usage`, and
+**FTS5** full-text search. Checked in this venv on 2026-10-18: SQLite 3.49.1,
+with FTS5 and JSON functions available. Postgres, MySQL, MongoDB and Redis
+would each run a server process competing with the models for 16 GB. DuckDB is
+built for analytics. A vector store waits for a local embedding model (see
+step 9).
+
+- **Location:** `~/.cache/cohere-document-intelligence/transcripts.db`.
   - Outside the repo, so documents can never be committed by accident.
-  - Use an env var `NMV_TRANSCRIPT_DIR` to override it.
-- **Key:** `sha256(` the following, joined `)`, one JSON file per key:
+  - Use an env var `NMV_TRANSCRIPT_DB` to override it.
+  - Create the parent directory on first use.
+- **Schema.** Created on first connect; versioned with `PRAGMA user_version = 1`
+  so later changes can migrate:
+
+  ```sql
+  CREATE TABLE IF NOT EXISTS transcripts (
+      key            TEXT PRIMARY KEY,   -- sha256 hex, see below
+      text           TEXT NOT NULL,
+      finish_reason  TEXT,
+      width          INTEGER NOT NULL,   -- resolved size NMV actually saw
+      height         INTEGER NOT NULL,
+      model_revision TEXT NOT NULL,
+      prompt_version INTEGER NOT NULL,
+      filename       TEXT,               -- display only, never part of the key
+      created        TEXT NOT NULL       -- ISO-8601 UTC
+  );
+  CREATE VIRTUAL TABLE IF NOT EXISTS transcripts_fts USING fts5(
+      text, content='transcripts', content_rowid='rowid'
+  );
+  -- plus AFTER INSERT / AFTER DELETE / AFTER UPDATE triggers that keep
+  -- transcripts_fts in sync (the standard external-content pattern from the
+  -- SQLite FTS5 docs)
+  ```
+
+  Create the FTS index now, even though search is optional (step 9). The data
+  then never needs a backfill migration.
+- **Connections:** open one per call (`contextlib.closing(sqlite3.connect(path))`
+  plus `with db:` for the transaction). **Never share a connection across
+  threads.**
+  - `sqlite3` refuses by default (`check_same_thread`).
+  - Streamlit runs each rerun on a fresh thread, the same problem `nmv/runtime.py`
+    solves for MLX.
+  - Opening a connection costs microseconds, so no worker is needed.
+  - On each connection, set `PRAGMA journal_mode=WAL` (two tabs can read while
+    one writes), `PRAGMA busy_timeout=5000` and `PRAGMA secure_delete=ON`
+    (deleted text is overwritten, not left in free pages).
+- **Key:** `sha256(` the following, joined `)`:
   - the upload's raw bytes
   - the effective budget (`ImagePlan`'s resolved pixels, not the slider value)
   - `MODEL_REVISION`
@@ -227,17 +271,17 @@ pipeline. Persist transcripts to disk:
 - **Self-invalidating:** a new checkpoint, a new prompt, or a different budget
   produces a different key, so a stale transcript is never served. Never add
   manual invalidation logic.
-- **File contents:** transcript text, `finish_reason`, the resolved size, a
-  `created` timestamp, plus `model_revision` and `prompt_version` in plain form
-  (the key is a hash, so they cannot be read back from the filename).
+- **Plain columns too:** `model_revision` and `prompt_version` are stored as
+  their own columns, because the key is a hash and cannot be read back. This is
+  what makes `prune` a single `DELETE`.
 - **Retention: no time-based expiry.** A valid transcript is never deleted
   behind the user's back. Re-running NMV costs seconds per page, while keeping
   the result costs a few KB. Staleness is already impossible because of the key.
   Two ways a transcript leaves the store:
   1. **Unreachable entries are pruned automatically.**
-     - `prune(model_revision, prompt_version) -> int` deletes every file whose
-       stored revision or prompt version differs from the current ones. No
-       future key can match those files.
+     - `prune(model_revision, prompt_version) -> int` runs
+       `DELETE FROM transcripts WHERE model_revision != ? OR prompt_version != ?`
+       and returns the row count. No future key can match those rows.
      - Run it once per server process, from an `st.cache_resource`-wrapped call
        on the first visit to Ask documents. Never on every rerun.
      - Different budgets are **not** pruned. They are still reachable by moving
@@ -245,19 +289,40 @@ pipeline. Persist transcripts to disk:
   2. **The user clears everything** with the button below.
 - **Truncated transcripts:** store them, but show the truncation warning again
   when one is loaded.
-- **API:** `get(key) -> Transcript | None`, `put(key, Transcript)`,
-  `clear() -> int` (files removed), `usage() -> (count, bytes)`.
-  - Write to a temp file and `os.replace` it into place, so a crash mid-write
-    never leaves half a JSON file.
-  - Treat an unreadable file as a miss.
-- **No MLX import** in this module.
-- **Tests** (plain script, using a temp dir via the env var):
+- **API:**
+  - `get(key) -> Transcript | None`
+  - `put(key, Transcript)` (`INSERT OR REPLACE`)
+  - `prune(...) -> int`
+  - `clear() -> int` (rows removed)
+  - `usage() -> (count, bytes)` (`SELECT count(*), coalesce(sum(length(text)), 0)`)
+  - `search(query, limit) -> list[Hit]`, for step 9
+  - `Transcript` is a frozen dataclass. Never pass raw rows to page code.
+  - Atomicity comes from the transaction; no temp-file dance is needed.
+  - **Every query is parameterised (`?`).** Never build SQL with f-strings, and
+    that includes FTS `MATCH` input from the search box (step 9).
+- **`clear()`:** run `DELETE FROM transcripts` (the triggers empty the FTS index),
+  then `INSERT INTO transcripts_fts(transcripts_fts) VALUES('optimize')`, then
+  `VACUUM` (outside the transaction), so the file actually shrinks and no
+  document text survives in free pages.
+- **Failure handling:** if the database cannot be opened (corrupt file, disk
+  full, permissions):
+  - `get` returns a miss and `put` is skipped.
+  - Log the error with `logging`, and show one `st.warning` from the page saying
+    transcripts are not being saved and naming the path.
+  - Never crash the pipeline over the cache.
+  - Never auto-delete a database that failed to open; the user may want it.
+- **No MLX import** in this module, and no Streamlit import either.
+- **Tests** (plain script, using a temp database via the env var):
   - put/get round trip
   - a different revision, budget or prompt version misses
-  - a corrupt file is treated as a miss
-  - `clear()` empties the directory
-  - `prune()` removes only old-revision and old-prompt files, and keeps
-    current-revision files at other budgets
+  - a file that is not a database is treated as a miss, and is not deleted
+  - `clear()` empties both tables, and the file size drops after `VACUUM`
+  - `prune()` removes only old-revision and old-prompt rows, and keeps
+    current-revision rows at other budgets
+  - FTS stays in sync: after `put`, `search` finds a word from the text, and
+    after `prune`/`clear` it does not
+  - threads: `put` from one thread and `get` from another both succeed (guards
+    against a shared connection creeping in)
 
 Privacy: these are the contents of the user's documents, so make the store
 visible and easy to clear. **All storage controls live in the main area of Ask
@@ -304,8 +369,9 @@ sidebar.**
     `st.session_state` from inside `nmv/transcripts.py`; the module stays free of
     Streamlit.
   - Browser check:
-    1. Toggle off, transcribe a page, and confirm the transcript directory's file
-       count did not change.
+    1. Toggle off, transcribe a page, and confirm the database's row count did not
+       change: `sqlite3 ~/.cache/cohere-document-intelligence/transcripts.db 'select count(*) from transcripts'`
+       before and after.
     2. Refresh, and confirm the transcript is gone.
     3. Switch to Chat and back, and confirm the toggle is still off.
     4. Refresh, and confirm the toggle is back On and the button label reads
@@ -385,7 +451,10 @@ a publish action.
   in `reader.py`.
 - Add `nmv/reader.py`, `nmv/citations.py`, `nmv/transcripts.py` and
   `app_pages/documents.py` to the module table.
-- Document where transcripts are stored and how to clear them.
+- Document where transcripts are stored (`transcripts.db`) and how to clear
+  them.
+- Add the per-call connection rule to the "constraint" section as a sibling of
+  the MLX one: never share a `sqlite3` connection across threads.
 - Add the new test command.
 - Make the baseline section name both machines.
 
@@ -424,6 +493,33 @@ both models are loaded, the sidebar's peak figure includes both models' weights.
   figure means "this run".
 - Label the figure accordingly.
 
+### 9. Optional follow-up — search saved transcripts (FTS5)
+
+Do this only after step 8 passes, and as its own commit. It is the local stand-in
+for retrieval, since Cohere's Embed and Rerank models are API-only. It uses no
+model and no extra memory.
+
+- On Ask documents, add a search box above the uploader, labelled "Search saved
+  documents".
+- Hits come from `transcripts.search(query, limit=20)`:
+  - `SELECT key, filename, snippet(transcripts_fts, 0, '**', '**', '…', 12), bm25(transcripts_fts) … ORDER BY bm25 LIMIT ?`.
+  - Show a list with the filename, the snippet and the date.
+- **Sanitise the query for FTS5 syntax:** quote each user term as a phrase, so
+  input like `AT&T "net 30` cannot raise `sqlite3.OperationalError`. On any
+  remaining syntax error, show "no results", not a traceback.
+- Selecting hits adds their transcripts to the reader's documents for the next
+  question. They use the same 6K-token cap as uploads, and pages that do not fit
+  are named, never silently dropped.
+- **Locate is unavailable for search hits.** The store keeps text only, never
+  page images; that is deliberate, for privacy and size. Grey out the citation
+  buttons for those pages, with the caption "Re-upload this page to locate it."
+- Respect the save toggle: search reads the database, and reading is allowed
+  when saving is off (same rule as step 4b).
+- Tests: add search cases to `tests/test_transcripts.py`:
+  - ranking order
+  - snippet contains the term
+  - hostile query strings return a list, not an exception
+
 ## Verification checklist (run before calling it done)
 
 ```bash
@@ -449,7 +545,12 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
 ## Out of scope
 
 - PDF input.
-- Embeddings and reranking. Cohere's are API-only; their HF repos hold
-  tokenizers only.
+- Embeddings, reranking and vector search. Cohere's Embed and Rerank are
+  API-only; their HF repos hold tokenizers only. If a local MLX embedding model
+  is adopted later, put the vectors in the same `transcripts.db` via
+  `sqlite-vec` rather than adding a separate vector database.
+- Server databases (Postgres, MySQL, MongoDB, Redis). They are not needed for
+  one user on one machine, and their RAM competes with the models.
+- Storing page images in the database.
 - Keeping bf16 as an option.
 - A version bump or release.
