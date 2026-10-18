@@ -1,1 +1,1 @@
-"""North Micro Vision Studio — shared logic for the Streamlit front end."""
+"""Cohere Document Intelligence — shared logic for the Streamlit front end."""

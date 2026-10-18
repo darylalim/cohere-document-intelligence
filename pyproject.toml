@@ -1,5 +1,5 @@
 [project]
-name = "north-micro-vision-studio"
+name = "cohere-document-intelligence"
 version = "0.2.0"
 description = "Streamlit studio for Cohere North Micro Vision (bf16) on Apple Silicon via MLX"
 readme = "README.md"

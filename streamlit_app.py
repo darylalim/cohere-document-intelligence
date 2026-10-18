@@ -1,4 +1,4 @@
-"""North Micro Vision Studio — entry point and router.
+"""Cohere Document Intelligence — entry point and router.
 
 Run with:  uv run streamlit run streamlit_app.py
 """
@@ -6,7 +6,7 @@ Run with:  uv run streamlit run streamlit_app.py
 import streamlit as st
 
 st.set_page_config(
-    page_title="North Micro Vision Studio",
+    page_title="Cohere Document Intelligence",
     page_icon=":material/frame_inspect:",
     layout="wide",
 )

@@ -1,6 +1,6 @@
-# North Micro Vision Studio
+# Cohere Document Intelligence
 
-[![CI](https://github.com/darylalim/north-micro-vision-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/darylalim/north-micro-vision-studio/actions/workflows/ci.yml)
+[![CI](https://github.com/darylalim/cohere-document-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/darylalim/cohere-document-intelligence/actions/workflows/ci.yml)
 
 Streamlit studio for running
 [Cohere North Micro Vision](https://huggingface.co/CohereLabs/North-Micro-Vision-Instruct)
