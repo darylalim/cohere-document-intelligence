@@ -731,6 +731,90 @@ regression is easy to bisect.
 Wire `tests/test_grounding_describe.py` into CI (a "Box descriptions" step, in
 the same commit as the test) and into `stop-checks.sh`'s fast-test loop.
 
+### 5e. Error handling — `nmv/errors.py` + `tests/test_errors.py`
+
+Bad input is handled well already: `IMAGE_ERRORS` per file, and Grounding's
+three-way zero-boxes message. **Failures during generation are not.** Any
+exception from the MLX worker reaches the page uncaught and Streamlit shows a
+raw traceback. With two models sharing 16 GB, running out of memory becomes
+the most likely new failure, so give it a plain answer.
+
+1. **Sort exceptions in one pure module, `nmv/errors.py`** (no MLX, no
+   Streamlit import): `classify(exc) -> Failure(kind, title, remedy)`, where
+   `Failure` is a frozen dataclass.
+
+   | Kind | Matches | Remedy shown |
+   |---|---|---|
+   | `out_of_memory` | `RuntimeError` whose message contains any of `[metal::malloc] Attempting to allocate`, `[metal::malloc] Resource limit`, `exceeds the maximum Metal buffer size`, `[METAL] Command buffer execution failed` (all four present in this venv's `libmlx.dylib` on 2026-10-18) | Lower the image budget or max tokens; on Ask documents, ask about fewer pages |
+   | `download` | `huggingface_hub.errors` `LocalEntryNotFoundError`, `RevisionNotFoundError`, `RepositoryNotFoundError`, `HfHubHTTPError`, plus `ConnectionError`/`TimeoutError` | Check the connection. The pinned weights download once, then work offline |
+   | `disk_full` | `OSError` with `errno == errno.ENOSPC` | Free disk space. Name the HF cache and step 1's bf16 cleanup |
+   | `bad_image` | the existing `IMAGE_ERRORS` | Unchanged: per file, current messages |
+   | `internal` | anything else | "Something went wrong"; the details are in the expander |
+
+   - Check the order explicitly in a test, so a broad match cannot shadow a
+     narrow one. `disk_full` comes before `bad_image`, since `IMAGE_ERRORS`
+     includes `OSError`. `download` comes before `internal`.
+   - Re-check the huggingface-hub class names after step 0's 2.x upgrade.
+     `huggingface_hub` is imported inside `classify`, so the module stays
+     cheap to import.
+   - After step 0, also re-run
+     `strings "$(uv run python -c 'import mlx,os;print(os.path.dirname(mlx.__file__))')/lib/libmlx.dylib" | grep -E 'metal::malloc|Metal buffer size|Command buffer execution failed'`
+     against the upgraded mlx. Update the fixtures if the wording moved.
+2. **One way to show a failure:** `ui.show_failure(failure, exc)`.
+   - It renders `st.error(title + remedy)`, then
+     `st.expander("Details")` → `st.exception(exc)`, which keeps bug-report
+     detail without a wall of red.
+   - It logs with `logging.getLogger("nmv").exception(...)`, so the terminal
+     always has the traceback.
+   - Every page uses it for generation and load failures.
+   - `bad_image` keeps its existing per-file `st.error` lines.
+3. **Rules the pages follow:**
+   - **Never catch `BaseException`** in page code. `st.stop()` and
+     `st.rerun()` raise Streamlit's `ScriptControlException`, which subclasses
+     `BaseException` (`streamlit/runtime/scriptrunner_utils/exceptions.py`).
+     Catching it would swallow page reruns. Wrap generation and load calls in
+     `except Exception`, and nothing broader.
+   - **Isolate failures per item.** A transcription failure on page 4 shows
+     `show_failure` for page 4 and continues with page 5. This is Chat's
+     per-upload rule applied to pages.
+   - **Never lose finished work.**
+     - Transcription `put`s each page to the store as soon as it finishes, or
+       holds it in session when saving is off, so pages 1–3 survive a failure
+       on page 4.
+     - Ask documents copies Chat's `pending` pattern: the user turn joins the
+       history only once the reply has arrived. Chat's comment explains why: an
+       orphaned turn corrupts every later turn.
+   - **Recover from running out of memory.**
+     - On `out_of_memory`, run `runtime.call(_clear_cache)`, a worker-side
+       function that imports `mlx.core` inside its body and calls
+       `mx.clear_cache()`. That frees cached buffers, not the models.
+     - Then offer a **Retry** button, which is `st.rerun()`.
+     - `st.cache_resource` does not cache a function that raised, so retrying
+       a failed load genuinely tries again. Do not add custom caching of
+       failures.
+   - **Locate with no box** reuses Grounding's three-way message (truncated /
+     empty / prose). Move that branch into a `ui.explain_no_boxes(result)`
+     helper, so both pages share it rather than keeping a fourth copy.
+4. **Keep `client.showErrorDetails` at its default.** Every expected failure
+   now has its own message, so Streamlit's raw traceback only appears for real
+   bugs. On a local single-user app, full detail is what you want there.
+5. **Tests:**
+   - New `tests/test_errors.py`, a plain script with no MLX:
+     - Each of the four Metal strings, wrapped in a `RuntimeError`, classifies
+       as `out_of_memory`.
+     - A `RuntimeError("There is no Stream(gpu, 1) in current thread.")`
+       classifies as `internal`, never `out_of_memory`. It is the
+       thread-affinity bug and must stay loud.
+     - `ENOSPC` classifies as `disk_full`; a plain `OSError` as `bad_image`.
+     - Each huggingface-hub class classifies as `download`.
+     - An unknown `KeyError` classifies as `internal`.
+     - `classify` never raises.
+   - Extend `tests/test_runtime_abandon.py` with one case: after a producer
+     **raises** mid-stream, the consumer receives that exception, and the next
+     `runtime.call()` still succeeds within the probe timeout.
+   - Wire `tests/test_errors.py` into CI (an "Error classification" step, in
+     the same commit as the test) and into `stop-checks.sh`'s fast-test loop.
+
 ### 6. Dependency
 
 ```bash
@@ -831,6 +915,7 @@ upgrade from ever publishing. Change or add, inside `check`:
 
    - "Theme contrast" → `tests/test_theme_contrast.py` (step 5b)
    - "Box descriptions" → `tests/test_grounding_describe.py` (step 5d)
+   - "Error classification" → `tests/test_errors.py` (step 5e)
 
    Add them in the same commit as the test files they run, never before.
    Otherwise CI goes red on a missing file.
@@ -976,6 +1061,7 @@ uv run python tests/test_citations.py
 uv run python tests/test_transcripts.py
 uv run python tests/test_theme_contrast.py
 uv run python tests/test_grounding_describe.py
+uv run python tests/test_errors.py
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
 git check-ignore -q transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png && echo ignored   # must print "ignored"
@@ -1046,6 +1132,28 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   - **Colour-blind simulation:** DevTools → Rendering → Emulate vision
     deficiencies → deuteranopia, with "Show label text" off. Every box still
     carries `#N` and matches its table row by number.
+- **Error handling (step 5e):**
+  1. **Out of memory.**
+     - Set the budget slider to its ceiling and max tokens to 2048. With both
+       models loaded, ask about 10 dense pages.
+     - Expect the `out_of_memory` message, not a traceback.
+     - Lower the budget and press Retry; it should succeed.
+     - Then confirm Chat still answers, so the worker survived.
+     - If memory cannot be exhausted on purpose, say so in the report and rely
+       on `tests/test_errors.py`. Never claim this check passed.
+  2. **Offline.**
+     - With one model removed from the HF cache (ask the user first; deletion
+       goes through the `permissions.ask` rule), turn Wi-Fi off and load it.
+       Expect the `download` message.
+     - Then, with both models cached and Wi-Fi off, confirm all three pages
+       still work.
+  3. **Failure mid-stream.** Start a run that will fail, such as the
+     out-of-memory setup, then switch pages before it finishes. The next
+     request on any page must work. `test_runtime_abandon.py`'s new case covers
+     the same path.
+  4. **Per-page isolation.** Upload five pages with one corrupt file in the
+     middle. The other four transcribe and save, and the failed page names
+     itself.
 
 ## Out of scope
 
