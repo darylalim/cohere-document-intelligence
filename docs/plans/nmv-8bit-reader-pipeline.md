@@ -1520,6 +1520,109 @@ provided its `mlx` requirement is satisfied by the lock from step 0.
 This updates `pyproject.toml` and `uv.lock`. **Do not touch `version`** — that is
 a publish action.
 
+### 6b. Documentation structure — one home per fact, before step 7
+
+The plan adds about ten README sections: licence, accessibility, security,
+quick start, weights, offline use, updating, privacy, troubleshooting,
+monitoring. Without a structure the README grows into a 500-line wall, and the
+same facts end up repeated in places that drift. **Every fact lives in one
+document; everything else links to it.**
+
+**Organise by reader:**
+
+| Reader | Document | Holds |
+|---|---|---|
+| Someone deciding whether to use it | `README.md` (**≤ 250 lines**) | What it is; screenshots of all three pages; requirements; the 3-command quick start (step 5j); a short tour of each page; a privacy summary; the licence table (step 7); an accessibility summary; links to everything below |
+| Someone using it | `docs/privacy.md` | Every data flow: what is stored and where (`transcripts.db`, its permissions), what is logged (metadata only, step 5f), the only network traffic (Hugging Face, first run), the save toggle, Clear, FileVault, `HF_HUB_OFFLINE` |
+| | `docs/troubleshooting.md` | One heading per `classify()` kind (`out_of_memory`, `download`, `disk_full`, `bad_image`), **using the in-app message's title as the heading**, so searching the on-screen text finds it. Also each doctor FAIL, the port being taken, and memory pressure / swap (step 5k) |
+| Someone curious how it works | `docs/architecture.md` | README's current "Things worth knowing" sections move here: token scaling, the 0–1000 grid, MLX's thread-bound streams, the model's limits. Add two **Mermaid** diagrams (GitHub renders them): read → reason → locate, and the single worker with its snapshot and queue |
+| | `docs/performance.md` | Measured baselines for both machines (the M2 Max 32 GB figures from `CLAUDE.md`, the M2 Pro 16 GB figures from step 8), the budget sweep, the prefix-reuse rate, and how to reproduce |
+| Contributors | `CONTRIBUTING.md` | Dev setup; test tiers and `tests/run.py`; the hooks and what a refusal means; the see-it-fail rule; the PR flow; "never bump `version`" (link `RELEASING.md`). Replaces README's "Development" and "CI and releases" sections |
+| | `RELEASING.md`, `SECURITY.md` | As planned in steps 5j and 5i |
+| AI agents | `CLAUDE.md` | **Rules and invariants, each with a one-line reason**, linking to `docs/` and code comments for the full reasoning. It is loaded into every session, so length costs context every time |
+| History | this plan | A record once merged (item 3) |
+
+**Where earlier steps say "README", use this mapping:**
+
+| Earlier step's content | Goes to |
+|---|---|
+| Step 1 bf16 cleanup note | README (one line, under quick start) + `docs/troubleshooting.md` (disk full) |
+| Step 4b store location and Clear | README privacy summary → `docs/privacy.md` |
+| Step 5d accessibility | README summary (5 lines) → full list and residuals in `docs/architecture.md`, section "Accessibility" |
+| Step 5i security notes (injection, FileVault, `HF_HUB_OFFLINE`) | `docs/privacy.md` + `SECURITY.md` |
+| Step 5j quick start, on-demand running | README |
+| Step 5j weights, offline use, external drive, updating | `docs/privacy.md` (network) + a README "Updating" paragraph |
+| Step 7 licence table | README |
+| Step 8 measurements | `docs/performance.md`; README's requirements line only states the peak |
+
+**The one-home rule in practice:**
+- **Theme reasoning** lives in `.streamlit/config.toml` comments, next to the
+  values. Shrink `CLAUDE.md`'s long theme section to its rules (no `base`,
+  the per-mode key restrictions, both modes in a real browser, restart after
+  edits, reload after a mode switch, no teal), plus "every number and trade is
+  in the config comments". **Delete no rule while shrinking it; check each
+  sentence against the config before removing.**
+- **Error wording** lives in `nmv/errors.py`. Troubleshooting headings reuse its
+  titles verbatim (item 4 enforces this).
+- **Pins** live in code. Docs only quote them in prefetch commands (item 4
+  checks them).
+
+Items, in order:
+
+1. **One reorganisation commit, before step 7.**
+   - Create `docs/architecture.md` by **moving** README's deep sections (do not
+     copy them), and add the diagrams.
+   - Create `CONTRIBUTING.md` from README's "Development" and "CI and releases"
+     sections.
+   - Create `docs/privacy.md`, `docs/troubleshooting.md` and
+     `docs/performance.md` as outlines that later steps fill in.
+   - Leave README a link list to all of them.
+   - This commit changes structure only, never content. Diff it to confirm
+     every moved paragraph arrived intact.
+2. **Conventions to keep, now written into `CONTRIBUTING.md`:**
+   - Every module gets a docstring explaining *why*, in the style of
+     `nmv/runtime.py` and Grounding's `_encode_upload`. No generated API
+     reference; this is not a package.
+   - **Commit subjects are the changelog.** CI builds release notes from them,
+     so keep them imperative and meaningful to a user. No `CHANGELOG.md`.
+   - Each step updates the document that owns its facts **in the same commit
+     as the code**.
+3. **This plan becomes a record.** In the PR's final commit, add a status
+   header at the top: "Implemented in vX.Y (merged YYYY-MM-DD). README,
+   `CLAUDE.md` and `docs/` are the current truth; this file is not
+   maintained." Do not edit it after that.
+4. **`tests/test_docs.py`** (`fast` tier):
+   1. **Links resolve.** Every relative link and image target in `*.md` (repo
+      root, `docs/`, `.github/`) exists.
+      - **Strip fenced code blocks and inline code first.** On 2026-10-18 a
+        checker without that flagged `![](url)` inside a code example in this
+        plan as a broken link.
+   2. **Pins match the code.**
+      - Every `--revision <40-hex>` in README, `CLAUDE.md` and `docs/` equals a
+        pin read with `ast` from `nmv/model.py` / `nmv/reader.py`.
+      - Every pinned repo has a prefetch command in README and in `CLAUDE.md`.
+      - On 2026-10-18 both docs carried exactly the one current pin, so this
+        passes before any edit.
+   3. **Referenced paths exist.** Every `tests/…`, `scripts/…` and `nmv/…` path
+      in the docs exists, and every `tests/run.py <tier>` names a real tier.
+   4. **No bf16 left behind** (from step 1 on): `North-Micro-Vision-Instruct-bf16`
+      appears only on lines that also contain `hf cache rm`.
+   5. **README length:** fail above 300 lines, with a message pointing to
+      `docs/`. The target is 250; the gap allows for normal growth.
+   6. **Troubleshooting is complete:** every `kind` in `nmv/errors.py`
+      (`out_of_memory`, `download`, `disk_full`, `bad_image`, `internal`) has a
+      heading in `docs/troubleshooting.md` containing that kind's
+      `Failure.title`.
+   - See it fail once, per step 3b: break a link, change a pin in a doc, delete
+     a troubleshooting heading.
+   - Add `*.md` and `docs/` to `stop-checks.sh`'s changed-file filter, so a
+     docs-only edit runs the fast tier.
+5. **Screenshots:** add `assets/screenshot-documents.png` for Ask documents.
+   Retake any screenshot whose page changed: Grounding gains a "where" column
+   and `#N` boxes in step 5d, and the sidebar gains System and Stream responses.
+   - Check the screenshots before describing any UI in prose (`CLAUDE.md`).
+   - Take them from the synthetic invoice only.
+
 ### 7. Docs, guards and CI
 
 **Import-guard regex** — change it everywhere from `mlx(_vlm)?` to `mlx(_vlm|_lm)?`:
@@ -1532,6 +1635,10 @@ a publish action.
 This catches f-string SQL in `nmv/transcripts.py` in the edit hook, CI and the
 editor alike. Run `uv run ruff check .` after adding it. If it flags anything,
 fix the code; do not ignore the rule.
+
+These edits land in step 6b's structure. Use its mapping table whenever an item
+here or in an earlier step says "README", and keep `CLAUDE.md` to rules plus
+links.
 
 **`CLAUDE.md`:**
 - Replace the bf16-only rule with: 8-bit chosen for 16 GB; don't add other
@@ -1548,8 +1655,13 @@ fix the code; do not ignore the rule.
   the MLX one: never share a `sqlite3` connection across threads.
 - Add a short "Claude Code hooks" section listing the hooks below, so a future
   session knows why an edit was refused.
-- Add the new test command.
-- Make the baseline section name both machines.
+- Replace the separate test commands with `uv run python tests/run.py all`
+  (step 3b), and name the tiers.
+- Shrink the baseline section to the two headline lines (one per machine), and
+  link `docs/performance.md`.
+- Shrink the theme section to its rules (step 6b), deleting no rule.
+- Add a "Documentation map" of a few lines: which document owns what (step 6b),
+  so an agent edits the right file.
 
 **`README.md`:**
 - 8-bit throughout.
@@ -1573,9 +1685,12 @@ fix the code; do not ignore the rule.
     - The R7B download is not gated on the Hub, but its terms still apply.
     - Each checkpoint's model card governs its weights, not this `LICENSE`.
   - Link both pinned conversions. Drop the bf16 link.
-- Add the bf16-cache cleanup note from step 1.
+- Add the bf16-cache cleanup note from step 1, as one line under the quick
+  start.
 - Requirements line: 16 GB with both models resident, with the peak from step 8.
-- Screenshot of the new page, if you take one.
+  The full figures go in `docs/performance.md`.
+- The Ask documents screenshot from step 6b item 5 (required, not optional).
+- Stay within step 6b's 250-line target. `tests/test_docs.py` fails above 300.
 
 **Elsewhere:**
 - `pyproject.toml` `description`.
@@ -1674,7 +1789,9 @@ cannot be read, fall back to ≤ ~10 GB. **Fail:** switch to the
 Tiny Aya fallback, or add an "unload the idle model" path. Either way, report the
 numbers before choosing.
 
-Put the measured figures into the README and the `CLAUDE.md` baseline.
+Put the measured figures in `docs/performance.md` (step 6b). README's
+requirements line and `CLAUDE.md`'s baseline get only the headline peak and
+throughput, with a link.
 
 **Note on the peak-memory metric:** `mx.get_peak_memory()` is process-wide. Once
 both models are loaded, the sidebar's peak figure includes both models' weights.
