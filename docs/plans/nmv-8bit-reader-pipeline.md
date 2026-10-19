@@ -1144,11 +1144,11 @@ from the terminal, which has no Clear button.
 | Never logged | Logged instead |
 |---|---|
 | Transcripts, prompts, answers, citation spans, search queries, raw model output | Lengths and token counts |
-| Upload file names (can identify a person) | First 8 hex characters of the store key's sha256 |
+| Upload file names (can identify a person) | First 8 characters of the page's `PageId` (step 3c), stable across budgets |
 | Box labels (OCR'd text) | Box count |
 
 `str(exc)` for `bad_image` failures can include a file name. Log the failure's
-`kind` and hash prefix instead; the UI may still show the name to its owner.
+`kind` and `PageId` prefix instead; the UI may still show the name to its owner.
 
 1. **`nmv/log.py` → `setup()`**, called at the top of `streamlit_app.py`.
    - **Make it idempotent.** That file reruns on every interaction, so return
@@ -1177,7 +1177,7 @@ from the terminal, which has no Clear button.
    |---|---|---|
    | INFO | Model load start and end (NMV, reader) | repo, `revision[:7]`, seconds, `mx.get_active_memory()` GB after load (worker side) |
    | INFO | Each generation: chat / ground / ask / locate / transcribe | kind, session prefix, prompt and generated tokens, prefill and decode tok/s, peak GB, `finish_reason` |
-   | INFO | Each transcribed page | `page N/M`, hash prefix, `hit` / `miss` / `not-saved`, seconds |
+   | INFO | Each transcribed page | `page N/M`, `PageId` prefix, `hit` / `miss` / `not-saved`, seconds |
    | INFO | Store maintenance | rows pruned at start-up, rows removed by Clear |
    | WARNING | Expected `classify()` kinds: `out_of_memory`, `download`, `disk_full` | kind, session prefix, budget, max tokens, page count, **no traceback** |
    | ERROR | `internal` failures | `logger.exception`, full traceback |
