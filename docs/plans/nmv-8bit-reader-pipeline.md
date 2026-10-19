@@ -488,6 +488,66 @@ Rules that apply to this page:
 - `max_tokens` from the sidebar applies to both stages. Transcription of a dense
   A4 page can exceed 512, so surface `RunStats.truncated` as a warning per page.
 
+#### Layout that adapts to the display
+
+**One layout, adapted in the browser. Never branch on the server.**
+- In Streamlit 1.64, `st.context` exposes cookies, headers, ip_address,
+  is_embedded, locale, theme, timezone and url, but **no viewport size**. Do not
+  sniff the user agent, and do not add custom CSS (`CLAUDE.md`: prefer native
+  elements).
+- Adaptation comes from four built-in behaviours:
+  - columns stack at ≤ 640 px
+  - horizontal containers wrap
+  - the sidebar collapses on narrow screens
+  - an **integer `width` acts as a maximum**: per the 1.64 docstring, if it is
+    wider than the parent, the element matches the parent
+
+Page structure, top to bottom:
+
+1. Title and a one-line caption.
+2. **Storage group:** `st.container(horizontal=True)` holding the uploader, the
+   "Save transcripts" toggle, the usage caption and the Clear popover. It wraps
+   by itself on narrow screens.
+   - Keeping it in the main area, as step 4b already requires, matters most on
+     phones. There the sidebar is a hidden drawer, so a sidebar privacy toggle
+     would be invisible.
+3. The **Transcribe** button, labelled with the save mode.
+4. **Body:** `conversation, page = st.columns(2, gap="medium")`.
+   - **Create the conversation column first.** Columns stack in creation order,
+     so this gives phones the answer, then the page, and a tapped citation shows
+     its box just below.
+   - Use equal widths, because both the answer and the page need room.
+5. **Conversation column:**
+   - Put the messages in `st.container(width=760)`, about 80 characters at the
+     theme's 15 px base size.
+     - On a 2560 px display under `layout="wide"`, unconstrained lines run to
+       ~150 characters.
+     - On smaller screens the cap does nothing.
+   - Citation pills use `st.pills(..., wrap=True)`.
+6. **Page column:**
+   - A page picker, `st.pills(..., wrap=True)`.
+     - **`wrap=True` is required.** Controls placed directly in a column default
+       to no wrap (the bundled `references/layouts.md`): labels get cut off and
+       ten page pills would scroll sideways on a phone.
+   - Then `st.image(page_with_boxes, width=880)`.
+     - Above ~880 px, an A4 page is taller than a 1440p screen, so the located
+       box falls below the fold.
+     - Smaller screens get the full column. Streamlit's built-in fullscreen
+       button covers zooming in.
+   - Then **one** `st.expander("Transcript")`, for the selected page only, not
+     one per page.
+7. `st.chat_input` at the **top level** of the script, never inside a column,
+   so Streamlit pins it to the bottom at every width.
+
+Avoid:
+- fixed `height=` on containers: it scrolls inside itself on short screens and
+  leaves empty space on tall ones
+- more than two columns in the body
+- `use_container_width`: use `width=` (`CLAUDE.md`)
+
+Put `760` and `880` in named constants, `READING_WIDTH` and `PAGE_IMAGE_WIDTH`,
+in `nmv/ui.py`. Step 5c reuses them, so all three pages share one measure.
+
 ### 5b. Theme contrast guard — new `tests/test_theme_contrast.py`
 
 **Do not redesign the theme.** The Polar Indigo pair in `.streamlit/config.toml`
@@ -562,6 +622,27 @@ Wire it in:
   - Widen the changed-file filter to also match `.streamlit/config.toml`, so a
     theme-only edit triggers it.
   - Re-test the hook with a piped payload after editing it.
+
+### 5c. Adaptive layout touch-ups for Chat and Grounding
+
+These are small and separate from the pipeline, so give them their own commit.
+They use the same two constants from step 5.
+
+- **`app_pages/chat.py`:**
+  - Wrap the message history (both the replayed history and the new turn's
+    messages) in `st.container(width=READING_WIDTH)`. It has the same
+    long-line problem on wide displays.
+  - Leave `st.chat_input` at the top level, outside that container, so it stays
+    pinned and full width.
+  - Leave the starter pills alone; at the top level they already wrap.
+- **`app_pages/grounding.py`:**
+  - Give the overlay `st.image` calls `width=PAGE_IMAGE_WIDTH` in place of
+    `"stretch"`. That is the "Ready" preview and the annotated image in
+    `_overlay_panel`.
+  - Keep `st.columns([3, 2], gap="medium")`. It already stacks correctly on
+    phones, overlay first and box table second.
+- **Re-check after the edit:** the PAID stamp is still hit, and the overlay
+  fragment still reruns into its slot.
 
 ### 6. Dependency
 
@@ -833,6 +914,27 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   - Transcript expanders, including a Markdown table, show their borders.
   - The page image under a drawn box. In Light it stays the brightest surface;
     in Dark the box colours stay distinct from the accent.
+- **All three pages at four widths.** Use Chrome DevTools' device toolbar in a
+  real browser; AppTest never renders the page.
+  - **390 px (phone):**
+    - The body columns stack, conversation above page.
+    - The storage group wraps.
+    - The toggle and the Transcribe label are visible without opening the
+      sidebar drawer.
+  - **820 px (tablet):** above the stacking threshold, so both columns must
+    still be usable side by side.
+  - **1512 px (M2 Pro 14" default, sidebar open):** a located box is visible
+    without scrolling.
+  - **2560 px (wide):**
+    - Answer and Chat lines stop at the 760 px measure.
+    - The page image stops at 880 px.
+    - The located box is visible without scrolling.
+  - **At every width:**
+    - no horizontal page scroll
+    - page and citation pills wrap rather than scroll
+    - `st.chat_input` is pinned at the bottom
+  - **Then 1512 px at 200% browser zoom.** That is how a low-vision reader sees
+    the page, and it behaves like a narrow screen.
 
 ## Out of scope
 
