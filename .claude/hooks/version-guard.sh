@@ -43,7 +43,19 @@ case "$tool" in
     ;;
   Bash)
     cmd=$(jq -r '.tool_input.command // empty' <<<"$input")
-    # `uv version` on its own only prints; a bump or an explicit number writes.
+    # Parse command positions (bash_version_check.py) so that text merely
+    # *mentioning* a bump, in a heredoc or quoted string, is not denied.
+    # 0 allow, 2 deny, 3 unparseable; no python3 also falls through to the
+    # broad regex below, so the guard never fails open.
+    if command -v python3 >/dev/null 2>&1; then
+      python3 "$(dirname "$0")/bash_version_check.py" <<<"$cmd"
+      case $? in
+        0) exit 0 ;;
+        2) deny ;;
+      esac
+    fi
+    # Fallback, deliberately broad: `uv version` on its own only prints; a bump
+    # or an explicit number writes.
     if grep -qE '(^|[^[:alnum:]_-])uv[[:space:]]+(run[[:space:]]+)?version([[:space:]].*)?(--bump|[[:space:]][0-9]+\.[0-9])' <<<"$cmd"; then
       deny
     fi
