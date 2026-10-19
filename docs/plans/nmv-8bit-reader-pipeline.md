@@ -66,6 +66,19 @@ it is tested:
 
 ## Steps
 
+### Before step 0 — work on the branch, land it through a PR
+
+Do all of this on `plan/nmv-8bit-reader-pipeline`, which already carries this
+plan and the hooks. Land it on `main` through a pull request, not by direct
+commits.
+
+- CI runs `check` on every `pull_request`, and runs `release` only on `main`.
+  So a PR means the first CI run on the upgraded lock happens off `main`, and a
+  red run never sits on the default branch.
+- Push the branch, then open the PR. **Ask the user before pushing or opening
+  it**, since both are outward-facing.
+- Push after each step's commit, so CI checks every step separately.
+
 ### 0. Upgrade dependencies to latest — its own commit, before anything else
 
 Commit this before any feature work. If CI goes red, you then know the upgrade
@@ -477,6 +490,58 @@ fix the code; do not ignore the rule.
 - `pyproject.toml` `description`.
 - `.github/workflows/ci.yml:39` comment ("5 GB").
 
+**`.github/workflows/ci.yml` — the `check` job.** Keep every existing step;
+each one guards part of this plan:
+- `uv sync --locked`: steps 0 and 6.
+- ruff: the formatter change and `S608`.
+- ty: the upgraded diagnostics.
+- the import grep: step 2.
+- resize parity: the mlx-vlm upgrade.
+- abandon test: step 3.
+
+Leave the `release` job untouched. Its `needs: check` is what stops a broken
+upgrade from ever publishing. Change or add, inside `check`:
+
+1. **Import grep regex** (`ci.yml:61`): `mlx(_vlm)?` → `mlx(_vlm|_lm)?`. Update the
+   step's comment to name mlx-lm.
+2. **New test steps**, after the two existing tests, in the same style
+   (`uv run python tests/...`):
+   - "Citation parsing" → `tests/test_citations.py`
+   - "Transcript store" → `tests/test_transcripts.py`. This step also proves
+     FTS5 exists in the runner's uv-managed Python.
+
+   Add them in the same commit as the test files they run, never before.
+   Otherwise CI goes red on a missing file.
+3. **Checkpoint pin check**, reusing the local hook so there is one
+   implementation:
+
+   ```yaml
+   # A checkpoint can run code here (CLAUDE.md), so every *_REVISION must be a
+   # 40-hex commit and no download may fetch *.py. Same script as the edit hook.
+   - name: Checkpoint pins
+     run: |
+       rc=0   # not `status`: read-only in zsh, so a local paste would break
+       for f in nmv/*.py; do
+         jq -n --arg f "$PWD/$f" '{tool_input: {file_path: $f}}' \
+           | .claude/hooks/pin-guard.sh || rc=1
+       done
+       exit $rc
+   ```
+
+   `jq` is preinstalled on GitHub's macOS images, but confirm on the first run.
+   The script matches `*/nmv/*.py`, so pass an absolute path, as above. Before
+   pushing, prove the step can fail: temporarily set a revision to `"main"`
+   locally and run the loop.
+
+**Deliberately not in CI** (write this as a comment above the test steps, so
+nobody "fixes" it later):
+- **Step 8 and the PAID-stamp grounding check.** These need ~7.7 GB of weights
+  per run, and both models resident (~9.6 GB). The standard `macos-latest`
+  runner has 7 GB of RAM (3-core M1), so they cannot run there. They stay manual
+  on the M2 Pro.
+- **Browser checks.** Page-switch persistence, both themes and the save toggle.
+  `CLAUDE.md` explains why AppTest cannot stand in for a real browser.
+
 ### 8. Measure on the M2 Pro 16 GB (acceptance gate)
 
 Use `assets/sample-invoice.png`, plus one dense multi-page document of 3–5 pages.
@@ -562,7 +627,10 @@ uv run python tests/test_runtime_abandon.py
 uv run python tests/test_citations.py
 uv run python tests/test_transcripts.py
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
+for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
 ```
+
+Then confirm the PR's CI run is green, including the three new steps.
 
 Then check in a real browser, restarting the server after the `nmv/` edits:
 
