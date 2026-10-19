@@ -1498,9 +1498,13 @@ Give each item its own commit.
      - the pending counter returns to 0 after jobs that succeed and jobs that
        raise
      - the run ring buffer keeps exactly the last 10 entries
-     - Mark the file `# tier: mlx` if `runtime` cannot be imported without
-       booting mlx-vlm. Otherwise keep it `fast` by testing the counter and
-       snapshot helpers on their own.
+     - **Split by tier.** Importing `nmv.runtime` does not load mlx-vlm
+       (checked 2026-10-18); the boot happens on the first `submit()`.
+       - So the snapshot, `nmv/system.py` and ring-buffer cases stay in
+         `tests/test_monitoring.py` (`fast`).
+       - The pending-counter cases, which must submit real jobs, go into
+         `tests/test_runtime_abandon.py` (already `mlx`). They check that the
+         counter returns to 0 after a job that succeeds and one that raises.
    - Step 5h's UI smoke test also renders the System expander with a fake
      snapshot, and the warning with a fake pressure level of 2.
 
