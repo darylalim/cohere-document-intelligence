@@ -256,6 +256,33 @@ step 9).
   - Outside the repo, so documents can never be committed by accident.
   - Use an env var `NMV_TRANSCRIPT_DB` to override it.
   - Create the parent directory on first use.
+- **`.gitignore`, in the same commit as `nmv/transcripts.py`.** It is a second
+  layer: the `~/.cache` default is the first, and these rules cover the case
+  where `NMV_TRANSCRIPT_DB` is pointed into the repo.
+  - Keep the existing hand-written file. Do not swap in GitHub's Python
+    template; its build and framework rules do not apply here.
+  - Append:
+
+    ```gitignore
+    # Transcript store (nmv/transcripts.py). It lives in ~/.cache by default, but
+    # NMV_TRANSCRIPT_DB can point anywhere, and these files hold document text.
+    # The -wal/-shm files are SQLite's WAL sidecars and contain the same data.
+    *.db
+    *.db-wal
+    *.db-shm
+
+    # Private test documents, e.g. the multi-page document for step 8. Keep real
+    # invoices and scans here, never in assets/, which is tracked and published.
+    /local/
+    ```
+
+  - Do **not** ignore `uv.lock`, `.python-version`, `.claude/settings.json` or
+    `.claude/hooks/`. CI and the shared hooks need them tracked.
+  - Ignoring weights is unnecessary; they go to the HF cache in `~`.
+  - Before committing:
+    - Check that `git ls-files '*.db' '*.db-wal' '*.db-shm' 'local/*'` prints
+      nothing, so nothing is tracked that the new rules would hide.
+    - Run the `git check-ignore` line from the verification checklist.
 - **Schema.** Created on first connect; versioned with `PRAGMA user_version = 1`
   so later changes can migrate:
 
@@ -594,6 +621,8 @@ nobody "fixes" it later):
 ### 8. Measure on the M2 Pro 16 GB (acceptance gate)
 
 Use `assets/sample-invoice.png`, plus one dense multi-page document of 3–5 pages.
+Keep the multi-page document in the git-ignored `local/` folder, never in
+`assets/`, which is tracked and published.
 Record:
 
 1. NMV-only load time, and peak memory at the ceiling budget.
@@ -677,6 +706,8 @@ uv run python tests/test_citations.py
 uv run python tests/test_transcripts.py
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
+git check-ignore -q transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png && echo ignored   # must print "ignored"
+git check-ignore -q uv.lock .claude/settings.json .claude/hooks/pin-guard.sh assets/sample-invoice.png || echo tracked   # must print "tracked"
 ```
 
 Then confirm the PR's CI run is green, including the three new steps.
