@@ -978,15 +978,23 @@ sidebar.**
       otherwise reset it to On.
   - Render it only on Ask documents. Never in the shared `ui.sidebar()`, because
     Chat and Grounding never save anything.
-  - **A refresh resets it to On.** Streamlit 1.64/1.66 offer only
-    `persist_state` = `"page"`, `"session"` or `None`, and a refresh starts a new
-    session. Do not work around this with browser storage, and do not flip the
-    default to Off (that would re-transcribe every normal document after a
-    refresh). Instead, put the mode **on the action itself**:
-    - The Transcribe button label is "Transcribe · saving to disk" or
-      "Transcribe · not saving".
-    - So the current mode is visible at the moment of every transcription,
-      including the first one after a refresh.
+  - **Make "not saving" survive a refresh with `bind="query-params"`.**
+    - `persist_state` alone (`"page"`, `"session"` or `None`) does not survive
+      one, because a refresh starts a new session.
+    - `st.toggle` in 1.64 also takes `bind="query-params"` (verified 2026-10-18).
+      It syncs the value to a URL query parameter named after the key, and
+      removes the parameter when the value equals the default. So `Off`
+      appears as `?save_transcripts=…` in the URL and is restored on refresh,
+      while the default `On` leaves the URL clean.
+    - Use both `persist_state="session"` and `bind="query-params"`, and confirm
+      in a real browser that they combine. If they do not, keep `bind` and
+      drop `persist_state`.
+    - Do not use browser storage, and do not flip the default to Off (that
+      would re-transcribe every normal document).
+    - **Keep the mode on the action itself as well:** the Transcribe button
+      label is "Transcribe · saving to disk" or "Transcribe · not saving". A
+      bookmark or new tab without the parameter still starts at `On`, so the
+      label stays the safeguard.
   - **Off means no writes.** Transcribe as usual, but skip `put` and hold that
     run's transcripts in `st.session_state` instead, keyed by the same hash.
     They live as long as the session, which is the trade the user chose.
@@ -1291,7 +1299,9 @@ regression is easy to bisect.
      667 on the 0–1000 axes: upper / middle / lower × left / centre / right. Use
      `"centre"` for the middle cell.
    - **Size:** width and height as percentages of the page, rounded to the
-     nearest 5. Show `"under 5%"` below that, and drop the size clause for a
+     nearest 5 **with halves rounding up**: `int(pct / 5 + 0.5) * 5`. Do not
+     use Python's `round()`, which rounds halves to even, so the PAID stamp's
+     12.5% height would read "10%" (verified: `round(12.5/5)*5 == 10`). Show `"under 5%"` below that, and drop the size clause for a
      box covering ≥ 90% of both axes (`"most of the page"`).
    - **Normalise swapped coordinates** (x2 < x1) the same way `parse_boxes`
      does, never differently. Labels stay optional (`CLAUDE.md`), so
@@ -1392,13 +1402,32 @@ the most likely new failure, so give it a plain answer.
    | `internal` | anything else | "Something went wrong"; the details are in the expander |
 
    - Check the order explicitly in a test, so a broad match cannot shadow a
-     narrow one. `disk_full` comes before `bad_image`, since `IMAGE_ERRORS`
-     includes `OSError`. `download` comes before `internal`.
+     narrow one. The order is `out_of_memory` → `disk_full` → **`download`** →
+     `bad_image` → `internal`.
+     - `disk_full` comes before `bad_image`, since `IMAGE_ERRORS` includes
+       `OSError`.
+     - **`download` also comes before `bad_image`.** Every listed
+       huggingface-hub error is an `OSError` subclass on 1.33
+       (`LocalEntryNotFoundError` through `FileNotFoundError`, the rest through
+       `HTTPError`), and so are `ConnectionError` and `TimeoutError`. Checked
+       the other way round, a network failure would be reported as a broken
+       image.
    - Re-check the huggingface-hub class names after step 0's 2.x upgrade.
+   - **Unverified: `[METAL] Command buffer execution failed` may not reach
+     Python at all.** That error is raised from a Metal completion handler, and
+     reports suggest it can end the process (`libc++abi: terminating due to
+     uncaught exception`) rather than raise a catchable `RuntimeError`.
+     - **Test it on the M2 Pro** during the step 5e out-of-memory check.
+     - If it does end the process, keep the string in `classify` (harmless) but
+       say in `docs/troubleshooting.md` that this failure stops the server, and
+       that the fix is to restart it with a lower budget.
+     - Never claim `classify` catches it unless the check showed that.
      `huggingface_hub` is imported inside `classify`, so the module stays
      cheap to import.
    - After step 0, also re-run
-     `strings "$(uv run python -c 'import mlx,os;print(os.path.dirname(mlx.__file__))')/lib/libmlx.dylib" | grep -E 'metal::malloc|Metal buffer size|Command buffer execution failed'`
+     `strings "$(uv run python -c 'import mlx;print(list(mlx.__path__)[0])')/lib/libmlx.dylib" | grep -E 'metal::malloc|Metal buffer size|Command buffer execution failed'`
+     (`mlx` is a namespace package, so `mlx.__file__` is `None`; use
+     `__path__`, verified)
      against the upgraded mlx. Update the fixtures if the wording moved.
 2. **One way to show a failure:** `ui.show_failure(failure, exc)`.
    - It renders `st.error(title + remedy)`, then
@@ -1626,9 +1655,14 @@ Keep each item below as its own commit.
      one `@st.fragment`, and the citation pills in another, as Grounding wraps
      its overlay. Picking a page or citation then reruns that panel, not the
      whole script and chat history.
-   - A citation click that must draw a box in the page panel sets session state
-     and calls `st.rerun(scope="fragment")` only if the two share a fragment.
-     Otherwise use a full rerun. Do not add cross-fragment tricks.
+   - **A citation click redraws only the page panel,** using Streamlit 1.64's
+     keyed fragments (documented in `st.rerun`'s docstring, verified):
+     - Declare the panel as `@st.fragment(key="page_panel")`.
+     - The citation pills' `on_change` callback sets the selected citation in
+       session state, then calls `st.rerun("page_panel")`, which reruns only that
+       fragment.
+     - No full rerun is needed. Fall back to a full rerun only if the keyed form
+       misbehaves in the browser check.
 
 **Do not:**
 - generate pages concurrently (one worker, one GPU, double the activation
@@ -1978,8 +2012,11 @@ Give each item its own commit.
 2. **A "System" panel:** a collapsed `st.expander("System")` at the bottom of
    the shared sidebar, below the stats slot.
    - It shows:
-     - a memory bar, `st.progress((active + cache) / limit)`, labelled
-       "7.9 / 10.7 GB"
+     - a memory bar, `st.progress(min(ratio, 1.0), text=…)`, where
+       `ratio = (active + cache) / limit`, labelled "7.9 / 10.7 GB"
+       - `st.progress` raises for values above 1.0 (verified). The working-set
+         limit is soft and can be exceeded, which is exactly when the bar
+         matters, so clamp the bar and keep the real figures in `text=`.
      - macOS memory pressure (Normal / Warning / Critical / Unknown)
      - swap used
      - which models are loaded
