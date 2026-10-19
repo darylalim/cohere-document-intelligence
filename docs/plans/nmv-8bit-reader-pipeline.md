@@ -329,8 +329,15 @@ body that runs on the worker.**
 - `load_reader()`: `@st.cache_resource`, calls `runtime.call(_load, ...)`.
 - `is_reader_cached()`: same pattern as `is_cached()`.
 - `stream_answer(reader, history, pages, sampling, stats)`:
-  - `pages` is `list[str]`.
-  - Builds `documents=[{"title": f"Page {i+1}", "text": t} for i, t in enumerate(pages)]`.
+  - `pages` is `list[tuple[PageId, str]]` (step 3c): identity plus transcript
+    text.
+  - Applies the 6K cap, then **records the `PageId`s actually sent, in order**,
+    as `sent_pages`. The page stores it on the resulting `Turn`, and
+    `Turn.page_for` maps citations through it. Without it, a dropped page
+    shifts every later citation onto the wrong page.
+  - Builds `documents=[{"title": f"Page {n}", "text": t} …]` from the **sent**
+    list, where `n` is the page's upload position, for a readable title.
+    Citation indices still refer to positions in this list, never to `n`.
   - Calls `tokenizer.apply_chat_template(history, documents=documents, chat_template="rag", enable_citations=True, add_generation_prompt=True, tokenize=False)`.
   - Streams `mlx_lm.stream_generate(model, tokenizer, prompt, max_tokens=..., sampler=make_sampler(temp, top_p, top_k=...))` through `runtime.iterate()`.
   - Checks `emit()`'s return value, exactly like `model.stream_reply`.
@@ -435,6 +442,97 @@ The plan adds about nine test files. Listing them by hand in CI, in
   and 4.
 - No test writes outside a temporary directory, and no test reads `local/`.
 
+### 3c. Data model — `nmv/domain.py` + `tests/test_domain.py`, before step 4
+
+The plan's types are spread across eight steps. Read together, they show three
+problems. **Fix them in the types, before the citation parser, store and page
+are built on top.**
+
+1. **One page, three identities.** Steps 4b (store key), 5g (Locate cache) and
+   5f (log hash prefix) each specify their own hashing of the page bytes. If
+   one changes, the store, the cache and the logs stop agreeing.
+2. **Citation numbers are not page numbers.** R7B cites *positions in the
+   document list it was given*. The 6K cap (step 2) can drop pages and search
+   hits (step 9) can add them, so citation `[2]` is not necessarily the third
+   upload. No step records which pages were actually sent, so Locate could
+   draw a box on the wrong page.
+3. **Search hits cannot reconnect to an image.** The store saves only the
+   derived key, not the page's own identity, so a re-uploaded page cannot be
+   matched to its saved transcript (step 9).
+
+**Types in `nmv/domain.py`**, pure (no MLX, no Streamlit), as frozen
+dataclasses. Existing types (`Box` in `nmv/grounding.py`, `ImagePlan`,
+`Sampling`, `RunStats`) stay where they are; moving them would churn tests for
+nothing.
+
+| Type | Fields | Identity / invariant |
+|---|---|---|
+| `PageId` | `NewType("PageId", str)`: 64-hex sha256 of the **original upload bytes** | **The one identity function**, `page_id(data: bytes) -> PageId`. The store, the Locate cache, the logs (first 8 characters) and the evals all call it, and nothing else hashes page bytes |
+| `Page` | `id`, `display_name` (session only), `source_size`, `image: Image \| None` | `image is None` for a search hit without its upload, which is exactly what decides whether Locate is available |
+| `Derivation` | `page: PageId`, `resolved_px: int`, `model_revision: str`, `prompt_version: int` | `.key()` = sha256 over the fields in a fixed, documented order. **Every page-derived result carries one**, which is what makes caches invalidate themselves |
+| `Transcript` | `derivation`, `text`, `finish_reason` | Stored under `derivation.key()` (step 4b) |
+| `Grounding` | `derivation`, `instruction`, `boxes: tuple[Box, ...]`, `truncated` | Replaces Grounding's `grounding_result` dict; the Locate cache stores these |
+| `Citation` | `span`, `doc_indices: tuple[int, ...]` | Indices into the list **as sent**, never page numbers (step 4 returns these) |
+| `Turn` | `role`, `display_text` (after `safe_markdown`), `raw_text` (**exactly as generated**, for step 5g's prefix reuse), `citations`, `sent_pages: tuple[PageId, ...]`, `run_id` | **`turn.page_for(index) -> PageId`** maps a citation through `sent_pages` and raises a clear `IndexError` when out of range. This fixes problem 2 |
+
+- `RunRecord` (5l) and `Failure` (5e) are unchanged.
+- **Ask documents uses `Turn` from the start. Chat keeps its dict records.**
+  Its comments explain the `pending` pattern carefully, and moving working code
+  to new types is churn with no user benefit. Move it only when something else
+  forces an edit there.
+- Session state holds these dataclasses directly. They are defined in `nmv/`,
+  which needs a server restart after edits, and a restart ends the sessions,
+  so stale objects of an old class shape never survive.
+
+**Where each piece of data lives, and what kind it is.** The "kind" column is
+step 5f's privacy rule written down: **content** never enters logs, run records
+or trace files; **metadata** can go anywhere.
+
+| Data | Lives in | Lifetime | Kind |
+|---|---|---|---|
+| Uploads, `Page.image` | Streamlit upload store / memory | session | content |
+| Resized pages | `st.cache_data` (`max_entries=MAX_PAGES`) | process, evicted | content |
+| `Transcript` | SQLite `transcripts.db` | until pruned or cleared | content |
+| `Turn`s, Inspect data | `st.session_state` (Inspect: latest 5 turns) | session | content |
+| `Grounding` / Locate cache | `st.session_state` (64 entries) | session | content (labels are OCR text) |
+| `RunRecord` | logs, ring buffer, optional trace file | varies | metadata |
+| Eval set and truth | committed `evals/set-v*/` | permanent, versioned | synthetic |
+| Model weights | HF cache | until removed | external |
+
+**Rules:**
+1. **Identity comes from content; position is not identity.** A page is its
+   hash, never its upload order or file name.
+2. **Every derived result records how it was made** (`Derivation`). A result
+   without one may not be cached or compared.
+3. **The 0–1000 grid is the stored form**; pixels are computed when drawing
+   (`CLAUDE.md`'s rule, applied to the types).
+4. **Raw text stays separate from display text.** `raw_text` feeds prefix reuse
+   and Inspect; `display_text` feeds the page. Chat-template messages are built
+   from `raw_text` only.
+5. **Eval truth uses the same conventions:** grid boxes and the same QA shape
+   (step 1b), so `evals/metrics.py` compares a `Grounding` with truth without
+   converting.
+
+**Tests: `tests/test_domain.py`** (`fast` tier):
+- `page_id` is stable for the same bytes and different for one changed byte.
+- `Derivation.key()` changes when **each** field changes; check each one.
+- `Turn.page_for`:
+  - with a dropped page: sent `(p0, p2)`, citation index 1 → `p2`
+  - with a search hit in the sent list
+  - an out-of-range index raises `IndexError` with the index and list length
+- Template messages built from `Turn`s use `raw_text`, never `display_text`.
+- With step 4b: a `put` at two budgets for one page, then a lookup by
+  `page_id`, returns both.
+
+**Downstream, these steps use the types:**
+- 4: `parse` returns `Citation`s.
+- 4b: the key and the `page_id` column.
+- 2: `stream_answer` returns the `sent_pages` it used.
+- 5: pages become `Page`s, answers become `Turn`s.
+- 5g: Locate is cached by `Derivation`.
+- 9: search hits reconnect through `page_id`.
+- 1b/8b: truth shares the conventions.
+
 ### 4. Citation parsing — new `nmv/citations.py` + `tests/test_citations.py`
 
 - Format, taken from the template: `<co>span</co: 0:[1,2]>`.
@@ -501,7 +599,8 @@ step 9).
 
   ```sql
   CREATE TABLE IF NOT EXISTS transcripts (
-      key            TEXT PRIMARY KEY,   -- sha256 hex, see below
+      key            TEXT PRIMARY KEY,   -- Derivation.key(), see below
+      page_id        TEXT NOT NULL,      -- domain.page_id(bytes), step 3c
       text           TEXT NOT NULL,
       finish_reason  TEXT,
       width          INTEGER NOT NULL,   -- resolved size NMV actually saw
@@ -511,6 +610,7 @@ step 9).
       filename       TEXT,               -- display only, never part of the key
       created        TEXT NOT NULL       -- ISO-8601 UTC
   );
+  CREATE INDEX IF NOT EXISTS transcripts_page ON transcripts(page_id);
   CREATE VIRTUAL TABLE IF NOT EXISTS transcripts_fts USING fts5(
       text, content='transcripts', content_rowid='rowid'
   );
@@ -531,11 +631,16 @@ step 9).
   - On each connection, set `PRAGMA journal_mode=WAL` (two tabs can read while
     one writes), `PRAGMA busy_timeout=5000` and `PRAGMA secure_delete=ON`
     (deleted text is overwritten, not left in free pages).
-- **Key:** `sha256(` the following, joined `)`:
-  - the upload's raw bytes
-  - the effective budget (`ImagePlan`'s resolved pixels, not the slider value)
-  - `MODEL_REVISION`
-  - a `TRANSCRIBE_PROMPT_VERSION` constant
+- **Key:** `Derivation(page_id(raw bytes), resolved_px, MODEL_REVISION,
+  TRANSCRIBE_PROMPT_VERSION).key()` (step 3c). Never hash page bytes here
+  directly.
+  - `resolved_px` is `ImagePlan`'s resolved pixels, not the slider value.
+  - **Store `page_id` in its own indexed column,** so all transcripts of a page
+    at any budget can be found, and a re-uploaded page reconnects to its search
+    hits (step 9).
+  - **Future schema changes:** bump `PRAGMA user_version` with a numbered
+    migration in `nmv/transcripts.py`, tested against a database built at the
+    old version. Once version 1 has shipped, never edit its schema in place.
 - **Why this key, and not Streamlit's `file_id`:** `file_id` changes on every
   re-upload of the same file, so it would never get a cache hit across sessions.
 - **Self-invalidating:** a new checkpoint, a new prompt, or a different budget
@@ -1139,8 +1244,8 @@ Keep each item below as its own commit.
    - **The transcript store** (step 4b) turns a re-run into 0 s. Its key uses
      the *resolved* size, so slider moves within one final size still hit.
    - **Locate cache:** `st.session_state["locate_cache"]`, keyed on
-     `(page sha256, cited span, resolved pixels, MODEL_REVISION)` and holding
-     the parsed boxes plus the `truncated` flag. A second click on the same
+     `(Derivation(page_id, resolved_px, MODEL_REVISION, LOCATE_PROMPT_VERSION).key(), cited span)`
+     (step 3c) and holding a `Grounding`. A second click on the same
      citation is instant. Bound it to 64 entries, dropping the oldest first.
    - **Resized pages:** `st.cache_data(max_entries=MAX_PAGES)`, keyed on page
      hash and budget, following Grounding's `_encode_upload`.
@@ -2126,9 +2231,16 @@ model and no extra memory.
 - Selecting hits adds their transcripts to the reader's documents for the next
   question. They use the same 6K-token cap as uploads, and pages that do not fit
   are named, never silently dropped.
-- **Locate is unavailable for search hits.** The store keeps text only, never
-  page images; that is deliberate, for privacy and size. Grey out the citation
-  buttons for those pages, with the caption "Re-upload this page to locate it."
+- **Locate is unavailable for search hits until the page is re-uploaded.**
+  - The store keeps text only, never page images; that is deliberate, for
+    privacy and size.
+  - A hit becomes a `Page` with `image=None` (step 3c). Grey out its citation
+    buttons, with the caption "Re-upload this page to locate it."
+  - **When a current upload's `page_id` matches a hit's,** attach the image and
+    enable Locate, with no other action needed. The indexed `page_id` column
+    (step 4b) makes this a lookup.
+  - Test it: store a transcript, search for it, then "upload" the same bytes.
+    Locate enables.
 - Respect the save toggle: search reads the database, and reading is allowed
   when saving is off (same rule as step 4b).
 - Tests: add search cases to `tests/test_transcripts.py`:
