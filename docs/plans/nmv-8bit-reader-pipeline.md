@@ -4,6 +4,91 @@ Drafted 2026-10-18 for implementation in a fresh session. Target machine:
 MacBook Pro M2 Pro, 16 GB. Read `CLAUDE.md` first — every invariant there still
 applies, and step 7 lists the parts of it this plan changes.
 
+## Implementation order — start here
+
+**This section is the entry point. Work milestone by milestone, in this
+order, not in step-number order.** The step sections below are grouped by
+topic; several later-numbered steps are needed earlier (3b, 3c, 5i.1, 6, 5l).
+Read only the sections a milestone lists.
+
+### Progress
+
+Tick each box in the commit that completes it, so a fresh session can see the
+state from here.
+
+- [ ] **M0 · Foundations** (PR 1)
+- [ ] **M1 · Feasibility** (PR 2) — decisions 1 and 2 recorded below
+- [ ] **M2 · Working pipeline** (PR 3)
+- [ ] **M3 · Quality and polish** (PR 4)
+- [ ] **M4 · Docs and release** (PR 5) — decision 7 by the user
+- [ ] Later items, each only if the user asks
+
+### Milestones — one PR each, every one leaving `main` working
+
+| Milestone | Steps, in this order | Read | Done when |
+|---|---|---|---|
+| **M0 · Foundations** | PR setup (below) → **0** upgrade → **5i.1** localhost binding → **3b** test runner (+ grounding parse test) → **3c** data model | those sections + "Claude Code hooks" | CI green on the upgraded lock; `lsof` shows localhost only |
+| **M1 · Feasibility** | **1** NMV 8-bit → **1b** vision eval (bf16 vs 8-bit) → **6** add `mlx-lm` → **2** reader → **3** worker boot → **the M1 memory check** (below) | 1, 1b, 6, 2, 3, the memory budget, 8 (pass bar only) | decisions 1 and 2 recorded in this section and confirmed by the user |
+| **M2 · Working pipeline** | **4** citations → **4b** store (with `.gitignore`, permissions **5i.4**) → **5i.2** `safe_markdown` → **5i.3** Pillow formats → **5i.7** static greps → **5i.9** security test → **5e** errors → **5** the page → **5h** e2e (weights) and UI smoke | those sections | Ask documents works on the sample invoice: transcribe → ask → cite → Locate; `tests/run.py all` and `weights` green |
+| **M3 · Quality and polish** | **5l** run record → **5f** logging → **5k** monitoring → **5g** performance → **5b** theme guard → **5c** layout → **5d** accessibility → **8b** eval part B + baseline | those sections | `evals/baseline.json` committed; step 8's performance items measured |
+| **M4 · Docs and release** | **6b** docs structure → **7** docs, guards, CI → **5j** deployment → **8** full measurement → **5i.5, 5i.6, 5i.8** (offline docs, SHA-pinned actions, `SECURITY.md`) → `RELEASING.md` run → **user bumps the version** → **10** repo details | those sections + the verification checklist | the full verification checklist passes; the release is published by the user |
+| **Later** (only if asked) | **9** search; Chat prompt-cache reuse (5g.2); Dependabot (5i.6); `set-v2` injection documents (8b) | — | — |
+
+**Why this order, against the step numbers:**
+- **Step 6 comes before step 2.** `nmv/reader.py` imports `mlx_lm`, which does
+  not exist until step 6 adds it.
+- **The memory decision is in M1, not after everything.** Whether R7B fits
+  decides between R7B and Tiny Aya, which shapes citations, prefix reuse and
+  the evals. Finding out in step 8, after 5b–5l, would mean redoing work.
+- **5l comes before 5f and 5k**, which consume its run record.
+- **Security essentials land before the first page that renders model
+  output.** That means 5i.1 (localhost) in M0, and 5i.2 to 5i.4 in M2, before
+  step 5.
+- **3b and 3c come before any new test or type is written.**
+
+### The M1 memory check (the early half of step 8)
+
+`scripts/memory_check.py`, run through `nmv.runtime` like everything else:
+1. Read `mx.device_info()["max_recommended_working_set_size"]`. This replaces
+   the assumed 10.7 GB everywhere in the plan.
+2. Record `sysctl vm.swapusage` before starting.
+3. Load NMV 8-bit, then the reader.
+4. Run one grounding on `assets/sample-invoice.png` at the ceiling budget, then
+   one question over its transcript.
+5. Print active, peak and cache memory after each, and swap after.
+
+- **Pass:** peak plus cache ≤ ~90% of the limit, with no swap growth (step 8's
+  bar).
+- Step 8 later repeats this with the full feature set; keep the script for that.
+
+### Decisions that belong to the user
+
+Record each answer here, with the date, before moving past it.
+
+| # | Decision | When | Input |
+|---|---|---|---|
+| 1 | Is 8-bit's quality cost acceptable, or go back to bf16? | end of M1 | step 1b's report |
+| 2 | Keep R7B, switch to Tiny Aya, or add "unload the idle model"? | end of M1 | the M1 memory check (+ 8b quality later, if Tiny Aya) |
+| 3 | Cap the transcription budget? | M3 | step 5g.3's CER sweep |
+| 4 | Push branches and open each PR | every milestone | — |
+| 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8 |
+| 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1 |
+| 7 | Release: bump `version` (by hand) | end of M4 | `RELEASING.md` |
+
+### Cut list, if time runs short
+
+- **Cut first:** everything under "Later"; 5k's warnings and Unload button
+  (keep the System panel); 5l's trace file and Inspect (keep the run record);
+  5c (the Chat and Grounding touch-ups).
+- **Never cut:**
+  - 5i.1 localhost binding and 5i.2 `safe_markdown`
+  - step 1b, the 8-bit measurement
+  - the M1 memory decision
+  - the MLX import guard and `test_runtime_abandon.py`
+  - 3c's `sent_pages` mapping, without which citations can point at the
+    wrong page
+  - the version guard
+
 ## Goal
 
 Add a **read → reason → locate** pipeline that keeps both models loaded on 16 GB:
@@ -90,17 +175,24 @@ it is tested:
 
 ## Steps
 
-### Before step 0 — work on the branch, land it through a PR
+### Before step 0 — branches, and one PR per milestone
 
-Do all of this on `plan/nmv-8bit-reader-pipeline`, which already carries this
-plan and the hooks. Land it on `main` through a pull request, not by direct
-commits.
+Land the work through **five pull requests, one per milestone** (see
+"Implementation order"), never by direct commits to `main`. One PR of ~70
+commits could not be reviewed.
 
+- **M0** is built on `plan/nmv-8bit-reader-pipeline`, which already carries this
+  plan and the hooks, so PR 1 brings them to `main` together.
+- **Each later milestone** branches from the updated `main`:
+  `impl/m1-feasibility`, `impl/m2-pipeline`, `impl/m3-quality`,
+  `impl/m4-release`.
 - CI runs `check` on every `pull_request`, and runs `release` only on `main`.
-  So a PR means the first CI run on the upgraded lock happens off `main`, and a
-  red run never sits on the default branch.
-- Push the branch, then open the PR. **Ask the user before pushing or opening
-  it**, since both are outward-facing.
+  So each milestone's first CI run happens off `main`, and a red run never sits
+  on the default branch.
+- **None of the milestones changes `version`**, so merging M0–M3 publishes
+  nothing. Only the user's bump at the end of M4 releases.
+- **Ask the user before pushing any branch or opening any PR**, since both are
+  outward-facing.
 - Push after each step's commit, so CI checks every step separately.
 
 ### 0. Upgrade dependencies to latest — its own commit, before anything else
@@ -1854,6 +1946,9 @@ them in the same commit.
 
 ### 6. Dependency
 
+**Do this in M1, before step 2**, which imports `mlx_lm` ("Implementation
+order"). It is numbered 6 only for historical reasons.
+
 ```bash
 uv add mlx-lm==0.32.2   # or the latest release at implementation time, if newer
 ```
@@ -2107,6 +2202,11 @@ nobody "fixes" it later):
   `CLAUDE.md` explains why AppTest cannot stand in for a real browser.
 
 ### 8. Measure on the M2 Pro 16 GB (acceptance gate)
+
+**Split across milestones.** The memory decision (items 1–5 and the pass bar)
+runs early, as "the M1 memory check" in "Implementation order", using
+`scripts/memory_check.py`. This step runs **again in M4** with the full feature
+set, and adds the performance items (6–9) and the multi-page document.
 
 Use `assets/sample-invoice.png`, plus one dense multi-page document of 3–5 pages.
 Keep the multi-page document in the git-ignored `local/` folder, never in
