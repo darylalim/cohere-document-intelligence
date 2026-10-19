@@ -1613,6 +1613,12 @@ Items, in order:
       (`out_of_memory`, `download`, `disk_full`, `bad_image`, `internal`) has a
       heading in `docs/troubleshooting.md` containing that kind's
       `Failure.title`.
+   - **Exclude `docs/plans/` from checks 1–4.**
+     - A plan names files that do not exist yet: `nmv/reader.py`,
+       `local/scan.png` and the test files themselves, so check 3 would fail for
+       the whole implementation.
+     - Plans also quote old pins and the bf16 repo on purpose, as history.
+     - Plans are records, not current truth (item 3).
    - See it fail once, per step 3b: break a link, change a pin in a doc, delete
      a troubleshooting heading.
    - Add `*.md` and `docs/` to `stop-checks.sh`'s changed-file filter, so a
