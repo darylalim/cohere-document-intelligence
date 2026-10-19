@@ -16,11 +16,13 @@ Read only the sections a milestone lists.
 Tick each box in the commit that completes it, so a fresh session can see the
 state from here.
 
-- [ ] **M0 · Foundations** (PR 1)
-- [ ] **M1 · Feasibility** (PR 2) — decisions 1 and 2 recorded below
-- [ ] **M2 · Working pipeline** (PR 3)
-- [ ] **M3 · Quality and polish** (PR 4)
-- [ ] **M4 · Docs and release** (PR 5) — decision 7 by the user
+- [x] **Plan and guards** (PR #1, squash-merged): this plan, the Claude Code
+  hooks and `.claude/settings.json`
+- [ ] **M0 · Foundations** (PR 2)
+- [ ] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
+- [ ] **M2 · Working pipeline** (PR 4)
+- [ ] **M3 · Quality and polish** (PR 5)
+- [ ] **M4 · Docs and release** (PR 6) — decision 7 by the user
 - [ ] Later items, each only if the user asks
 
 ### Milestones — one PR each, every one leaving `main` working
@@ -220,15 +222,18 @@ with a budget computed on the rendered prompt.
 
 ### Before step 0 — branches, and one PR per milestone
 
-Land the work through **five pull requests, one per milestone** (see
+Land the work through **one pull request per milestone** (see
 "Implementation order"), never by direct commits to `main`. One PR of ~70
 commits could not be reviewed.
 
-- **M0** is built on `plan/nmv-8bit-reader-pipeline`, which already carries this
-  plan and the hooks, so PR 1 brings them to `main` together.
-- **Each later milestone** branches from the updated `main`:
-  `impl/m1-feasibility`, `impl/m2-pipeline`, `impl/m3-quality`,
-  `impl/m4-release`.
+- This plan and the hooks reached `main` first, on their own (PR #1), so the
+  guards protect `main` before any code lands.
+- **Every milestone, M0 included, branches from the updated `main`:**
+  `impl/m0-foundations`, `impl/m1-feasibility`, `impl/m2-pipeline`,
+  `impl/m3-quality`, `impl/m4-release`.
+- **Squash-merge each milestone PR.** The release workflow builds notes from
+  commit subjects since the last tag, so one subject per milestone keeps the
+  release notes readable. The PR keeps the individual commits.
 - CI runs `check` on every `pull_request`, and runs `release` only on `main`.
   So each milestone's first CI run happens off `main`, and a red run never sits
   on the default branch.
