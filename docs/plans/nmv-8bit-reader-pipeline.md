@@ -1390,6 +1390,120 @@ weights, no installer. Give each item its own commit.
   tunnel (e.g. `tailscale serve`) in front of the localhost-only server.
   **Never widen `server.address`** (step 5i).
 
+### 5k. Monitoring — on the user's Mac, in the app, with nothing sent anywhere
+
+Hosted monitoring (Sentry, Datadog, Grafana Cloud) would send data off the
+machine, against `gatherUsageStats = false` and the privacy design. The one risk
+worth watching in real time is **memory on a 16 GB machine running two
+models**.
+
+Data sources, checked on 2026-10-18:
+- `sysctl -n kern.memorystatus_vm_pressure_level` returns `1`. macOS uses
+  1 = normal, 2 = warning, 4 = critical.
+- `sysctl -n vm.swapusage` returns `total = … used = 0.00M …`.
+
+Give each item its own commit.
+
+1. **The worker publishes a snapshot; the page never asks the worker.**
+   - Calling `runtime.call(mx.get_active_memory)` on each rerun would queue
+     behind the current job, so the sidebar would freeze for the length of
+     every answer.
+   - In `nmv/runtime.py`, add a lock-protected snapshot dict that worker-side
+     code updates after each job and each load:
+     - `active_gb`, `cache_gb`, `peak_gb`
+     - `models` (`{"nmv": bool, "reader": bool}`)
+     - `last_kind`, `last_seconds`
+     - `updated` (a monotonic time)
+   - Page code reads it with `runtime.snapshot()`, which returns a copy and
+     never blocks on the worker.
+   - The memory figures come from worker-side MLX calls, keeping every MLX call
+     on the worker (`CLAUDE.md`). MLX's memory queries *do* work from other
+     threads (checked), but monitoring must not set a precedent of bypassing
+     the worker.
+   - **Queue depth:** `submit()` increments a counter, and a `Future`
+     done-callback decrements it. That covers jobs that succeed **and** jobs
+     that raise. `runtime.pending()` returns it.
+2. **A "System" panel:** a collapsed `st.expander("System")` at the bottom of
+   the shared sidebar, below the stats slot.
+   - It shows:
+     - a memory bar, `st.progress((active + cache) / limit)`, labelled
+       "7.9 / 10.7 GB"
+     - macOS memory pressure (Normal / Warning / Critical / Unknown)
+     - swap used
+     - which models are loaded
+     - the worker state: "idle", or "busy · N queued"
+     - saved transcripts (count and size)
+     - the last 10 runs as a small `st.dataframe`: kind, tokens, tok/s, peak GB,
+       `prefix=`
+   - The limit is `max_recommended_working_set_size`, read once on the worker
+     after load and stored in the snapshot (step 8 measures it).
+   - **The run history is numbers only**, from the same record step 5f's
+     `log_run` builds. Keep it in a process-wide ring buffer of 10 entries,
+     never document content.
+   - **`sysctl` reads live in `nmv/system.py`** (no MLX, no Streamlit):
+     `pressure_level()` and `swap_used_mb()`.
+     - Each runs `subprocess.run([...], capture_output=True, timeout=1)`.
+     - Any failure or unexpected output returns `None`, shown as "Unknown".
+       Never raise.
+   - **Busy feedback:** when `runtime.pending() > 0` as a page starts a job,
+     show "Waiting for another tab's job (N ahead)". Single-worker queueing is
+     otherwise invisible and looks like a hang.
+3. **Warnings when they matter**, checked after each run against the snapshot
+   and `nmv/system.py`:
+   - **Warning** (pressure 2, or swap grew since the last run): a `st.warning`
+     naming the fix: lower the image budget or max tokens, or unload the
+     reader.
+   - **Critical** (pressure 4): the same warning marked urgent, plus a WARNING
+     log line (step 5f).
+   - **Optional "Unload reader" button**, only on Ask documents and only while
+     a warning shows.
+     - It calls `load_reader.clear()`, then a worker job that drops the
+       worker-held reference and calls `mx.clear_cache()`.
+     - It also resets step 5g's prompt cache.
+     - This is step 8's "unload the idle model" fallback, offered to users. The
+       next question reloads the reader (cached weights, a few seconds).
+4. **Weekly CI** for upstream changes. Dependencies are locked, but runner
+   images change and vulnerabilities get disclosed.
+   - Add `schedule: - cron: "0 6 * * 1"` (Mondays 06:00 UTC) to the workflow's
+     `on:`.
+   - **Make the release job skip schedules explicitly.** Today's condition is
+     `github.ref == 'refs/heads/main' && github.event_name != 'pull_request'`,
+     and a scheduled run counts as `main`. The version check would exit, but
+     add `&& github.event_name != 'schedule'` so a weekly run can never
+     publish.
+   - **New `audit` job** (`ubuntu-latest` works, since it reads the lock and
+     installs nothing project-specific; `permissions: contents: read`):
+
+     ```bash
+     uv export --format requirements-txt --no-dev --no-hashes \
+       | uvx pip-audit==2.10.1 --strict -r /dev/stdin
+     ```
+
+     - `pip-audit` 2.10.1 was the latest release on 2026-10-18; check for a
+       newer one at implementation time.
+     - It is not a project dependency, so `uvx` is the right form under
+       `CLAUDE.md`'s rule, **pinned** so the result does not change on its own.
+     - Run `audit` on pushes, pull requests and the schedule.
+     - A failure turns the run red, and GitHub emails the repo owner by
+       default. No extra service.
+   - Pin the new job's actions to commit SHAs, like the rest (step 5i).
+5. **Model quality is not monitored continuously.** It only changes when the
+   code or weights change, so `tests/run.py weights` (step 5h) after any pin or
+   MLX change, as `RELEASING.md` requires, is the right check.
+6. **Tests:**
+   - `tests/test_monitoring.py` (`fast` tier):
+     - `nmv/system.py` parses real `vm.swapusage` and pressure output, and
+       returns `None` for empty, garbled or timed-out output
+     - `runtime.snapshot()` returns a copy, safe to read from several threads
+     - the pending counter returns to 0 after jobs that succeed and jobs that
+       raise
+     - the run ring buffer keeps exactly the last 10 entries
+     - Mark the file `# tier: mlx` if `runtime` cannot be imported without
+       booting mlx-vlm. Otherwise keep it `fast` by testing the counter and
+       snapshot helpers on their own.
+   - Step 5h's UI smoke test also renders the System expander with a fake
+     snapshot, and the warning with a fake pressure level of 2.
+
 ### 6. Dependency
 
 ```bash
