@@ -672,6 +672,11 @@ regression is easy to bisect.
    - **Test:** new `tests/test_grounding_describe.py`, a plain script. It
      covers the four corners, the exact centre, both threshold edges
      (332/333/667/668), a full-page box, a tiny box, and swapped coordinates.
+   - **Real-fixture case:** the sample invoice's PAID stamp. In pixels it is
+     `(820, 1180, 1140, 1400)` on a 1240×1754 page, which is
+     `(661, 673, 919, 798)` on the 0–1000 grid. Its centre is (790, 735), so it
+     must describe as `"lower right · about 25% of the page wide, 15% tall"`
+     (26% and 13%, rounded to 5). Verified 2026-10-18.
 2. **Never use colour as the only link between a box and its row** (WCAG
    1.4.1).
    - `PALETTE` holds red `(255, 92, 92)` and green `(74, 222, 128)`, the pair
@@ -1025,9 +1030,9 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
 - **Accessibility (step 5d):**
   - **VoiceOver (⌘F5), about 10 minutes:**
     1. On Grounding, run "Stamps and signatures" on `assets/sample-invoice.png`.
-       Confirm the box's "where" text is read from the table, and that it says
-       roughly "lower right", consistent with the PAID stamp at
-       `(820, 1180, 1140, 1400)` in pixels.
+       Confirm the box's "where" text is read from the table as "lower right ·
+       about 25% of the page wide, 15% tall", the test's fixture case. A few
+       pixels of model drift will not change the rounded wording.
     2. In Ask documents, transcribe, ask a question and open a citation. Confirm
        the page caption is read.
     3. Turn "Stream responses" off, ask again, and confirm the answer is read
