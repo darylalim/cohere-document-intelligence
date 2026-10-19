@@ -1078,17 +1078,21 @@ from the terminal, which has no Clear button.
    | ERROR | `internal` failures | `logger.exception`, full traceback |
    | DEBUG | Sampling settings, resolved image sizes, the reader's token count after the 6K cap | numbers only |
 
-   - Emit generation lines from one helper next to `RunStats`:
-     `ui.log_run(kind, stats, **numbers)`. All five call sites then share one
-     format.
-   - The INFO generation line is also **step 8's measurement record**: copy the
-     baseline numbers from the terminal instead of the sidebar.
-3. **Telling tabs apart.**
-   - Page-side calls add the first 6 characters of
-     `get_script_run_ctx().session_id` (fall back to `"-"` when there is no
-     context).
-   - Worker-side functions receive it as an **argument**. The worker thread has
-     no Streamlit context of its own, so reading it there returns nothing.
+   - The generation line is **step 5l's run record, logged once**. There is no
+     separate `log_run` format: all five call sites go through the record, so
+     they share one format by construction.
+   - That line is also **step 8's measurement record**. Step 5l's opt-in
+     `NMV_TRACE_FILE` gives the same numbers as JSON lines.
+3. **Telling tabs apart.** Step 5l's run context supplies it.
+   - `runtime.submit()` carries the run ID and session prefix to the worker with
+     `contextvars.copy_context().run`.
+   - A `logging.Filter` stamps `run=<id> session=<id>` on every `nmv` record,
+     on either thread.
+   - **No worker function takes an ID argument.**
+   - The session prefix is still the first 6 characters of
+     `get_script_run_ctx().session_id`, read page-side when the run starts (`"-"`
+     when there is no context).
+   - Add `run=%(run)s session=%(session)s` to the format string.
 4. **Leave third-party loggers alone.** transformers and huggingface-hub keep
    their own levels. Their first-run download output is exactly what step 5e's
    `download` failures need to be diagnosable.
@@ -1564,9 +1568,10 @@ Give each item its own commit.
        `prefix=`
    - The limit is `max_recommended_working_set_size`, read once on the worker
      after load and stored in the snapshot (step 8 measures it).
-   - **The run history is numbers only**, from the same record step 5f's
-     `log_run` builds. Keep it in a process-wide ring buffer of 10 entries,
-     never document content.
+   - **The run history shows step 5l's run records**, which are numbers only.
+     The ring buffer of the last 10 records lives in `nmv/trace.py`, and the
+     panel shows kind, queue wait, first-token time, tokens, peak GB and
+     `prefix=`.
    - **`sysctl` reads live in `nmv/system.py`** (no MLX, no Streamlit):
      `pressure_level()` and `swap_used_mb()`.
      - Each runs `subprocess.run([...], capture_output=True, timeout=1)`.
@@ -1634,6 +1639,113 @@ Give each item its own commit.
          counter returns to 0 after a job that succeeds and one that raises.
    - Step 5h's UI smoke test also renders the System expander with a fake
      snapshot, and the warning with a fake pressure level of 2.
+
+### 5l. Observability — one run record per action, and an in-browser Inspect view
+
+Logging (5f), monitoring (5k) and evaluation (1b/8b) each need per-run numbers.
+Without one shared record they would build three. What is still missing is
+being able to **explain one specific result**: why *this* answer was slow,
+or why it was wrong. Build this before 5f and 5k start consuming it, or adjust
+them in the same commit.
+
+1. **The run record: `nmv/trace.py`** (pure; no MLX, no Streamlit).
+   - A frozen dataclass `RunRecord`:
+
+     | Field | Answers the question |
+     |---|---|
+     | `run_id` (8 hex), `session` (6), `kind` (`chat` / `ground` / `transcribe` / `ask` / `locate`) | which action, from which tab |
+     | `queue_wait_s` | was it waiting behind another tab's job? (submit time to worker start) |
+     | `spans`: `prep`, `prefill`, `decode`, `parse`, `store` (seconds) | where the time went |
+     | `first_token_s` | how long before the first word, measured page-side when the first chunk arrives |
+     | `image_tokens`, `prompt_tokens`, `generated_tokens` | how big the job was |
+     | `budget_px`, `resolved_px` | what resolution the model actually saw |
+     | `pages_used`, `pages_dropped` (reader) | did the 6K cap cut anything? |
+     | `prefix` (`hit` / `trimmed` / `full` / `n/a`), `store` (`hit` / `miss` / `not-saved` / `n/a`) | was earlier work reused? |
+     | `peak_gb`, `finish_reason`, `outcome` (`ok` or a `classify()` kind) | how it ended |
+
+   - **Numbers, IDs and enum values only, never content.** It obeys step 5f's
+     rule by construction, and a test enforces it (item 7).
+   - **Prefill and decode times come from MLX's own statistics:**
+     `prompt_tokens / prompt_tps` and `generation_tokens / generation_tps`
+     from `RunStats`. Nothing inside mlx-vlm or mlx-lm is changed.
+   - `prep`, `parse` and `store` use a `span(name)` context manager timing with
+     `time.perf_counter()` into the current record. Spans nest; the record
+     keeps durations, not timestamps.
+   - **Use OpenTelemetry-compatible field names where they exist**
+     (`duration`, `status`), so moving to OTel later is a rename. Do not add OTel
+     now (item 8).
+2. **Run context carried to the worker.**
+   - `trace.start(kind)` runs page-side when an action begins. It creates the
+     record, sets `run_id` / `session` / the record in `contextvars`, and
+     returns a handle the page closes with `trace.finish(...)`.
+   - **`runtime.submit()` wraps every job in `contextvars.copy_context().run`.**
+     - Verified 2026-10-18: a plain `ThreadPoolExecutor.submit` arrives on
+       `mlx-worker_0` with the variable's **default**. With `copy_context().run`
+       it arrives with the value set before submitting.
+     - Worker-side code then reads the current record and adds spans without
+       any extra argument.
+     - Record the submit time in the context too, so the worker can set
+       `queue_wait_s` when the job starts.
+   - **A `logging.Filter`** on the `nmv` handler stamps `run` and `session` on
+     every record (`-` when unset). That is step 5f's format addition.
+3. **One record, four consumers.** These replace pieces of earlier steps
+   rather than adding a parallel system.
+   1. **Logging (5f):** `trace.finish` logs the record as one INFO line, or
+      WARNING for expected failure kinds.
+   2. **Monitoring (5k):** `trace.finish` appends to a process-wide,
+      lock-protected ring buffer of 10 records that the System panel reads.
+   3. **Evaluation (1b/8b):** `evals/run.py` stores each case's record in the
+      summary JSON, so quality and timing sit side by side.
+   4. **Inspect** (item 5).
+4. **Run ID in failures.** `ui.show_failure` (step 5e) shows the ID in its
+   details expander ("run a1b2c3d4"). Every terminal line for that action,
+   page and worker alike, carries `run=a1b2c3d4`, so one search finds the whole
+   story.
+5. **Inspect: see what the model saw, in the browser only.**
+   - Under each Chat reply, Ask answer and Locate result, add a collapsed
+     `st.expander("Inspect")`. It generalises Grounding's existing "Raw
+     response" expander, which Grounding keeps.
+   - Contents:
+     - **the prompt exactly as the chat template rendered it**: for the reader,
+       which pages were included and which the 6K cap dropped; control tokens
+       left visible. Show it in `st.code(..., language=None, wrap_lines=True)`.
+     - **the raw model output** before citation parsing and `safe_markdown`
+       (step 5i), also in `st.code`, which renders nothing and is therefore
+       safe for hostile text
+     - **the run record** as a small table
+   - **Keep content in `st.session_state` for the latest 5 turns per page only.**
+     Never write it to disk or logs. A refresh clears it, matching the save
+     toggle's model.
+   - This is how a user checks a suspected injection (step 5i): the Inspect
+     prompt shows whether the document text carried the instruction.
+   - For images, show the resolved size and token count, not a copy of the
+     image. The image is already on the page.
+6. **Saving traces for measurement: `NMV_TRACE_FILE=<path>`** (opt-in, unset by
+   default).
+   - When set, `trace.finish` appends `json.dumps(asdict(record))` as one line.
+     Numbers only, so it may be kept anywhere.
+   - Step 8 uses it for medians and spread over ~20 runs instead of reading
+     the sidebar.
+   - Document it in `docs/performance.md` and `docs/privacy.md` (step 6b). The
+     privacy page states it holds no document content.
+7. **Tests:**
+   - `tests/test_trace.py` (`fast` tier):
+     - spans time and nest correctly with a fake clock
+     - the logging filter stamps `run` and `session`, and uses `-` when unset
+     - the ring buffer keeps the last 10 records
+     - `NMV_TRACE_FILE` writes one valid JSON line per record to a temp file
+     - **a structural privacy check:** every `str` field of `RunRecord` is an ID
+       (hex), an enum value, or `finish_reason`. The test fails if anyone adds a
+       free-text field. Inspect content lives in session state, never in the
+       record.
+   - **In `tests/test_runtime_abandon.py` (`mlx` tier):** a context variable set
+     before `runtime.submit()` is visible inside the job, and `queue_wait_s` is
+     ≥ 0. This needs a real submit.
+   - **In step 5h's UI smoke test:** Inspect renders with a fake turn, and the
+     raw output appears inside a code block, not as rendered Markdown.
+8. **Not included:** OpenTelemetry exporters, Jaeger, or hosted tracing. They
+   send data off the machine and add dependencies to a single-process app. The
+   OTel-compatible field names keep that door open.
 
 ### 6. Dependency
 
