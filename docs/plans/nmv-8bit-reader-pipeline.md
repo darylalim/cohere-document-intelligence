@@ -1269,9 +1269,15 @@ config change that protects everything after it.
    `stop-checks.sh`. Each must print nothing:
 
    ```bash
-   grep -rn 'unsafe_allow_html=True' nmv/ app_pages/ streamlit_app.py
-   grep -rn 'trust_remote_code=True' nmv/ app_pages/ streamlit_app.py
+   grep -rnE '^[^#]*(unsafe_allow_html=True|trust_remote_code=True)' nmv/ app_pages/ streamlit_app.py
    ```
+
+   - The `^[^#]*` prefix is required. `nmv/model.py:32` has a comment
+     explaining that mlx-vlm loads the tokenizer `with trust_remote_code=True`.
+     A plain `grep` matches that comment and fails CI on day one (seen
+     2026-10-18).
+   - The prefix skips text after a `#`. It still catches a real call,
+     including one followed by a trailing comment.
 
 8. **`SECURITY.md`:**
    - how to report a vulnerability: turn on GitHub's private vulnerability
@@ -1550,7 +1556,7 @@ uv run ty check
 uv run python tests/run.py all                    # fast + mlx + ui
 uv run python tests/run.py weights                # local only: both models, ~7.7 GB, needs the cache
 grep -rnE 'log(ger)?\.(debug|info|warning|error|exception|critical)\(.*\b(text|transcript|prompt|messages|reply|raw|span|query|label|name)\b' nmv/ app_pages/   # must print nothing
-grep -rn 'unsafe_allow_html=True\|trust_remote_code=True' nmv/ app_pages/ streamlit_app.py   # must print nothing
+grep -rnE '^[^#]*(unsafe_allow_html=True|trust_remote_code=True)' nmv/ app_pages/ streamlit_app.py   # must print nothing
 lsof -nP -iTCP:8501 -sTCP:LISTEN   # with the server running: only 127.0.0.1 / [::1]
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
