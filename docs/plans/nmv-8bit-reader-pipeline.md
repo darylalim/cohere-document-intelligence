@@ -27,7 +27,7 @@ state from here.
 
 | Milestone | Steps, in this order | Read | Done when |
 |---|---|---|---|
-| **M0 · Foundations** | PR setup (below) → **0** upgrade → **5i.1** localhost binding → **5i.2** `safe_markdown` + `ui.show_reply`, with Chat switched to it → **5i.6** SHA-pinned actions → **3b** test runner (+ grounding parse test, + the CI tier steps and the CI pin check) → **3c** data model | those sections + "Claude Code hooks" | CI green on the upgraded lock; `lsof` shows localhost only; Chat no longer uses `st.write_stream` |
+| **M0 · Foundations** | PR setup (below) → **0** upgrade → **3b** test runner (+ grounding parse test, + the CI tier steps and the CI pin check) → **5i.1** localhost binding → **5i.2** `safe_markdown` + `ui.show_reply`, with Chat switched to it → **5i.9 (M0 part)** security test: localhost and `safe_markdown` cases → **5i.6** SHA-pinned actions → **3c** data model | those sections + "Claude Code hooks" | CI green on the upgraded lock; `lsof` shows localhost only; Chat no longer uses `st.write_stream` |
 | **M1 · Feasibility** | **1** NMV 8-bit → **1b** prompts module + vision eval (bf16 vs 8-bit) → **6** add `mlx-lm` → **2** reader (+ the import-guard regex in CI and `CLAUDE.md`) → **3** worker boot → **the M1 memory check** (below) | 1, 1b, 6, 2, 3, the memory budget, 8 (pass bar only) | decisions 1 and 2 recorded in this section and confirmed by the user |
 | **M2 · Working pipeline** | **4** citations → **4b** store (with `.gitignore`, permissions **5i.4**, ruff `S608`) → **5i.3** Pillow formats → **5i.7** static greps → **5i.9** security test (the Pillow cases; the localhost and `safe_markdown` cases landed in M0) → **5e** errors → **5** the page → **5h** e2e (weights) and UI smoke | those sections | Ask documents works on the sample invoice: transcribe → ask → cite → Locate; `tests/run.py all` and `weights` green |
 | **M3 · Quality and polish** | **5l** run record → **5f** logging → **5k** monitoring → **5g** performance → **step 8's performance pass** (items 6–9, including the budget sweep for decision 3) → **5b** theme guard → **5c** layout → **5d** accessibility → **8b** eval part B + baseline | those sections, and 8 items 6–9 | step 8 items 6–9 measured; decision 3 recorded; `evals/baseline.json` committed |
@@ -777,8 +777,7 @@ or trace files; **metadata** can go anywhere.
   - A closing tag can list several groups joined by `,`.
 - `parse(response_text) -> tuple[str, list[Citation]]`, where `Citation` is
   step 3c's type: `span`, `doc_indices`, plus `start` and `end` (character
-  offsets in the clean text, for highlighting). Add those two fields to 3c's
-  definition; there is only one `Citation`.
+  offsets in the clean text, for highlighting). (Both are already in 3c's definition; there is only one `Citation`.)
   - Input is the **response body only**, never the thinking block (step 2).
   - **Keep only tool-call id `0`.** Drop groups with any other id (`1:[0]`),
     since directly injected documents are always id 0.
@@ -850,6 +849,8 @@ step 9).
       height         INTEGER NOT NULL,
       model_revision TEXT NOT NULL,
       prompt_version INTEGER NOT NULL,
+      resolved_px    INTEGER NOT NULL,   -- Derivation field, plain form
+      max_tokens     INTEGER NOT NULL,   -- Derivation field, plain form
       filename       TEXT,               -- display only, never part of the key
       created        TEXT NOT NULL       -- ISO-8601 UTC
   );
@@ -875,7 +876,8 @@ step 9).
     one writes), `PRAGMA busy_timeout=5000` and `PRAGMA secure_delete=ON`
     (deleted text is overwritten, not left in free pages).
 - **Key:** `Derivation(page_id(raw bytes), resolved_px, MODEL_REVISION,
-  TRANSCRIBE_PROMPT_VERSION).key()` (step 3c). Never hash page bytes here
+  TRANSCRIBE_PROMPT_VERSION, TRANSCRIBE_MAX_TOKENS).key()` (step 3c), all five
+  fields. Never hash page bytes here
   directly.
   - `resolved_px` is `ImagePlan`'s resolved pixels, not the slider value.
   - **Store `page_id` in its own indexed column,** so all transcripts of a page
@@ -892,8 +894,9 @@ step 9).
 - **Plain columns too:** `model_revision` and `prompt_version` are stored as
   their own columns, because the key is a hash and cannot be read back. This is
   what makes `prune` a single `DELETE`.
-- **Retention: no time-based expiry.** A valid transcript is never deleted
-  behind the user's back. Re-running NMV costs seconds per page, while keeping
+- **Retention: current-version transcripts never expire.** A valid transcript
+  is never deleted behind the user's back; only rows from another version go,
+  and only once 30 days old (below). Re-running NMV costs seconds per page, while keeping
   the result costs a few KB. Staleness is already impossible because of the key.
   Two ways a transcript leaves the store:
   1. **Old-version entries are pruned, but only once they are stale.**
@@ -903,7 +906,7 @@ step 9).
        prune on start-up would delete the other checkout's valid transcripts
        on every switch, costing minutes of re-transcription.
      - `prune(model_revision, prompt_version, older_than_days=30) -> int` runs
-       `DELETE … WHERE (model_revision != ? OR prompt_version != ?) AND created < ?`
+       `DELETE … WHERE (model_revision != ? OR prompt_version != ? OR max_tokens != ?) AND created < ?`
        and returns the row count, followed by `'optimize'` (see "Deleting
        really deletes").
      - Run it once per server process, from an `st.cache_resource`-wrapped call
@@ -985,7 +988,11 @@ step 9).
     size has dropped (measure after close, because of WAL)
   - after `prune()` and `optimize`, a pruned row's unique term is no longer
     present in the file's bytes
-  - `prune()` removes only rows matching its policy (below)
+  - `prune()` policy:
+    - an other-version row under 30 days old survives
+    - one over 30 days old is removed
+    - the explicit "other versions" action ignores age
+    - current-version rows are never removed, at any age or budget
   - FTS stays in sync: after `put`, `search` finds a word from the text, and
     after `prune`/`clear` it does not
   - threads: `put` from one thread and `get` from another both succeed (guards
@@ -1164,8 +1171,10 @@ Rules that apply to this page:
 - Reuse `ui.sidebar()` as is. Any new sidebar widget needs
   `persist_state="session"`.
 - Fill the stats slot after each stage, and show which model ran it.
-- `max_tokens` from the sidebar applies to both stages. Transcription of a dense
-  A4 page can exceed 512, so surface `RunStats.truncated` as a warning per page.
+- **Neither stage uses the sidebar's max tokens.** Transcription uses
+  `TRANSCRIBE_MAX_TOKENS` (2048, step 1b) and the reader 1024 (step 2). Still
+  surface `RunStats.truncated` as a warning per page, because a page can exceed
+  even 2048.
 
 #### Layout that adapts to the display
 
@@ -1571,7 +1580,7 @@ from the terminal, which has no Clear button.
    | INFO | Model load start and end (NMV, reader) | repo, `revision[:7]`, seconds, `mx.get_active_memory()` GB after load (worker side) |
    | INFO | Each generation: chat / ground / ask / locate / transcribe | kind, session prefix, prompt and generated tokens, prefill and decode tok/s, peak GB, `finish_reason` |
    | INFO | Each transcribed page | `page N/M`, `PageId` prefix, `hit` / `miss` / `not-saved`, seconds |
-   | INFO | Store maintenance | rows pruned at start-up, rows removed by Clear |
+   | INFO | Store maintenance | rows pruned (once per process, on the first Ask visit; stale other-version rows only), rows removed by Clear |
    | WARNING | Expected `classify()` kinds: `out_of_memory`, `download`, `disk_full` | kind, session prefix, budget, max tokens, page count, **no traceback** |
    | ERROR | `internal` failures | `logger.exception`, full traceback |
    | DEBUG | Sampling settings, resolved image sizes, the reader's rendered-prompt tokens and pages dropped by the budget | numbers only |
@@ -1618,7 +1627,7 @@ from the terminal, which has no Clear button.
    It is `fast`-tier, so the runner picks it up. The content grep in item 5 is
    static (tier 0), so it gets its own CI step and a line in `stop-checks.sh`.
 
-### 5g. Performance — never redo work, reuse the reader's prefix, stay out of swap
+### 5g. Performance — never redo work, stay out of swap
 
 **Where the time goes** (estimate; step 8 replaces it). The M2 Pro has roughly
 half the M2 Max's GPU cores and memory bandwidth.
@@ -1637,7 +1646,7 @@ Keep each item below as its own commit.
    - **The transcript store** (step 4b) turns a re-run into 0 s. Its key uses
      the *resolved* size, so slider moves within one final size still hit.
    - **Locate cache:** `st.session_state["locate_cache"]`, keyed on
-     `(Derivation(page_id, resolved_px, MODEL_REVISION, LOCATE_PROMPT_VERSION).key(), cited span)`
+     `(Derivation(page_id, resolved_px, MODEL_REVISION, LOCATE_PROMPT_VERSION, LOCATE_MAX_TOKENS).key(), grounded text)`
      (step 3c) and holding a `Grounding`. A second click on the same
      citation is instant. Bound it to 64 entries, dropping the oldest first.
    - **Resized pages:** `st.cache_data(max_entries=MAX_PAGES)`, keyed on page
@@ -1727,8 +1736,8 @@ runner and helper.
 
    | Check | Pass condition |
    |---|---|
-   | Grounding: "Find the PAID stamp. Return a JSON list of {\"bbox_2d\": [x1, y1, x2, y2]}." | a box within ±20 grid units, per edge, of `(661, 673, 919, 798)` (the stamp in 0–1000 grid units; step 5d) |
-   | Transcription (step 5's prompt) | the text, with whitespace and case normalised, contains `acme logistics`, `nmv-2026-0847`, `4,182.55` |
+   | Grounding: `LOCATE_PROMPT.format(text="the PAID stamp")` with `LOCATE_MAX_TOKENS`, imported from `nmv/prompts.py` | a box within ±20 grid units, per edge, of `(661, 673, 919, 798)` (the stamp in 0–1000 grid units; step 5d) |
+   | Transcription: `TRANSCRIBE_PROMPT` with `TRANSCRIBE_MAX_TOKENS`, imported from `nmv/prompts.py` | the text, with whitespace and case normalised, contains `acme logistics`, `nmv-2026-0847`, `4,182.55` |
    | Reader: "What is the total due?" over that transcript | the answer contains `4,182.55`, and `nmv.citations.parse` finds at least one citation to page index 0 |
    | Locate on the first cited span | a box whose centre has x < 500 and y < 333: the "Total due" line in the upper left |
    | Template overhead | the real rendered `rag` prompt for one short question and a one-character document is within ±10% of 1,658 tokens (step 2's measured figure) |
@@ -1904,7 +1913,9 @@ config change that protects everything after it.
    - the trust model: local only, pinned checkpoints, no telemetry
      (`gatherUsageStats = false`), and transcripts stored locally with a Clear
      control
-9. **`tests/test_security.py`** (`fast` tier):
+9. **`tests/test_security.py`** (`fast` tier). **Written in two parts:** the
+   `config.toml` and `safe_markdown` cases in M0, with 5i.1 and 5i.2; the
+   `open_upload` cases and the hostile-document fixture in M2, with 5i.3.
    - `config.toml` sets `server.address` to `localhost` or `127.0.0.1`.
    - `safe_markdown`:
      - neutralises inline, reference-style and HTML images, including nested
@@ -2085,7 +2096,6 @@ Give each item its own commit.
      a warning shows.
      - It calls `load_reader.clear()`, then a worker job that drops the
        worker-held reference and calls `mx.clear_cache()`.
-     - It also resets step 5g's prompt cache.
      - This is decision 2's "unload the idle model" option, offered to users. The
        next question reloads the reader (cached weights, a few seconds).
 4. **Weekly CI** for upstream changes. Dependencies are locked, but runner
@@ -2548,8 +2558,9 @@ nobody "fixes" it later):
 
 **Split across milestones.** The memory decision (items 1–5 and the pass bar)
 runs early, as "the M1 memory check" in "Implementation order", using
-`scripts/memory_check.py`. This step runs **again in M4** with the full feature
-set, and adds the performance items (6–9) and the multi-page document.
+`scripts/memory_check.py`. Items 6–9 (the performance pass, with the
+multi-page document and the budget sweep) run **in M3**, before 8b and decision
+3. **M4** repeats items 1–5 with every feature on.
 
 Use `assets/sample-invoice.png`, plus one dense multi-page document of 3–5 pages.
 Keep the multi-page document in the git-ignored `local/` folder, never in
@@ -2776,7 +2787,8 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   - The "Save transcripts" toggle: confirm on/off from the button label as well
     as from the track.
   - Greyed Locate buttons read as unavailable, with their caption.
-  - Transcript expanders, including a Markdown table, show their borders.
+  - The Transcript expander (selected page), including a Markdown table,
+    shows its border.
   - The page image under a drawn box. In Light it stays the brightest surface;
     in Dark the box colours stay distinct from the accent.
 - **All three pages at five widths.** Use Chrome DevTools' device toolbar in a
@@ -2824,8 +2836,9 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
     carries `#N` and matches its table row by number.
 - **Error handling (step 5e):**
   1. **Out of memory.**
-     - Set the budget slider to its ceiling and max tokens to 2048. With both
-       models loaded, ask about 10 dense pages.
+     - Set the budget slider to its ceiling. With both models loaded, ask
+       about 10 dense pages (the budget and the page count are the levers;
+       the sidebar's max tokens no longer affects Ask).
      - Expect the `out_of_memory` message, not a traceback.
      - Lower the budget and press Retry; it should succeed.
      - Then confirm Chat still answers, so the worker survived.
