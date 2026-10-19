@@ -229,6 +229,84 @@ body that runs on the worker.**
 - Update the docstring to say this covers both libraries.
 - Rerun `tests/test_runtime_abandon.py`.
 
+### 3b. Test runner and harness — before any new test
+
+The plan adds about nine test files. Listing them by hand in CI, in
+`stop-checks.sh` and in the checklist would mean three lists that drift apart.
+**Build one runner first, so every later step only adds a file.**
+
+**Tiers**, sorted by what a test needs to run:
+
+| Tier | Needs | Runs in | Header |
+|---|---|---|---|
+| 0 · Static | nothing | edit hooks, Stop hook, CI | — (ruff, ty, the import, pin and content greps) |
+| 1 · `fast` | pure Python, no MLX import | **Stop hook**, CI | none needed (the default) |
+| 2 · `mlx` | Apple Silicon, no weights | CI (macOS runner) | `# tier: mlx` |
+| 3 · `weights` | both models (~7.7 GB) | **local only**: before merge, and after any pin, mlx or mlx-vlm change | `# tier: weights` |
+| 4 · `ui` | Streamlit AppTest, models stubbed | CI | `# tier: ui` |
+| 5 · Manual | a person and a browser | before merge | the verification checklist |
+
+1. **`tests/run.py`:** `uv run python tests/run.py fast|mlx|ui|weights|all`.
+   - It globs `tests/test_*.py` and reads each file's tier from a
+     `# tier: <name>` line in its first 15 lines. No header means `fast`.
+   - It runs each file as **its own process**
+     (`subprocess.run([sys.executable, path])`), keeping the plain-script style
+     `CLAUDE.md` requires and isolating MLX state between files.
+   - It prints one PASS/FAIL line per file and a summary, with the failing
+     file's output tail (40 lines), and exits non-zero if anything failed.
+   - `all` means every tier except `weights` unless `--with-weights` is passed,
+     so nobody downloads 7.7 GB by accident.
+   - It fails on an unknown tier name, so a typo cannot silently drop a test.
+2. **Tag the two existing tests** `# tier: mlx`: `test_resize_parity.py`
+   imports mlx-vlm, and `test_runtime_abandon.py` boots it through
+   `nmv.runtime`.
+3. **`tests/_check.py`:** the `check(name, condition, detail)` and `finish()`
+   pair that both existing tests already copy, moved into one shared module.
+   - Both existing tests switch to it in this step, and every new test uses it.
+   - Same output (`PASS`/`FAIL  name — detail`), same exit code.
+   - The leading underscore keeps the runner from treating it as a test.
+4. **Wire the runner in once:**
+   - **CI:** replace the two existing test steps with a "Tests (fast)" step
+     and a "Tests (mlx)" step (`tests/run.py fast`, `tests/run.py mlx`). Add a
+     "Tests (ui)" step when step 5h adds the first UI test.
+   - **`stop-checks.sh`:** replace its hard-coded test loop with
+     `uv run python tests/run.py fast`. Widen its changed-file filter to also
+     match `.streamlit/config.toml` (step 5b's theme test) and `tests/fixtures/`.
+     Re-test the hook with a piped payload afterwards.
+   - **The checklist:** `uv run python tests/run.py all`.
+   - From here on, a new test is picked up by dropping in a file with the right
+     header. No later step edits these three places to add a test.
+5. **The first new test, for an existing gap:** `tests/test_grounding_parse.py`.
+   - `parse_boxes` handles the format `CLAUDE.md` warns about: bare coordinate
+     arrays, optional labels, truncated replies. Nothing tests it today.
+   - **Fixtures are real model output**, saved as text in
+     `tests/fixtures/grounding/*.txt`. Capture them once, at temperature 0 on
+     `assets/sample-invoice.png`, by running the grounding presets and copying
+     the "Raw response" expander.
+   - Cases:
+     - a bare array (`[659, 671, 921, 799]` style)
+     - labelled JSON
+     - an array cut off at max tokens
+     - a prose answer
+     - an empty `[]`
+     - swapped coordinates
+   - **Write by hand only the cases the model will not produce on demand**
+     (truncated, swapped), and name those files `*.handmade.txt` so the
+     difference is visible.
+   - **Fixtures come only from `assets/`, never `local/`.** Committed test data
+     is published.
+
+**Rules for every test from here on:**
+- Plain script, no pytest (`CLAUDE.md`); exits non-zero on failure; uses
+  `tests/_check.py`.
+- **See it fail once.** Before committing a test, break the code it covers on
+  purpose, watch it go red, then restore. The pin check and theme test already
+  do this; it is now the rule.
+- **Deterministic:** temperature 0 wherever a model runs; temporary
+  directories via env vars (`NMV_TRANSCRIPT_DB`); no network in tiers 0, 1, 2
+  and 4.
+- No test writes outside a temporary directory, and no test reads `local/`.
+
 ### 4. Citation parsing — new `nmv/citations.py` + `tests/test_citations.py`
 
 - Format, taken from the template: `<co>span</co: 0:[1,2]>`.
@@ -621,14 +699,9 @@ from config. Streamlit's rendered colours (hover darkening, its own tints) can
 differ, so this is a floor, and the real-browser check in both modes remains
 the final word (`CLAUDE.md`).
 
-Wire it in:
-- **CI** (step 7): add a "Theme contrast" step in `check`, in the same commit as
-  the test.
-- **Stop hook** (`.claude/hooks/stop-checks.sh`):
-  - Add the test to the fast-test loop.
-  - Widen the changed-file filter to also match `.streamlit/config.toml`, so a
-    theme-only edit triggers it.
-  - Re-test the hook with a piped payload after editing it.
+Wiring: none needed. It is a `fast`-tier file, so step 3b's runner picks it up
+in CI and in the Stop hook. Step 3b already widened the hook's filter to
+`.streamlit/config.toml`.
 
 ### 5c. Adaptive layout touch-ups for Chat and Grounding
 
@@ -735,8 +808,8 @@ regression is easy to bisect.
      this app's control. Name whatever the axe pass in the checklist reports
      there.
 
-Wire `tests/test_grounding_describe.py` into CI (a "Box descriptions" step, in
-the same commit as the test) and into `stop-checks.sh`'s fast-test loop.
+`tests/test_grounding_describe.py` is `fast`-tier, so step 3b's runner picks it
+up; no wiring needed.
 
 ### 5e. Error handling — `nmv/errors.py` + `tests/test_errors.py`
 
@@ -819,8 +892,8 @@ the most likely new failure, so give it a plain answer.
    - Extend `tests/test_runtime_abandon.py` with one case: after a producer
      **raises** mid-stream, the consumer receives that exception, and the next
      `runtime.call()` still succeeds within the probe timeout.
-   - Wire `tests/test_errors.py` into CI (an "Error classification" step, in
-     the same commit as the test) and into `stop-checks.sh`'s fast-test loop.
+   - `tests/test_errors.py` is `fast`-tier, and the extended abandon test stays
+     `mlx`-tier. The runner picks both up; no wiring needed.
 
 ### 5f. Logging — `nmv/log.py` + `tests/test_logging.py`
 
@@ -912,8 +985,8 @@ from the terminal, which has no Clear button.
    - A record emitted from a `ThreadPoolExecutor(thread_name_prefix="mlx-worker")`
      carries `mlx-worker_0`.
 
-   Wire it into CI ("Logging setup", in the same commit as the test) and into
-   `stop-checks.sh`.
+   It is `fast`-tier, so the runner picks it up. The content grep in item 5 is
+   static (tier 0), so it gets its own CI step and a line in `stop-checks.sh`.
 
 ### 5g. Performance — never redo work, reuse the reader's prefix, stay out of swap
 
@@ -1024,6 +1097,69 @@ Keep each item below as its own commit.
 There is no performance test in CI: GitHub's 7 GB macOS runner cannot load the
 models. Step 8 is the gate.
 
+### 5h. Model and UI tests — `test_models_e2e.py` (weights) + `test_pages_smoke.py` (ui)
+
+These come last because they need the finished pipeline. Both use step 3b's
+runner and helper.
+
+1. **`tests/test_models_e2e.py` (`# tier: weights`).** It turns today's manual
+   model checks into a script.
+   - Load both pinned models through the real `runtime` worker.
+   - Run everything at **temperature 0**. `Sampling` deliberately has no seed,
+     so greedy decoding is what makes runs repeatable.
+   - Use `assets/sample-invoice.png` only.
+
+   | Check | Pass condition |
+   |---|---|
+   | Grounding: "Find the PAID stamp. Return a JSON list of {\"bbox_2d\": [x1, y1, x2, y2]}." | a box within ±20 grid units, per edge, of `(661, 673, 919, 798)` (the stamp in 0–1000 grid units; step 5d) |
+   | Transcription (step 5's prompt) | the text, with whitespace and case normalised, contains `acme logistics`, `nmv-2026-0847`, `4,182.55` |
+   | Reader: "What is the total due?" over that transcript | the answer contains `4,182.55`, and `nmv.citations.parse` finds at least one citation to page index 0 |
+   | Locate on the first cited span | a box whose centre has x < 500 and y < 333: the "Total due" line in the upper left |
+   | Prefix reuse (step 5g): ask "Who issued it?" next | **report** the `prefix=` outcome; `full` is a reported result, not a failure (sliding-window limit) |
+   | Memory | **report** `get_peak_memory()` and `get_cache_memory()` against `max_recommended_working_set_size`; fail only if peak exceeds it |
+
+   - **Write the expected values in the test file**, each with a comment naming
+     its source (the invoice image, step 5d's grid maths).
+   - **When to run it:** before merging the PR, and after any change to a
+     model pin, mlx, mlx-vlm or mlx-lm. **Never in CI**: GitHub's 7 GB macOS
+     runner cannot hold both models.
+   - If the weights are not cached, print one line saying so and exit 0 as
+     **SKIP**. The runner shows SKIP distinctly, so a missing cache never passes
+     as green.
+2. **`tests/test_pages_smoke.py` (`# tier: ui`).** A deliberately narrow check
+   using `streamlit.testing.v1.AppTest`.
+   - Replace `nmv.ui.load_studio`, `nmv.ui.load_reader` and the `stream_*`
+     functions with fakes returning fixed text, so no MLX and no weights are
+     needed.
+   - Patch the names where the pages look them up (`nmv.ui.*`), not where they
+     are defined.
+   - For each of the three pages, check that it:
+     - renders with no upload and raises no exception
+     - shows its key widgets (Ask documents: uploader, save toggle, Transcribe
+       button)
+     - makes the Transcribe label read "saving to disk", then "not saving"
+       after the toggle is set off
+     - shows `show_failure` output when a fake raises a `RuntimeError` holding
+       a Metal out-of-memory string, and no uncaught exception
+   - **Do not test page-switch persistence with AppTest.** `CLAUDE.md`
+     documents why AppTest gives the wrong answer there; the browser check
+     stays authoritative. Say so in the file's docstring.
+   - Add the "Tests (ui)" CI step in the same commit (step 7).
+
+**What each test protects:**
+
+| Risk | Covered by |
+|---|---|
+| An MLX call on the wrong thread | import grep, runtime abandon, `threadName` in logs (5f) |
+| Resize maths drifting from mlx-vlm | resize parity |
+| A pin moving or `.py` being fetched | pin check (CI), pin hook |
+| Model output in unexpected formats | grounding parsing, citations (real fixtures) |
+| Document text leaking | content grep, transcript store tests, the terminal check (5f) |
+| Memory, with both models resident | `test_models_e2e.py` + step 8 |
+| The theme pairing drifting | theme contrast |
+| UI regressions | `test_pages_smoke.py` + the manual browser checks |
+| Error-message regressions | error classification, the UI smoke test's out-of-memory case |
+
 ### 6. Dependency
 
 ```bash
@@ -1116,20 +1252,17 @@ upgrade from ever publishing. Change or add, inside `check`:
 
 1. **Import grep regex** (`ci.yml:61`): `mlx(_vlm)?` → `mlx(_vlm|_lm)?`. Update the
    step's comment to name mlx-lm.
-2. **New test steps**, after the two existing tests, in the same style
-   (`uv run python tests/...`):
-   - "Citation parsing" → `tests/test_citations.py`
-   - "Transcript store" → `tests/test_transcripts.py`. This step also proves
-     FTS5 exists in the runner's uv-managed Python.
-
-   - "Theme contrast" → `tests/test_theme_contrast.py` (step 5b)
-   - "Box descriptions" → `tests/test_grounding_describe.py` (step 5d)
-   - "Error classification" → `tests/test_errors.py` (step 5e)
-   - "Logging setup" → `tests/test_logging.py`, and the "No content in logs"
-     grep (step 5f)
-
-   Add them in the same commit as the test files they run, never before.
-   Otherwise CI goes red on a missing file.
+2. **Tests run through step 3b's runner, by tier:**
+   - "Tests (fast)" (`tests/run.py fast`) and "Tests (mlx)"
+     (`tests/run.py mlx`), from step 3b.
+   - "Tests (ui)" (`tests/run.py ui`), from step 5h.
+   - Every new test file joins its tier automatically. Do not add a CI step per
+     test.
+   - The transcript store test, in the `fast` tier, also proves FTS5 exists in
+     the runner's uv-managed Python.
+   - `weights` never runs in CI.
+   - Static (tier 0) checks keep their own named steps: the import grep (item
+     1), the pin check (item 3) and step 5f's "No content in logs".
 3. **Checkpoint pin check**, reusing the local hook so there is one
    implementation:
 
@@ -1266,7 +1399,7 @@ Do not work around one.
 | PostToolUse `Edit\|Write` | MLX import guard | Regex now `mlx(_vlm\|_lm)?`, so a module-scope `mlx_lm` import in step 2 is caught |
 | PostToolUse `Edit\|Write` | `pin-guard.sh` | Blocks a `nmv/*.py` edit that leaves any `*_REVISION` not a 40-hex commit, or puts `"*.py"` in a download allowlist |
 | PostToolUse `Edit\|Write` | `restart-reminder.sh` | Once per session, after the first `nmv/` edit: restart Streamlit before checking in a browser |
-| Stop | `stop-checks.sh` | When Python under the app is changed or untracked: runs `ty check` plus `tests/test_citations.py` / `tests/test_transcripts.py` (each once it exists). On failure, sends the output back. Skips itself on a hook-triggered re-stop, so it cannot loop |
+| Stop | `stop-checks.sh` | When Python under the app is changed or untracked: runs `ty check` plus `tests/test_citations.py` / `tests/test_transcripts.py` (each once it exists). Step 3b replaces that loop with `tests/run.py fast` and widens the trigger to `.streamlit/config.toml` and `tests/fixtures/`. On failure, sends the output back. Skips itself on a hook-triggered re-stop, so it cannot loop |
 
 **Permission rules** (`permissions.ask`): `hf cache rm`/`delete` (with or
 without `uv run`) and `rm *transcripts.db*` always prompt. The bf16 cleanup in
@@ -1281,14 +1414,8 @@ Never delete the hook to get past it.
 uv sync --locked
 uv run ruff check . && uv run ruff format --check .
 uv run ty check
-uv run python tests/test_resize_parity.py
-uv run python tests/test_runtime_abandon.py
-uv run python tests/test_citations.py
-uv run python tests/test_transcripts.py
-uv run python tests/test_theme_contrast.py
-uv run python tests/test_grounding_describe.py
-uv run python tests/test_errors.py
-uv run python tests/test_logging.py
+uv run python tests/run.py all                    # fast + mlx + ui
+uv run python tests/run.py weights                # local only: both models, ~7.7 GB, needs the cache
 grep -rnE 'log(ger)?\.(debug|info|warning|error|exception|critical)\(.*\b(text|transcript|prompt|messages|reply|raw|span|query|label|name)\b' nmv/ app_pages/   # must print nothing
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
