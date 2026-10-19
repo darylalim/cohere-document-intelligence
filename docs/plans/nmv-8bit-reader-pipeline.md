@@ -488,6 +488,81 @@ Rules that apply to this page:
 - `max_tokens` from the sidebar applies to both stages. Transcription of a dense
   A4 page can exceed 512, so surface `RunStats.truncated` as a warning per page.
 
+### 5b. Theme contrast guard — new `tests/test_theme_contrast.py`
+
+**Do not redesign the theme.** The Polar Indigo pair in `.streamlit/config.toml`
+already fits this app, and its two halves were measured as complementary on
+2026-10-18. Ask documents needs **no config changes**: its new components
+pass in both modes.
+
+| Component | Dark | Light |
+|---|---|---|
+| Citation pills (`st.pills`, selected) | 5.33 | 6.65 |
+| `st.info` licence notice | 8.85 | 5.81 |
+| `st.warning` | 7.60 | 5.83 |
+
+Two existing behaviours cover the rest:
+- **Greyed-out Locate buttons** use Streamlit's disabled style, which is
+  intentional for something that cannot be clicked, and they have a caption.
+- **The dark toggle knob** is only 2.26:1 on its "on" track, a known residual,
+  but the Transcribe label states the save mode in full-contrast text. **Keep
+  that label for this reason too.**
+
+What is missing is enforcement. Today only comments hold the halves together, so
+an edit to one half can silently break the pairing. Add a plain-script test (no
+MLX, same style as the others) that reads the config with `tomllib`:
+
+- **Maths:**
+  - WCAG 2.x relative luminance and contrast ratio.
+  - sRGB → OKLab/OKLCH, using Ottosson's published matrices.
+  - Alpha-mixing a foreground over a ground.
+- **Derived colours,** computed the way Streamlit derives them:
+  - caption = text at 60% over the ground
+  - selected pill tint = primary at 10% over the ground
+  - focus ring = primary at 50%
+  - a dark callout tint with no explicit `*BackgroundColor` = its colour at 20%
+    over the ground
+- **Floors, both modes:**
+  - body text, captions, links, code text, and `st.info`/`st.warning` text on
+    their tints: ≥ 4.5
+  - `borderColor` on the ground and on the sidebar: ≥ 3.0
+  - selected pill: ≥ 4.5
+  - white label on primary: ≥ 4.5 in light, **≥ 3.0 in dark** (the documented
+    trade; comment it as such)
+- **Pairing:**
+  - accent hue equal across modes within 0.5°
+  - ground hue within 2°
+  - sidebar step off the ground within 0.02 of each other
+  - focus rings within 0.1
+- **Design rules taken from the config comments:**
+  - dark ground OKLCH L ≤ 0.19 (the dark trade needs it)
+  - every light chrome surface — ground, secondary, code, sidebar, dataframe
+    header — at L ≤ 0.942, so the document stays the brightest thing on screen
+  - accent OKLab distance ≥ 0.1 from every `PALETTE` colour in
+    `nmv/grounding.py`, so the accent never matches a box colour (the teal
+    trap). Import `PALETTE`; `nmv.grounding` has no MLX import.
+- **Failure output:** each failure prints the measured value, the floor and the
+  config comment that justifies the floor.
+- **Write it to pass on today's config first:** run it before touching anything,
+  and confirm the numbers match the table above.
+- **Prove it can fail:** temporarily set `[theme.light] primaryColor` to a teal
+  like `#2dd4bf`. The hue-pairing and palette checks should both go red. Then
+  revert.
+
+**Caveat, written in the test's docstring:** the test checks colours computed
+from config. Streamlit's rendered colours (hover darkening, its own tints) can
+differ, so this is a floor, and the real-browser check in both modes remains
+the final word (`CLAUDE.md`).
+
+Wire it in:
+- **CI** (step 7): add a "Theme contrast" step in `check`, in the same commit as
+  the test.
+- **Stop hook** (`.claude/hooks/stop-checks.sh`):
+  - Add the test to the fast-test loop.
+  - Widen the changed-file filter to also match `.streamlit/config.toml`, so a
+    theme-only edit triggers it.
+  - Re-test the hook with a piped payload after editing it.
+
 ### 6. Dependency
 
 ```bash
@@ -585,6 +660,8 @@ upgrade from ever publishing. Change or add, inside `check`:
    - "Citation parsing" → `tests/test_citations.py`
    - "Transcript store" → `tests/test_transcripts.py`. This step also proves
      FTS5 exists in the runner's uv-managed Python.
+
+   - "Theme contrast" → `tests/test_theme_contrast.py` (step 5b)
 
    Add them in the same commit as the test files they run, never before.
    Otherwise CI goes red on a missing file.
@@ -728,6 +805,7 @@ uv run python tests/test_resize_parity.py
 uv run python tests/test_runtime_abandon.py
 uv run python tests/test_citations.py
 uv run python tests/test_transcripts.py
+uv run python tests/test_theme_contrast.py
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
 git check-ignore -q transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png && echo ignored   # must print "ignored"
@@ -744,6 +822,17 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   right page.
 - Switching pages keeps the sidebar values.
 - Navigating away mid-answer does not wedge the next request.
+- **Ask documents in both themes.** Pick Dark, then Light, from the app menu.
+  Reload after each switch, because sidebar `divider="gray"` rules keep the old
+  mode's colour until a reload. In each mode, check:
+  - Citation pills: the selected one is clearly distinct from the rest.
+  - The licence `st.info` and any `st.warning` are readable on their tints.
+  - The "Save transcripts" toggle: confirm on/off from the button label as well
+    as from the track.
+  - Greyed Locate buttons read as unavailable, with their caption.
+  - Transcript expanders, including a Markdown table, show their borders.
+  - The page image under a drawn box. In Light it stays the brightest surface;
+    in Dark the box colours stay distinct from the accent.
 
 ## Out of scope
 
