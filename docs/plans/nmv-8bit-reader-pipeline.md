@@ -644,6 +644,88 @@ They use the same two constants from step 5.
 - **Re-check after the edit:** the PAID stamp is still hit, and the overlay
   fragment still reruns into its slot.
 
+### 5d. Accessibility — text equivalents for a visual app
+
+The theme and layout steps cover the visual minimums: contrast, borders,
+reflow and zoom. What they miss is the app's core. **Boxes drawn on an image are
+invisible to a screen-reader user and partly ambiguous to a colour-blind one.**
+Use native Streamlit only, with no CSS. Give each item its own commit, so a
+regression is easy to bisect.
+
+1. **A text description for every box** (WCAG 1.1.1, text alternatives).
+   - Add a pure function to `nmv/grounding.py` (no MLX):
+     `describe(box) -> str`, e.g.
+     `"upper right · about 30% of the page wide, 20% tall"`.
+   - **Position:** where the box centre falls in a 3×3 grid, split at 333 and
+     667 on the 0–1000 axes: upper / middle / lower × left / centre / right. Use
+     `"centre"` for the middle cell.
+   - **Size:** width and height as percentages of the page, rounded to the
+     nearest 5. Show `"under 5%"` below that, and drop the size clause for a
+     box covering ≥ 90% of both axes (`"most of the page"`).
+   - **Normalise swapped coordinates** (x2 < x1) the same way `parse_boxes`
+     does, never differently. Labels stay optional (`CLAUDE.md`), so
+     `describe` never reads them.
+   - **Where it shows:**
+     - Grounding's box table gets a "where" column, placed after "label".
+     - Ask documents captions the located page with
+       `"Page N · “<span>” · <describe>"`.
+   - **Test:** new `tests/test_grounding_describe.py`, a plain script. It
+     covers the four corners, the exact centre, both threshold edges
+     (332/333/667/668), a full-page box, a tiny box, and swapped coordinates.
+2. **Never use colour as the only link between a box and its row** (WCAG
+   1.4.1).
+   - `PALETTE` holds red `(255, 92, 92)` and green `(74, 222, 128)`, the pair
+     red-green colour-blind viewers confuse.
+   - Today `draw_boxes` skips the whole caption when labels are off (the
+     `if not show_labels: continue` branch), so colour is then the only link.
+   - **Fix:** always draw `#N`. Show the label *text* only when the toggle is on
+     and a label exists, as `#N label`.
+   - Rename the toggle to **"Show label text"**. Keep its key
+     `grounding_labels` so existing sessions keep their value.
+   - The table's `#` column already matches `#N`. Ask documents' boxes follow
+     the same rule.
+3. **"Stream responses" toggle** in the shared sidebar.
+   - Settings: `key="stream_responses"`, `value=True`,
+     `persist_state="session"`. The last is mandatory for sidebar widgets.
+   - **Off:** show `st.spinner("Answering…")`, then render the complete text
+     once. This helps screen-reader users and anyone who finds moving text
+     distracting.
+   - Add one helper in `nmv/ui.py`, `show_reply(chunks, streaming: bool) -> str`.
+     It either calls `st.write_stream` or joins the chunks under the spinner,
+     and returns the text either way.
+     - Chat, Grounding and Ask documents call it instead of `st.write_stream`.
+     - Generation still goes through `runtime.iterate()` and is consumed fully
+       in both modes, so stats and navigating away mid-answer behave the same.
+   - Do **not** apply it to transcription progress. There, per-page progress is
+     the useful signal; show a plain "Page 2 of 5" caption instead of the
+     token stream.
+4. **Labels and text equivalents, as rules for every page:**
+   - Every widget keeps a visible `label`. No `label_visibility="collapsed"`
+     without a comment explaining why. A `st.chat_input` placeholder is not a
+     label, so the caption above each chat input says what it is for.
+   - `st.image` in Streamlit 1.64 has **no `alt` parameter**, so every image gets
+     a `caption=` as its text equivalent ("Ready", "Page 2 of 5 — box around
+     'Total due'"). Chat's uploaded thumbnails already show file names.
+   - Citations name the page in text ("p.2: 'Total due'"), never by colour or
+     position alone.
+   - Every `st.warning`/`st.error` states the remedy, following Grounding's
+     three-way zero-boxes message.
+5. **README "Accessibility" section.** List what the app does: box
+   descriptions, numbered boxes, the stream toggle, keyboard operability, the
+   contrast floors enforced by `tests/test_theme_contrast.py`, and reflow down to
+   320 px. Also list the residuals honestly:
+   - **The focus ring is 2.43:1 in both modes** (WCAG 2.4.7 recommends 3:1). No
+     single config value fixes it without undoing the accent trade, and CSS is
+     ruled out.
+   - **The dark toggle knob is 2.26:1.** It is mitigated by the Transcribe
+     button's text label.
+   - **Streamlit-controlled behaviour** (widget ARIA, live regions) is outside
+     this app's control. Name whatever the axe pass in the checklist reports
+     there.
+
+Wire `tests/test_grounding_describe.py` into CI (a "Box descriptions" step, in
+the same commit as the test) and into `stop-checks.sh`'s fast-test loop.
+
 ### 6. Dependency
 
 ```bash
@@ -743,6 +825,7 @@ upgrade from ever publishing. Change or add, inside `check`:
      FTS5 exists in the runner's uv-managed Python.
 
    - "Theme contrast" → `tests/test_theme_contrast.py` (step 5b)
+   - "Box descriptions" → `tests/test_grounding_describe.py` (step 5d)
 
    Add them in the same commit as the test files they run, never before.
    Otherwise CI goes red on a missing file.
@@ -887,6 +970,7 @@ uv run python tests/test_runtime_abandon.py
 uv run python tests/test_citations.py
 uv run python tests/test_transcripts.py
 uv run python tests/test_theme_contrast.py
+uv run python tests/test_grounding_describe.py
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
 git check-ignore -q transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png && echo ignored   # must print "ignored"
@@ -914,8 +998,11 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   - Transcript expanders, including a Markdown table, show their borders.
   - The page image under a drawn box. In Light it stays the brightest surface;
     in Dark the box colours stay distinct from the accent.
-- **All three pages at four widths.** Use Chrome DevTools' device toolbar in a
+- **All three pages at five widths.** Use Chrome DevTools' device toolbar in a
   real browser; AppTest never renders the page.
+  - **320 px (WCAG 1.4.10 reflow):** this is the width a 1280 px screen at 400%
+    zoom produces. Nothing scrolls sideways, pills and the storage group wrap,
+    and every control can still be reached.
   - **390 px (phone):**
     - The body columns stack, conversation above page.
     - The storage group wraps.
@@ -935,6 +1022,25 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
     - `st.chat_input` is pinned at the bottom
   - **Then 1512 px at 200% browser zoom.** That is how a low-vision reader sees
     the page, and it behaves like a narrow screen.
+- **Accessibility (step 5d):**
+  - **VoiceOver (⌘F5), about 10 minutes:**
+    1. On Grounding, run "Stamps and signatures" on `assets/sample-invoice.png`.
+       Confirm the box's "where" text is read from the table, and that it says
+       roughly "lower right", consistent with the PAID stamp at
+       `(820, 1180, 1140, 1400)` in pixels.
+    2. In Ask documents, transcribe, ask a question and open a citation. Confirm
+       the page caption is read.
+    3. Turn "Stream responses" off, ask again, and confirm the answer is read
+       once, complete.
+    4. Using only the keyboard (Tab / Shift-Tab / Space / Enter), upload,
+       transcribe, toggle saving, pick a page pill and open the transcript.
+       Focus never gets trapped.
+  - **axe DevTools** (free browser extension) on each page, in Light and in
+    Dark. Fix every serious or critical issue the app controls; list the ones
+    Streamlit controls in the README section.
+  - **Colour-blind simulation:** DevTools → Rendering → Emulate vision
+    deficiencies → deuteranopia, with "Show label text" off. Every box still
+    carries `#N` and matches its table row by number.
 
 ## Out of scope
 
