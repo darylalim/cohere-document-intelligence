@@ -241,14 +241,20 @@ The plan adds about nine test files. Listing them by hand in CI, in
 |---|---|---|---|
 | 0 · Static | nothing | edit hooks, Stop hook, CI | — (ruff, ty, the import, pin and content greps) |
 | 1 · `fast` | pure Python, no MLX import | **Stop hook**, CI | none needed (the default) |
-| 2 · `mlx` | Apple Silicon, no weights | CI (macOS runner) | `# tier: mlx` |
+| 2 · `mlx` | Apple Silicon, no weights | CI (macOS runner) | `# tier: mlx` (first line) |
 | 3 · `weights` | both models (~7.7 GB) | **local only**: before merge, and after any pin, mlx or mlx-vlm change | `# tier: weights` |
 | 4 · `ui` | Streamlit AppTest, models stubbed | CI | `# tier: ui` |
 | 5 · Manual | a person and a browser | before merge | the verification checklist |
 
 1. **`tests/run.py`:** `uv run python tests/run.py fast|mlx|ui|weights|all`.
-   - It globs `tests/test_*.py` and reads each file's tier from a
-     `# tier: <name>` line in its first 15 lines. No header means `fast`.
+   - It globs `tests/test_*.py` and reads each file's tier from its **first
+     line**, which must be `# tier: <name>` when present. No header means
+     `fast`.
+     - Use the first line, not "somewhere near the top": the existing
+       docstrings already run to line 8 and line 14, and a search window would
+       break as docstrings grow.
+     - A comment above the module docstring is valid Python and leaves the
+       docstring in place.
    - It runs each file as **its own process**
      (`subprocess.run([sys.executable, path])`), keeping the plain-script style
      `CLAUDE.md` requires and isolating MLX state between files.
