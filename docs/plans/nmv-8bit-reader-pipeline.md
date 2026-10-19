@@ -58,7 +58,14 @@ Verified on 2026-10-18 at those exact commits:
 
 ## Memory budget (estimate — step 8 replaces it with measurements)
 
-macOS caps GPU-wired memory at about 10.7 GB on a 16 GB machine.
+The GPU working-set limit on a 16 GB machine is **assumed** to be about
+10.7 GB.
+- That figure is unverified. Step 8 records the real value from
+  `mx.device_info()["max_recommended_working_set_size"]` on the M2 Pro, and
+  every number below gets recomputed against it.
+- For reference, the M2 Max with 32 GB this plan was drafted on reports
+  26.8 GB, about 78% of RAM. The same ratio on 16 GB would give ~13.4 GB, so
+  10.7 may be conservative.
 
 | Item | Estimate |
 |---|---|
@@ -908,6 +915,115 @@ from the terminal, which has no Clear button.
    Wire it into CI ("Logging setup", in the same commit as the test) and into
    `stop-checks.sh`.
 
+### 5g. Performance — never redo work, reuse the reader's prefix, stay out of swap
+
+**Where the time goes** (estimate; step 8 replaces it). The M2 Pro has roughly
+half the M2 Max's GPU cores and memory bandwidth.
+
+| Cost | Estimate on the M2 Pro | Basis |
+|---|---|---|
+| Image prefill | ~300 tok/s (M2 Max baseline: 590) | Limited by compute |
+| One full-budget A4 page | ~12 s prefill (~3,700 tokens) + ~10 s to decode ~600 tokens | |
+| A 10-page document | **~4 minutes** to transcribe | |
+| Each question | **~10–15 s to the first word** | Command R7B re-processes ~6K tokens of transcripts |
+
+Those two costs, transcription and repeated question prefill, are the targets.
+Keep each item below as its own commit.
+
+1. **Never redo work.**
+   - **The transcript store** (step 4b) turns a re-run into 0 s. Its key uses
+     the *resolved* size, so slider moves within one final size still hit.
+   - **Locate cache:** `st.session_state["locate_cache"]`, keyed on
+     `(page sha256, cited span, resolved pixels, MODEL_REVISION)` and holding
+     the parsed boxes plus the `truncated` flag. A second click on the same
+     citation is instant. Bound it to 64 entries, dropping the oldest first.
+   - **Resized pages:** `st.cache_data(max_entries=MAX_PAGES)`, keyed on page
+     hash and budget, following Grounding's `_encode_upload`.
+     - The `max_entries` cap is required: each entry holds the full-resolution
+       original as well, at 13–48 MB.
+     - Pass the upload with a leading underscore, so Streamlit does not hash
+       its bytes. Grounding's docstring explains the cost.
+2. **Reuse the reader's computation across follow-ups.**
+   - **Why it works:** the `rag` template inserts the documents right after
+     the **first** user message. In the template, `document_turn(documents)`
+     sits inside the first `user` branch, guarded by `sent_documents`
+     (verified at the pinned revision on 2026-10-18). So every follow-up keeps
+     `[preamble][first question][documents]…` unchanged and only adds to the
+     end.
+   - **One prompt cache on the worker, for all tabs.** Keep it in a
+     worker-side module global, together with the token ids it covers. A
+     question from another session replaces it, because one cache per tab
+     would multiply KV memory on a machine with none to spare.
+   - **On each question:**
+     1. Tokenise the new prompt.
+     2. Count the leading tokens it shares with the cached ids.
+     3. If they cover the whole cache, generate on top of it, processing only
+        the new tokens.
+     4. If the cache is longer than the shared prefix, trim it when mlx-lm's
+        `can_trim_prompt_cache` allows (`trim_prompt_cache`), otherwise start
+        a fresh cache.
+     5. After generating, store the new ids, generated tokens included, since
+        `stream_generate` extends the cache with them.
+   - **Known limitation:** 24 of R7B's 32 layers use a 4096-token sliding
+     window (`sliding_window_pattern: 4`). A ~6K prompt fills it, so trimming
+     may be refused. Falling back to a full prefill is correct behaviour, not a
+     bug.
+   - **Log the outcome** as `prefix=hit|trimmed|full` on the step 5f
+     generation line, so step 8 measures how often reuse actually works.
+   - **If the template re-renders the earlier answer differently from what was
+     generated** (control tokens, citation tags), the shared prefix will stop at
+     the documents turn. Fix that by storing the assistant turn in history
+     exactly as generated, before cleaning it for display.
+   - **Reset the cache** when the selected documents change (new upload,
+     search hits added), when the reader reloads, and after any `out_of_memory`
+     (step 5e) before `clear_cache`.
+   - Check the exact names (`make_prompt_cache`, `can_trim_prompt_cache`,
+     `trim_prompt_cache`, the `prompt_cache=` keyword) against the installed
+     mlx-lm before writing code. Do not guess them.
+   - **Chat could benefit too:** it re-sends every image each turn, and
+     mlx-vlm 0.7.3's `generate/common.py` accepts `prompt_cache`. Check that
+     0.7.8 still does, then decide from step 8's numbers. Leave it out of this
+     step unless a Chat follow-up's first word is measured as slow.
+3. **Choose the transcription budget from data, not in advance.**
+   - Step 8 transcribes the dense test document at 1.0, 2.0 and 3.87 MP and
+     compares each with the 3.87 MP transcript by character error rate. A small
+     Levenshtein over the joined text is enough; do not add a dependency.
+   - If 2.0 MP stays within ~1% CER, add `TRANSCRIBE_MAX_PIXELS` and transcribe
+     at `min(slider budget, TRANSCRIBE_MAX_PIXELS)`, with a caption saying so.
+     The store key already uses the resolved size, so this needs no migration.
+   - **Grounding keeps the full slider.** Box accuracy is a separate question.
+   - If no budget below 3.87 MP holds up, change nothing and record the result.
+4. **Cap MLX's buffer cache.**
+   - MLX keeps freed buffers for reuse, and with two models loaded that cache
+     can grow by gigabytes and push a 16 GB machine into swap.
+   - After the reader loads, call `mx.set_cache_limit(...)` on the worker,
+     through a worker-side function with a function-local `import mlx.core`
+     (the import invariant applies).
+   - Put the starting value, 1 GiB, in `MLX_CACHE_LIMIT_BYTES` in
+     `nmv/runtime.py`. Step 8 tunes it.
+   - `set_cache_limit` and `get_cache_memory` both exist in the installed mlx.
+     Re-check them after step 0.
+5. **Keep clicks cheap.**
+   - Put Ask documents' page panel (page pills, image, transcript expander) in
+     one `@st.fragment`, and the citation pills in another, as Grounding wraps
+     its overlay. Picking a page or citation then reruns that panel, not the
+     whole script and chat history.
+   - A citation click that must draw a box in the page panel sets session state
+     and calls `st.rerun(scope="fragment")` only if the two share a fragment.
+     Otherwise use a full rerun. Do not add cross-fragment tricks.
+
+**Do not:**
+- generate pages concurrently (one worker, one GPU, double the activation
+  memory)
+- raise `iogpu.wired_limit_mb` with `sysctl` (it takes memory from macOS and
+  risks a freeze on 16 GB)
+- move NMV to 4-bit (it changes accuracy; 8-bit was the measured choice)
+- add a warm-up generation after load, unless step 8 shows the first run is
+  noticeably slower
+
+There is no performance test in CI: GitHub's 7 GB macOS runner cannot load the
+models. Step 8 is the gate.
+
 ### 6. Dependency
 
 ```bash
@@ -1057,8 +1173,23 @@ Record:
 3. Prefill and decode tok/s for each model.
 4. Whether macOS swaps. Check Activity Monitor → Memory → Swap Used, or
    `vm_stat` before and after.
+5. **The real GPU working-set limit:**
+   `mx.device_info()["max_recommended_working_set_size"]` on the M2 Pro. This
+   replaces the assumed 10.7 GB in the memory budget and in the pass bar below.
+6. **Per-page transcription time**, split into a miss (first run) and a hit
+   (second run). The hit should be ~0 s.
+7. **Time to the first word for question 1 and question 2** on the same
+   documents, plus the `prefix=` outcome from the log line. Report how often
+   reuse happens (step 5g.2).
+8. **The transcription budget sweep** (step 5g.3): CER at 1.0 and 2.0 MP against
+   3.87 MP, and seconds per page at each.
+9. **`mx.get_cache_memory()`** after a 10-page transcription. Tune
+   `MLX_CACHE_LIMIT_BYTES` so cache plus active memory stays under the
+   measured limit with no swap.
 
-**Pass:** combined peak ≤ ~10 GB, with no sustained swap. **Fail:** switch to the
+**Pass:** combined peak (active plus MLX cache) at or below ~90% of the measured
+`max_recommended_working_set_size` (item 5), with no sustained swap. If item 5
+cannot be read, fall back to ≤ ~10 GB. **Fail:** switch to the
 Tiny Aya fallback, or add an "unload the idle model" path. Either way, report the
 numbers before choosing.
 
