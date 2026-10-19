@@ -815,6 +815,99 @@ the most likely new failure, so give it a plain answer.
    - Wire `tests/test_errors.py` into CI (an "Error classification" step, in
      the same commit as the test) and into `stop-checks.sh`'s fast-test loop.
 
+### 5f. Logging — `nmv/log.py` + `tests/test_logging.py`
+
+Today the app's logging is effectively invisible.
+- There is one logger, `nmv.runtime`, used once.
+- Streamlit configures only its own `streamlit.*` loggers, with
+  `propagate = False` (`streamlit/logger.py:131`), and never the root logger.
+- So `nmv` records fall through to Python's built-in fallback handler: **INFO is
+  dropped**, and warnings print bare, with no time, level or thread.
+
+**Rule one: log metadata, never content.** A log line containing document text
+would undo the store's privacy design (save toggle, `secure_delete`, `VACUUM`)
+from the terminal, which has no Clear button.
+
+| Never logged | Logged instead |
+|---|---|
+| Transcripts, prompts, answers, citation spans, search queries, raw model output | Lengths and token counts |
+| Upload file names (can identify a person) | First 8 hex characters of the store key's sha256 |
+| Box labels (OCR'd text) | Box count |
+
+`str(exc)` for `bad_image` failures can include a file name. Log the failure's
+`kind` and hash prefix instead; the UI may still show the name to its owner.
+
+1. **`nmv/log.py` → `setup()`**, called at the top of `streamlit_app.py`.
+   - **Make it idempotent.** That file reruns on every interaction, so return
+     early if the `nmv` logger already has this module's handler (check with a
+     marker attribute). Otherwise every rerun adds a handler, and each line
+     prints again and again.
+   - Logger `nmv`, `propagate = False`, one `StreamHandler` to stderr.
+   - Level from `NMV_LOG_LEVEL`, default `INFO`. Reject unknown names by falling
+     back to `INFO` with one warning.
+   - Format:
+     `%(asctime)s %(levelname)-7s %(threadName)-14s %(name)s · %(message)s`.
+     - `threadName` is this project's diagnostic. The worker's threads are
+       named `mlx-worker_0` (verified), and page code runs on `ScriptRunner`
+       threads.
+     - An MLX call logged from a `ScriptRunner` thread is the thread-affinity
+       bug `nmv/runtime.py` exists to prevent.
+   - **Terminal only, no log file.** A file would keep document metadata with
+     no Clear button. A file target may be added later only as an explicit
+     opt-in.
+   - Every module uses `logging.getLogger(__name__)` (`nmv.model`,
+     `nmv.reader`, `nmv.transcripts`, …). `nmv/runtime.py`'s existing logger
+     already fits.
+2. **What gets logged:**
+
+   | Level | Event | Fields (numbers and ids only) |
+   |---|---|---|
+   | INFO | Model load start and end (NMV, reader) | repo, `revision[:7]`, seconds, `mx.get_active_memory()` GB after load (worker side) |
+   | INFO | Each generation: chat / ground / ask / locate / transcribe | kind, session prefix, prompt and generated tokens, prefill and decode tok/s, peak GB, `finish_reason` |
+   | INFO | Each transcribed page | `page N/M`, hash prefix, `hit` / `miss` / `not-saved`, seconds |
+   | INFO | Store maintenance | rows pruned at start-up, rows removed by Clear |
+   | WARNING | Expected `classify()` kinds: `out_of_memory`, `download`, `disk_full` | kind, session prefix, budget, max tokens, page count, **no traceback** |
+   | ERROR | `internal` failures | `logger.exception`, full traceback |
+   | DEBUG | Sampling settings, resolved image sizes, the reader's token count after the 6K cap | numbers only |
+
+   - Emit generation lines from one helper next to `RunStats`:
+     `ui.log_run(kind, stats, **numbers)`. All five call sites then share one
+     format.
+   - The INFO generation line is also **step 8's measurement record**: copy the
+     baseline numbers from the terminal instead of the sidebar.
+3. **Telling tabs apart.**
+   - Page-side calls add the first 6 characters of
+     `get_script_run_ctx().session_id` (fall back to `"-"` when there is no
+     context).
+   - Worker-side functions receive it as an **argument**. The worker thread has
+     no Streamlit context of its own, so reading it there returns nothing.
+4. **Leave third-party loggers alone.** transformers and huggingface-hub keep
+   their own levels. Their first-run download output is exactly what step 5e's
+   `download` failures need to be diagnosable.
+5. **Content check** (CI step "No content in logs", plus `stop-checks.sh`):
+
+   ```bash
+   if grep -rnE 'log(ger)?\.(debug|info|warning|error|exception|critical)\(.*\b(text|transcript|prompt|messages|reply|raw|span|query|label|name)\b' nmv/ app_pages/; then
+     echo "::error::A logging call references document content (see the plan, step 5f)."
+     exit 1
+   fi
+   ```
+
+   - It is deliberately rough. It catches the usual leak, a debugging
+     `logger.info(f"... {text}")` that slipped into a commit.
+   - If it flags a safe use (for example `name` meaning a logger name), rename
+     the variable. Do not weaken the pattern.
+6. **Tests:** new `tests/test_logging.py`, a plain script.
+   - `setup()` twice leaves exactly one `nmv` handler.
+   - `propagate` is `False`.
+   - `NMV_LOG_LEVEL=DEBUG` sets DEBUG, and an unknown value falls back to INFO.
+   - The format includes `threadName`.
+   - A record emitted from a `ThreadPoolExecutor(thread_name_prefix="mlx-worker")`
+     carries `mlx-worker_0`.
+
+   Wire it into CI ("Logging setup", in the same commit as the test) and into
+   `stop-checks.sh`.
+
 ### 6. Dependency
 
 ```bash
@@ -916,6 +1009,8 @@ upgrade from ever publishing. Change or add, inside `check`:
    - "Theme contrast" → `tests/test_theme_contrast.py` (step 5b)
    - "Box descriptions" → `tests/test_grounding_describe.py` (step 5d)
    - "Error classification" → `tests/test_errors.py` (step 5e)
+   - "Logging setup" → `tests/test_logging.py`, and the "No content in logs"
+     grep (step 5f)
 
    Add them in the same commit as the test files they run, never before.
    Otherwise CI goes red on a missing file.
@@ -1062,6 +1157,8 @@ uv run python tests/test_transcripts.py
 uv run python tests/test_theme_contrast.py
 uv run python tests/test_grounding_describe.py
 uv run python tests/test_errors.py
+uv run python tests/test_logging.py
+grep -rnE 'log(ger)?\.(debug|info|warning|error|exception|critical)\(.*\b(text|transcript|prompt|messages|reply|raw|span|query|label|name)\b' nmv/ app_pages/   # must print nothing
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
 git check-ignore -q transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png && echo ignored   # must print "ignored"
@@ -1154,6 +1251,23 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   4. **Per-page isolation.** Upload five pages with one corrupt file in the
      middle. The other four transcribe and save, and the failed page names
      itself.
+- **Logging (step 5f):**
+  1. Start the server with its output captured:
+     `uv run streamlit run streamlit_app.py 2>&1 | tee "$TMPDIR/nmv-log.txt"`.
+  2. Run one Chat reply, one Grounding run and one Ask documents transcribe →
+     ask → Locate, all on `assets/sample-invoice.png`.
+  3. **Confirm no document content was logged.** This must print nothing; these
+     are the invoice's distinctive strings, chosen to avoid `NMV`, which also
+     appears in env var names:
+     `grep -inE 'acme|logistics|0847|4,182|total due|sample-invoice' "$TMPDIR/nmv-log.txt"`
+  4. **Confirm the useful lines appear:**
+     - an INFO load line per model, with `revision[:7]`
+     - one INFO generation line per run, with tokens, tok/s and peak GB
+     - every MLX-side line on `mlx-worker_0`, and none on a `ScriptRunner`
+       thread
+  5. Re-run with `NMV_LOG_LEVEL=DEBUG` and confirm the DEBUG lines appear, still
+     with no content.
+  6. Delete `$TMPDIR/nmv-log.txt` afterwards.
 
 ## Out of scope
 
