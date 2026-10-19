@@ -1299,6 +1299,97 @@ config change that protects everything after it.
      handmade text containing an injected image. Step 5h's UI smoke test
      confirms the page renders it as text.
 
+### 5j. Deployment — a source release run with uv, on the user's Mac
+
+**MLX needs Apple Silicon and its GPU, so hosting is ruled out:**
+
+| Option | Why it cannot work |
+|---|---|
+| Streamlit Community Cloud, Hugging Face Spaces | Linux, no Apple GPU; `import mlx.core` fails there (`CLAUDE.md`, the reason CI has no Linux job) |
+| Docker on a Mac | The container runs in a Linux VM with no GPU access: the same failure |
+| A cloud GPU server | Needs a different runtime, and breaks the "documents never leave the machine" design |
+
+**What gets distributed:** the git tags CI already publishes, plus `uv.lock`. No
+weights, no installer. Give each item its own commit.
+
+1. **`scripts/doctor.py`**, a preflight check using only the standard library.
+   - **Run it with `uv run --no-project --python 3.12 scripts/doctor.py`.**
+     Plain `uv run` would sync the project first, so an unsupported Mac would
+     fail inside `uv sync` before the check runs.
+     - Verified 2026-10-18: `--no-project` runs the script without syncing.
+       On a fresh clone, with no `.venv`, it uses uv's own Python 3.12.
+     - Never import a third-party package at module level.
+   - It prints one `OK` / `WARN` / `FAIL` line per check, each with a fix,
+     and exits non-zero if any check fails.
+
+     | Check | Rule | Fix printed |
+     |---|---|---|
+     | Apple Silicon | `platform.machine() == "arm64"` | Not supported: MLX needs Apple Silicon |
+     | macOS | `platform.mac_ver()` ≥ **14.0**, the oldest version the locked `mlx` wheels support (lock has wheels for macOS 14.0, 15.0 and 26.0 on 2026-10-18). Recompute from `uv.lock` after step 0 | Update macOS |
+     | Memory | `sysctl -n hw.memsize` ≥ 16 GiB = OK. Under 16 = WARN: Chat and Grounding work, but Ask documents will not fit both models | — |
+     | Free disk | ≥ 10 GB on the volume holding `HF_HOME` (default `~/.cache/huggingface`): ~7.7 GB weights, ~0.9 GB environment (this `.venv`: 914 MB), plus store room | Free space, or set `HF_HOME` to an external drive |
+     | uv | `shutil.which("uv")` | Link to uv's official install page |
+     | Weights cached | Only if `huggingface_hub` is importable (after `uv sync`): `try_to_load_from_cache` for each pinned repo and revision. Otherwise WARN, printing the two prefetch commands | The prefetch commands |
+
+   - **Keep the version floor and pins out of hand-written code.**
+     - Read the pinned repos and revisions from `nmv/model.py` and
+       `nmv/reader.py` with `ast`, so the doctor never drifts from the real
+       pins.
+     - Compute the macOS floor from the `mlx` wheel tags in `uv.lock`, the
+       lowest `macosx_<major>_<minor>_arm64`.
+2. **README quick start**, three commands:
+
+   ```bash
+   git clone --branch <latest release tag> https://github.com/darylalim/cohere-document-intelligence
+   cd cohere-document-intelligence && uv run --no-project --python 3.12 scripts/doctor.py
+   uv sync --locked && uv run streamlit run streamlit_app.py
+   ```
+
+   - Clone a **release tag, not `main`**: a tag is a commit that passed CI.
+   - uv provides the Python pinned in `.python-version` (3.12); no Homebrew
+     Python is needed.
+3. **Run on demand, never as a service.** Say in the README: start it when
+   needed, Ctrl-C to quit. A LaunchAgent that starts it at login would keep
+   ~8 GB of models resident on a 16 GB Mac all day. Do not add one.
+4. **Weights:**
+   - Document the two prefetch commands (`uv run hf download <repo> --revision
+     <sha>`), so the first page load does not spend minutes downloading.
+   - After that, `HF_HUB_OFFLINE=1` (step 5i) for offline or air-gapped use.
+   - `HF_HOME` on an external drive if the internal disk is short.
+5. **Updating:** `git fetch --tags && git checkout <new tag> && uv sync --locked`.
+   - **Any release that moves a model pin says so in its notes**, with the
+     download size, because that update pulls new weights.
+   - Point to `hf cache rm` for the old ones. It prompts first, under the
+     `permissions.ask` rule.
+6. **`RELEASING.md`**, a human checklist that comes before the version bump.
+   CI publishes the moment `version` changes on `main`.
+   1. `uv run python tests/run.py all --with-weights` on an Apple Silicon Mac
+      with both models cached.
+   2. The manual browser checklist: themes, five widths, VoiceOver, axe,
+      offline, out of memory.
+   3. If a pin moved, draft the release-notes line about new weights and
+      download size.
+   4. Then change `version` **by hand**, run `uv lock`, and commit both files
+      (`CLAUDE.md`). The version guard blocks Claude from doing this, which is
+      intended: a release stays a human decision.
+7. **`tests/test_doctor.py`** (`fast` tier).
+   - The doctor's checks are pure functions taking injected values: machine,
+     macOS version, memory bytes, free bytes, uv path. The test covers:
+     - each pass and fail boundary: macOS 13.6 / 14.0, 15.99 / 16.0 GiB,
+       9.9 / 10 GB
+     - a non-arm64 machine
+     - a missing uv
+   - It also checks that the pins the doctor reads with `ast` equal
+     `nmv.model.MODEL_REVISION` and the reader's revision, and that the floor
+     it reads from `uv.lock` is `14.0` today.
+
+**Out of scope:**
+- **A `.app` bundle or py2app:** packaging MLX and the Metal libraries is
+  fragile, and uv already gives a reproducible environment.
+- **Remote or phone access:** if it is ever wanted, put an authenticated private
+  tunnel (e.g. `tailscale serve`) in front of the localhost-only server.
+  **Never widen `server.address`** (step 5i).
+
 ### 6. Dependency
 
 ```bash
