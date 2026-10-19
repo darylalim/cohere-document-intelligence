@@ -671,6 +671,30 @@ model and no extra memory.
   - snippet contains the term
   - hostile query strings return a list, not an exception
 
+### 10. After the PR merges — GitHub repo details
+
+The description and topics describe `main`, so change them only once the
+pipeline is on `main`, never earlier. **Ask the user before running this**:
+repo details are public and outward-facing.
+
+The current description, set on 2026-10-18, covers the pre-plan app. It already
+starts with "Unofficial" because the name contains "Cohere"; keep that word.
+Replace it, and add five topics (14 → 19):
+
+```bash
+gh repo edit darylalim/cohere-document-intelligence \
+  --description "Unofficial, local document intelligence on Apple Silicon. Cohere North Micro Vision reads pages and grounds boxes; Command R7B answers with page citations. Runs on-device with MLX in a Streamlit app, with no cloud API." \
+  --add-topic mlx-lm,command-r,rag,document-question-answering,python
+```
+
+- If step 8 fell back to Tiny Aya, swap `Command R7B` and `command-r` for the
+  model actually shipped.
+- Leave the 20th topic slot free. Use `sqlite` or `full-text-search` only if
+  step 9 shipped.
+- Keep the homepage on the North Micro Vision model card.
+- Afterwards, confirm with
+  `gh repo view --json description,repositoryTopics`.
+
 ## Claude Code hooks (already installed on the plan branch)
 
 These live in `.claude/settings.json`, with scripts in `.claude/hooks/`, and are
