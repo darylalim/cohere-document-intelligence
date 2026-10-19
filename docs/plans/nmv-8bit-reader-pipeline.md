@@ -32,14 +32,14 @@ state from here.
 | **M2 · Working pipeline** | **4** citations → **4b** store (with `.gitignore`, permissions **5i.4**) → **5i.2** `safe_markdown` → **5i.3** Pillow formats → **5i.7** static greps → **5i.9** security test → **5e** errors → **5** the page → **5h** e2e (weights) and UI smoke | those sections | Ask documents works on the sample invoice: transcribe → ask → cite → Locate; `tests/run.py all` and `weights` green |
 | **M3 · Quality and polish** | **5l** run record → **5f** logging → **5k** monitoring → **5g** performance → **5b** theme guard → **5c** layout → **5d** accessibility → **8b** eval part B + baseline | those sections | `evals/baseline.json` committed; step 8's performance items measured |
 | **M4 · Docs and release** | **6b** docs structure → **7** docs, guards, CI → **5j** deployment → **8** full measurement → **5i.5, 5i.6, 5i.8** (offline docs, SHA-pinned actions, `SECURITY.md`) → `RELEASING.md` run → **user bumps the version** → **10** repo details | those sections + the verification checklist | the full verification checklist passes; the release is published by the user |
-| **Later** (only if asked) | **9** search; Chat prompt-cache reuse (5g.2); Dependabot (5i.6); `set-v2` injection documents (8b) | — | — |
+| **Later** (only if asked) | **9** search; reader prefix reuse and Chat prompt-cache reuse (5g.2); Dependabot (5i.6); `set-v2` injection documents (8b) | — | — |
 
 **Why this order, against the step numbers:**
 - **Step 6 comes before step 2.** `nmv/reader.py` imports `mlx_lm`, which does
   not exist until step 6 adds it.
 - **The memory decision is in M1, not after everything.** Whether R7B fits
-  decides between R7B and Tiny Aya, which shapes citations, prefix reuse and
-  the evals. Finding out in step 8, after 5b–5l, would mean redoing work.
+  decides between R7B and Tiny Aya, which shapes the prompt format, citations
+  and the evals. Finding out in step 8, after 5b–5l, would mean redoing work.
 - **5l comes before 5f and 5k**, which consume its run record.
 - **Security essentials land before the first page that renders model
   output.** That means 5i.1 (localhost) in M0, and 5i.2 to 5i.4 in M2, before
@@ -167,11 +167,21 @@ How the R7B KV figure is derived:
   activations are live at a time. The weights of both stay resident.
 
 **Context ceiling:** this conversion's `config.json` says
-`max_position_embeddings: 8192` with no `rope_scaling`. Treat 8K as the limit until
-it is tested:
-- Cap the joined transcripts at ~6K tokens.
-- When the transcripts exceed that, show a warning naming the pages that were
-  dropped. Never truncate silently.
+`max_position_embeddings: 8192` with no `rope_scaling`. Treat 8,192 tokens as a
+hard limit on the **whole rendered prompt plus the answer**, not on the
+transcripts alone.
+
+**The fixed costs are large** (measured 2026-10-18 by rendering the pinned `rag`
+template with R7B's own tokenizer):
+- **1,658 tokens** of template overhead for one short question and a
+  one-character document: the preamble, tool spec and document scaffolding.
+- About 17 more per extra document.
+- `tojson` escaping adds ~11% to Markdown-table transcripts.
+
+So a fixed "6K of transcripts" cap would overflow on its own. Step 2 replaces it
+with a budget computed on the rendered prompt.
+- When pages do not fit, show a warning naming the pages that were dropped.
+  Never truncate silently.
 
 ## Steps
 
@@ -412,37 +422,108 @@ This module mirrors `nmv/model.py`. **Every `mlx_lm` import goes inside a functi
 body that runs on the worker.**
 
 - Constants: `READER_REPO`, `READER_REVISION`, plus a provenance comment like
-  `MODEL_REVISION`'s, and `READER_TEMPERATURE = 0.3`.
-- `_load(repo, revision)`, which runs on the worker:
-  - `huggingface_hub.snapshot_download(repo, revision=revision, allow_patterns=["*.json", "*.safetensors", "*.jinja"])`.
-    The allowlist means no `.py` is ever fetched.
-  - Then `mlx_lm.load(local_path)`.
-  - Return a `Reader(model, tokenizer)` dataclass.
-- `load_reader()`: `@st.cache_resource`, calls `runtime.call(_load, ...)`.
+  `MODEL_REVISION`'s, and `READER_CONTEXT = 8192` (the config's
+  `max_position_embeddings`).
+- **Downloading and loading are separate, so a download never blocks the
+  worker.**
+  - `download_reader()` runs **page-side**, not on the MLX worker, under the
+    same "not cached yet" warning as NMV:
+    `huggingface_hub.snapshot_download(repo, revision=revision, allow_patterns=["*.json", "*.safetensors", "*.jinja"])`.
+    - The allowlist means no `.py` is ever fetched.
+    - It needs no MLX, and running it on the worker would queue every tab's
+      Chat and Grounding job behind a multi-minute download.
+  - `_load(local_path)` runs on the worker and calls only
+    `mlx_lm.load(local_path)`, returning a `Reader(model, tokenizer)`.
+    mlx-lm 0.32.2's `load` takes a local path and skips its own download
+    (verified).
+  - `load_reader()` is `@st.cache_resource`: it calls `download_reader()`, then
+    `runtime.call(_load, path)`.
+  - Offer a "Download reader (4.5 GB)" button on Ask documents before the first
+    question, so the wait is chosen rather than sprung on the user.
 - `is_reader_cached()`: same pattern as `is_cached()`.
+- **Sampling:** the reader has its own `Sampling` and **never uses NMV's
+  sidebar values.**
+  - Use temperature 0.3, top-p 0.75 and repetition penalty 1.0. When the
+    sidebar's "Deterministic" toggle is on, use temperature 0, so the evals (temperature 0)
+    and the app agree.
+  - Caption the sidebar's sampling section "Applies to North Micro Vision".
+  - A repetition penalty is applied in mlx-lm through
+    `logits_processors=make_logits_processors(repetition_penalty=...)`
+    (`sample_utils.py`), **not** through `make_sampler`, which has no such
+    argument (verified). Build both explicitly; never splat an `as_kwargs()`
+    dict into mlx-lm.
 - `stream_answer(reader, history, pages, sampling, stats)`:
   - `pages` is `list[tuple[PageId, str]]` (step 3c): identity plus transcript
-    text.
-  - Applies the 6K cap, then **records the `PageId`s actually sent, in order**,
-    as `sent_pages`. The page stores it on the resulting `Turn`, and
+    text, in the user's chosen order (step 5).
+  - **Context budget, computed on the rendered prompt:**
+    1. Render the full prompt with the reader's tokenizer (template + history +
+       candidate documents).
+    2. Add pages in order while
+       `len(rendered_ids) + max_tokens + 64 ≤ READER_CONTEXT` holds, 64 being a
+       safety margin.
+    3. **History policy when even zero extra pages would not fit:** keep the
+       first user turn, which carries the documents (the template attaches
+       them to the first user message), and the latest exchange. Drop the
+       middle turns oldest first.
+    4. If it still does not fit, refuse with a visible message suggesting a new
+       conversation.
+    5. **Hard check before generating:** if the final rendered prompt plus
+       `max_tokens` exceeds `READER_CONTEXT`, raise. Never call
+       `stream_generate` past the window.
+  - It then **records the `PageId`s actually sent, in order**, as
+    `sent_pages`. The page stores it on the resulting `Turn`, and
     `Turn.page_for` maps citations through it. Without it, a dropped page
     shifts every later citation onto the wrong page.
   - Builds `documents=[{"title": f"Page {n}", "text": t} …]` from the **sent**
     list, where `n` is the page's upload position, for a readable title.
     Citation indices still refer to positions in this list, never to `n`.
   - Calls `tokenizer.apply_chat_template(history, documents=documents, chat_template="rag", enable_citations=True, add_generation_prompt=True, tokenize=False)`.
-  - Streams `mlx_lm.stream_generate(model, tokenizer, prompt, max_tokens=..., sampler=make_sampler(temp, top_p, top_k=...))` through `runtime.iterate()`.
+    This works through mlx-lm's tokenizer wrapper on transformers 5.17
+    (verified).
+  - Streams `mlx_lm.stream_generate(model, tokenizer, prompt, max_tokens=..., sampler=..., logits_processors=...)`
+    through `runtime.iterate()`.
   - Checks `emit()`'s return value, exactly like `model.stream_reply`.
-  - `RunStats.absorb` works unchanged: mlx-lm's `GenerationResponse` has the same
-    field names. Confirm that against the installed version.
+  - `RunStats.absorb` works unchanged: mlx-lm 0.32.2's `GenerationResponse`
+    has the same field names, and `finish_reason` is `"length"` or `"stop"`
+    (verified).
+- **R7B's two-phase output: thinking, then response.**
+  - The generation prompt ends at `<|CHATBOT_TOKEN|>`, and the `rag` preamble
+    tells the model to write a step-by-step plan between `<|START_THINKING|>`
+    and `<|END_THINKING|>` before `<|START_RESPONSE|>…<|END_RESPONSE|>`.
+  - These markers are **not** EOS tokens (EOS is id 255001), so they arrive in
+    the text stream (verified).
+  - Parse the stream with a small state machine in a new pure module,
+    `nmv/r7b_format.py`: `thinking` → `response` → `done`.
+    - **Show only the response.** During thinking, show "Planning the answer…"
+      instead.
+    - Count thinking tokens in the run record (step 5l). They count against
+      `max_tokens`, so use a reader `max_tokens` of 1024, not the sidebar's.
+    - Parse citations **from the response only.** The thinking may contain
+      `<co>` tags too; ignore them.
+    - **Store as history only the response body, with its `<co>` tags,
+      without thinking or control tokens.** The template re-wraps past
+      assistant turns as `<|START_RESPONSE|>{{content}}<|END_RESPONSE|>`
+      (verified), so storing the raw stream would nest control tokens inside a
+      response block.
+    - If the stream ends during thinking (hit `max_tokens`), show "The answer
+      was cut off while planning; raise the reader's token limit or ask about
+      fewer pages", and store nothing as history.
+  - Test it: `tests/test_r7b_format.py` (`fast`) with captured streams: normal,
+    cut off in thinking, no thinking block, and `<co>` inside the thinking.
 - Command R7B **does** accept a system preamble. "Never send a system prompt" is
   an NMV rule, so add a comment saying so where the reader builds messages.
   Even so, start with no preamble; the `rag` template already instructs the model.
-- Check the installed `mlx_lm.sample_utils.make_sampler` signature before writing
-  `as_kwargs`-style glue. Do not guess the parameter names.
-- Find out how mlx-lm decodes the control tokens (`<|START_RESPONSE|>`,
-  `<|END_RESPONSE|>`, `<|START_THINKING|>`…). If they reach the stream as text,
-  strip them in the citation parser, not in page code.
+- **Tests for the budget:**
+  - Make the budget logic a pure function that takes `render(history, docs) -> str`
+    and `count(str) -> int` as parameters.
+  - `tests/test_reader_budget.py` (`fast`, no network) drives it with a stub
+    renderer and a stub counter:
+    - pages are dropped in order, and the dropped ones are reported
+    - the middle of the history is dropped before the first turn
+    - it refuses when nothing fits
+    - the hard check raises past `READER_CONTEXT`
+  - The real template and tokenizer are checked in the `weights` tier
+    (step 5h): the measured overhead stays within ±10% of 1,658 tokens.
 
 ### 3. Boot both libraries on the worker — `nmv/runtime.py`
 
@@ -544,7 +625,7 @@ are built on top.**
    5f (log hash prefix) each specify their own hashing of the page bytes. If
    one changes, the store, the cache and the logs stop agreeing.
 2. **Citation numbers are not page numbers.** R7B cites *positions in the
-   document list it was given*. The 6K cap (step 2) can drop pages and search
+   document list it was given*. The context budget (step 2) can drop pages and search
    hits (step 9) can add them, so citation `[2]` is not necessarily the third
    upload. No step records which pages were actually sent, so Locate could
    draw a box on the wrong page.
@@ -561,11 +642,11 @@ nothing.
 |---|---|---|
 | `PageId` | `NewType("PageId", str)`: 64-hex sha256 of the **original upload bytes** | **The one identity function**, `page_id(data: bytes) -> PageId`. The store, the Locate cache, the logs (first 8 characters) and the evals all call it, and nothing else hashes page bytes |
 | `Page` | `id`, `display_name` (session only), `source_size`, `image: Image \| None` | `image is None` for a search hit without its upload, which is exactly what decides whether Locate is available |
-| `Derivation` | `page: PageId`, `resolved_px: int`, `model_revision: str`, `prompt_version: int` | `.key()` = sha256 over the fields in a fixed, documented order. **Every page-derived result carries one**, which is what makes caches invalidate themselves |
+| `Derivation` | `page: PageId`, `resolved_px: int`, `model_revision: str`, `prompt_version: int`, `max_tokens: int` | `.key()` = sha256 over the fields in a fixed, documented order. **Every page-derived result carries one**, which is what makes caches invalidate themselves. `max_tokens` is in the key because a transcript cut off at one limit is a different result from a complete one |
 | `Transcript` | `derivation`, `text`, `finish_reason` | Stored under `derivation.key()` (step 4b) |
 | `Grounding` | `derivation`, `instruction`, `boxes: tuple[Box, ...]`, `truncated` | Replaces Grounding's `grounding_result` dict; the Locate cache stores these |
 | `Citation` | `span`, `doc_indices: tuple[int, ...]` | Indices into the list **as sent**, never page numbers (step 4 returns these) |
-| `Turn` | `role`, `display_text` (after `safe_markdown`), `raw_text` (**exactly as generated**, for step 5g's prefix reuse), `citations`, `sent_pages: tuple[PageId, ...]`, `run_id` | **`turn.page_for(index) -> PageId`** maps a citation through `sent_pages` and raises a clear `IndexError` when out of range. This fixes problem 2 |
+| `Turn` | `role`, `display_text` (after `safe_markdown`), `history_text` (the **response body only**, with its `<co>` tags, no thinking or control tokens; step 2), `citations`, `sent_pages: tuple[PageId, ...]`, `run_id` | **`turn.page_for(index) -> PageId \| None`** maps a citation through `sent_pages`. An out-of-range index (the model invented `0:[7]` with 3 documents) returns `None`, never raises, because it runs while the page renders. The page shows such a citation as a disabled "source not found" pill. This fixes problem 2 |
 
 - `RunRecord` (5l) and `Failure` (5e) are unchanged.
 - **Ask documents uses `Turn` from the start. Chat keeps its dict records.**
@@ -598,9 +679,10 @@ or trace files; **metadata** can go anywhere.
    without one may not be cached or compared.
 3. **The 0–1000 grid is the stored form**; pixels are computed when drawing
    (`CLAUDE.md`'s rule, applied to the types).
-4. **Raw text stays separate from display text.** `raw_text` feeds prefix reuse
-   and Inspect; `display_text` feeds the page. Chat-template messages are built
-   from `raw_text` only.
+4. **History text stays separate from display text.** `history_text` (the
+   response body with `<co>` tags) feeds the chat template; `display_text`
+   feeds the page. The full raw stream, thinking included, goes only to
+   Inspect's session-held store (step 5l), never into history.
 5. **Eval truth uses the same conventions:** grid boxes and the same QA shape
    (step 1b), so `evals/metrics.py` compares a `Grounding` with truth without
    converting.
@@ -611,8 +693,8 @@ or trace files; **metadata** can go anywhere.
 - `Turn.page_for`:
   - with a dropped page: sent `(p0, p2)`, citation index 1 → `p2`
   - with a search hit in the sent list
-  - an out-of-range index raises `IndexError` with the index and list length
-- Template messages built from `Turn`s use `raw_text`, never `display_text`.
+  - an out-of-range index returns `None` (the page shows "source not found")
+- Template messages built from `Turn`s use `history_text`, never `display_text`.
 - With step 4b: a `put` at two budgets for one page, then a lookup by
   `page_id`, returns both.
 
@@ -745,20 +827,45 @@ step 9).
   behind the user's back. Re-running NMV costs seconds per page, while keeping
   the result costs a few KB. Staleness is already impossible because of the key.
   Two ways a transcript leaves the store:
-  1. **Unreachable entries are pruned automatically.**
-     - `prune(model_revision, prompt_version) -> int` runs
-       `DELETE FROM transcripts WHERE model_revision != ? OR prompt_version != ?`
-       and returns the row count. No future key can match those rows.
+  1. **Old-version entries are pruned, but only once they are stale.**
+     - A row from another model revision or prompt version is *not*
+       necessarily unreachable. Every checkout shares one `transcripts.db`, and
+       the plan itself tells users to switch tags (step 5j). So an immediate
+       prune on start-up would delete the other checkout's valid transcripts
+       on every switch, costing minutes of re-transcription.
+     - `prune(model_revision, prompt_version, older_than_days=30) -> int` runs
+       `DELETE … WHERE (model_revision != ? OR prompt_version != ?) AND created < ?`
+       and returns the row count, followed by `'optimize'` (see "Deleting
+       really deletes").
      - Run it once per server process, from an `st.cache_resource`-wrapped call
        on the first visit to Ask documents. Never on every rerun.
+     - Also offer it as an explicit "Remove transcripts from other versions (N)"
+       action in the storage group, which prunes regardless of age.
      - Different budgets are **not** pruned. They are still reachable by moving
-       the slider back.
+       the slider back, and step 5 uses them as fallbacks.
+     - Note the policy in `docs/privacy.md` (step 6b).
   2. **The user clears everything** with the button below.
-- **Truncated transcripts:** store them, but show the truncation warning again
-  when one is loaded.
+- **Truncated or empty transcripts:** store them, but flag them.
+  - Show the truncation or "page looks empty" warning again whenever one is
+    loaded.
+  - **Do not send an empty one to the reader.**
+  - Offer a per-page **"Re-transcribe"** action that overwrites the row.
+  - Truncation should be rare, because transcription uses its own fixed
+    `TRANSCRIBE_MAX_TOKENS` (step 5), not the sidebar's.
 - **API:**
   - `get(key) -> Transcript | None`
-  - `put(key, Transcript)` (`INSERT OR REPLACE`)
+  - `by_page(page_id) -> list[Transcript]`: every saved transcript of a page,
+    at any budget, newest first. Needed by step 5 (best available transcript),
+    step 9 (re-upload reconnects) and step 3c's tests.
+  - `put(key, Transcript, filename: str | None)`. **Write it as
+    `INSERT … ON CONFLICT(key) DO UPDATE SET …`, never `INSERT OR REPLACE`.**
+    - `REPLACE` deletes the old row *without* firing the AFTER DELETE trigger
+      (unless `recursive_triggers` is on), which leaves stale entries in the
+      external-content FTS index and corrupts it.
+    - Reproduced 2026-10-18: after two `INSERT OR REPLACE`s of one key,
+      `INSERT INTO transcripts_fts(transcripts_fts, rank) VALUES('integrity-check', 1)`
+      failed with "database disk image is malformed". `ON CONFLICT DO UPDATE`
+      fires the UPDATE trigger, and the check passes.
   - `prune(...) -> int`
   - `clear() -> int` (rows removed)
   - `usage() -> (count, bytes)` (`SELECT count(*), coalesce(sum(length(text)), 0)`)
@@ -767,13 +874,32 @@ step 9).
   - Atomicity comes from the transaction; no temp-file dance is needed.
   - **Every query is parameterised (`?`).** Never build SQL with f-strings, and
     that includes FTS `MATCH` input from the search box (step 9).
-- **`clear()`:** run `DELETE FROM transcripts` (the triggers empty the FTS index),
-  then `INSERT INTO transcripts_fts(transcripts_fts) VALUES('optimize')`, then
-  `VACUUM` (outside the transaction), so the file actually shrinks and no
-  document text survives in free pages.
+- **Columns:** store `resolved_px` alongside `width` and `height`, so a row
+  carries every `Derivation` field in plain form, plus `max_tokens` (step 3c).
+- **Deleting really deletes.** FTS5 records a delete as a tombstone and keeps
+  the indexed terms in its segments until a merge. So after a `DELETE`
+  (`prune`, `clear`, an `ON CONFLICT` update), run
+  `INSERT INTO transcripts_fts(transcripts_fts) VALUES('optimize')`; otherwise
+  deleted text stays readable in the file. Verified by the review:
+  `secure_delete=ON` alone left a deleted term's bytes in the `.db`.
+- **`clear()`:** in this order:
+  1. `DELETE FROM transcripts` (the triggers empty the FTS index).
+  2. `'optimize'`.
+  3. `VACUUM`, outside the transaction.
+  4. `PRAGMA wal_checkpoint(TRUNCATE)`. In WAL mode, `VACUUM` does not shrink
+     the main file until a checkpoint, and with another tab's connection open
+     it will not shrink at all.
+
+  Then show the remaining count, so a row re-added by a concurrent write is
+  visible rather than silently surviving "Clear".
+  - **Refuse Clear while a transcription queue is active** in this session
+    (step 5). Say why on the button's help text.
 - **Failure handling:** if the database cannot be opened (corrupt file, disk
   full, permissions):
-  - `get` returns a miss and `put` is skipped.
+  - `get`/`by_page` return a miss, and `put` is skipped.
+  - **The page falls back to the same session-held path as "save off"**
+    (below), so freshly transcribed pages still reach the reader instead of
+    vanishing on the next rerun.
   - Log the error with `logging`, and show one `st.warning` from the page saying
     transcripts are not being saved and naming the path.
   - Never crash the pipeline over the cache.
@@ -781,11 +907,16 @@ step 9).
 - **No MLX import** in this module, and no Streamlit import either.
 - **Tests** (plain script, using a temp database via the env var):
   - put/get round trip
-  - a different revision, budget or prompt version misses
+  - a different revision, budget, prompt version or `max_tokens` misses
+  - `by_page` returns every budget's transcript for one page
+  - **put the same key twice, then run FTS `integrity-check`: it passes**
+    (guards against `INSERT OR REPLACE` creeping back)
   - a file that is not a database is treated as a miss, and is not deleted
-  - `clear()` empties both tables, and the file size drops after `VACUUM`
-  - `prune()` removes only old-revision and old-prompt rows, and keeps
-    current-revision rows at other budgets
+  - `clear()` empties both tables; **after closing the connection** the file
+    size has dropped (measure after close, because of WAL)
+  - after `prune()` and `optimize`, a pruned row's unique term is no longer
+    present in the file's bytes
+  - `prune()` removes only rows matching its policy (below)
   - FTS stays in sync: after `put`, `search` finds a word from the text, and
     after `prune`/`clear` it does not
   - threads: `put` from one thread and `get` from another both succeed (guards
@@ -850,34 +981,95 @@ Title "Ask documents", icon `:material/description:`. Direct script, no `main()`
 same shape as the two existing pages.
 
 1. `st.file_uploader(accept_multiple_files=True, type=IMAGE_TYPES)`.
-2. **Transcribe** button.
-   - For each page, run `normalize` → `encode` → `model.stream_reply` with a
-     user-turn instruction: "Transcribe this page to Markdown. Preserve tables.
-     Output only the transcription."
-   - Use `greedy`-style sampling for this step whatever the sidebar says. Say so
-     in a caption.
-   - Look each page up in `nmv/transcripts.py` first, and transcribe only the
-     misses.
-     - Stream each miss as it is transcribed, then `put` it.
-     - Hits render instantly, with a caption saying "saved".
-     - Show each transcript in an expander per page.
-   - Hold only the chat history in `st.session_state`; transcripts come from the
-     store.
-   - **Page cap:** `MAX_PAGES = 10`.
-     - Above that, transcribe the first 10 and say which pages were skipped.
-       Never drop pages silently.
-     - The cap also keeps the joined transcripts near the 6K-token context limit.
-   - **Budget-change cost:** under the Transcribe button, add a caption saying
-     transcripts depend on the image budget. Changing the budget re-transcribes
-     every page that has no saved transcript at the new budget.
-3. `st.chat_input`, then `reader.stream_answer` over the transcripts.
-   - Render the clean text.
+   - **Turn uploads into `Page`s by `page_id`, deduplicating.** The same bytes
+     uploaded twice become one page, shown as "duplicate of p.2" and never sent
+     to the reader twice.
+   - **Order:** natural sort by file name by default, so `page-2.png` comes
+     before `page-10.png`. The order is shown and can be changed: a
+     `st.multiselect` "Pages to ask about", pre-filled with every page in that
+     order. Its selection, in its order, is what step 2's budget fills and what
+     `sent_pages` records.
+   - **Page cap:** `MAX_PAGES = 10`, defined in `nmv/ui.py` next to
+     `READING_WIDTH` (step 5's layout).
+     - Above that, keep the first 10 in order and say which pages were
+       skipped. Never drop pages silently.
+     - This cap is about memory and transcription time. Whether pages fit the
+       reader's context is decided by step 2's token budget.
+2. **Transcribe** button: transcribes the selected pages that have no usable
+   transcript.
+   - **Prompt and limits come from `nmv/prompts.py`** (step 1b):
+     `TRANSCRIBE_PROMPT`, `TRANSCRIBE_PROMPT_VERSION` and
+     `TRANSCRIBE_MAX_TOKENS = 2048`, which is also what the evals use.
+     - **Ignore the sidebar's max tokens and sampling here**: greedy decoding,
+       fixed limit. Say so in a caption.
+     - A dense A4 page runs past the sidebar's default of 512, and a transcript
+       cut off at 512 would be cached as if complete.
+   - **Run it from a queue, so a rerun resumes rather than kills it.**
+     - Clicking Transcribe puts the pending `PageId`s into
+       `st.session_state["transcribe_queue"]`.
+     - Each script run takes pages from the front of the queue until it is
+       empty.
+     - **Why:** any interaction (a question, a page pill, the budget slider, the
+       save toggle) triggers a rerun. That closes the running stream, and a
+       plain `st.button` reads False on the next run, so pages 5–10 would
+       silently never be done. With the queue, the next run carries on.
+     - Show a **Stop** button while the queue is non-empty; it empties the queue.
+     - While it runs, disable the uploader, Transcribe and Clear, and say that
+       asking a question will pause transcription until the answer finishes.
+     - Progress shows as "Page 3 of 7" (step 5d), **not** a token stream. That is
+       the single progress display.
+   - **Find a usable transcript before transcribing:**
+     - Exact hit at the current budget (`get(Derivation(…).key())`) → use it.
+     - Otherwise any saved transcript of the page (`by_page`) → **use the
+       highest-budget one**, labelled "saved at 2.1 MP".
+       - **Why:** the budget slider is session-wide. Lowering it on Grounding
+         must not turn every Ask transcript into a miss and force a
+         multi-minute re-transcription.
+       - Offer "Re-transcribe at the current budget" beside it.
+     - No transcript at all → queue it.
+     - **Never send the reader a page with no transcript.** Warn and leave it
+       out of `sent_pages`.
+   - When saving is off or the store failed (step 4b), keep each finished
+     transcript in session state under the same key, so it survives reruns.
+   - Hits render instantly, with a caption saying "saved".
+   - State lives in `st.session_state`: the chat history (`Turn`s), the
+     transcription queue, session-held transcripts (save off or store failure),
+     Inspect data and the Locate cache. Saved transcripts come from the store.
+3. `st.chat_input`, then `reader.stream_answer` over the selected pages'
+   transcripts.
+   - Render the response through `show_reply` (step 5d), never `st.write_stream`
+     directly.
    - Then render citations as `st.pills`/buttons labelled "p.2: “Total due”".
-4. Clicking a citation runs NMV grounding on that page with
-   `Locate "<span>". Return a JSON list of {"bbox_2d": [x1, y1, x2, y2]}.`.
+     - A citation whose index `Turn.page_for` cannot map shows as a disabled
+       "source not found" pill.
+     - An answer with no citations gets a "No page citations — check the answer
+       against the pages" caption, and offers no Locate.
+   - **"New conversation"** button: clears the `Turn`s and Inspect data.
+     - **Changing the selected pages also starts a new conversation**, with a
+       notice. Earlier turns' `<co>` tags index into the old document list, and
+       the documents are attached to the conversation's first question
+       (step 2).
+4. Clicking a citation grounds **the document's text, not the answer's
+   wording.**
+   - **Why:** in Command R's format, `<co>…</co: 0:[i]>` wraps a span of the
+     *answer* ("The total amount due is…"), and the closing tag only names the
+     documents. That phrasing is often not on the page.
+   - **Before grounding**, fuzzy-match the span against the cited page's
+     transcript and send the best-matching verbatim line or value. Use
+     `difflib.SequenceMatcher` over the transcript's lines and keep the best
+     ratio; above 0.5, use that line, otherwise fall back to the span itself.
+     Record which text was sent in Inspect.
+   - Prompt: `LOCATE_PROMPT` from `nmv/prompts.py` (step 1b), filled with that
+     text. It is the same template 1b and 5h use.
    - Parse with `grounding.parse_boxes`.
    - Draw with `grounding.draw_boxes` on the full-resolution `normalize()`d page.
    - Labels are optional; do not assume them.
+   - A cited page that is no longer uploaded (removed from the uploader, or a
+     step 9 search hit) has no image: Locate is disabled, with the caption
+     "Re-upload this page to locate it".
+   - Test the fuzzy match in `tests/test_locate_match.py` (`fast`): the
+     paraphrase "The total amount due is $4,182.55" matches the transcript line
+     "Total due: $4,182.55", and an unrelated span falls back.
 
 Rules that apply to this page:
 - Load the reader lazily, on the first question rather than at page render.
@@ -1100,10 +1292,19 @@ regression is easy to bisect.
    - **Off:** show `st.spinner("Answering…")`, then render the complete text
      once. This helps screen-reader users and anyone who finds moving text
      distracting.
-   - Add one helper in `nmv/ui.py`, `show_reply(chunks, streaming: bool) -> str`.
-     It either calls `st.write_stream` or joins the chunks under the spinner,
-     and returns the text either way.
-     - Chat, Grounding and Ask documents call it instead of `st.write_stream`.
+   - The toggle feeds `ui.show_reply(chunks, streaming: bool) -> str`, which
+     **already exists from M0** (step 5i.2 creates it, so streamed output is
+     sanitised from the first milestone). This step only adds the toggle and
+     the non-streaming branch.
+     - **Streaming on:** `slot = st.empty()`, then for each chunk, accumulate
+       and call `slot.markdown(safe_markdown(accumulated))`. **Never
+       `st.write_stream`.** It concatenates the raw chunks itself and renders
+       them with `unterminated_parsing=True`, which completes unclosed Markdown
+       mid-stream, so a half-streamed `![](https://…` could load before any
+       sanitising (verified in the 1.64 source).
+     - **Streaming off:** collect the chunks under the spinner, then render
+       `safe_markdown(text)` once.
+     - It returns the full text either way.
      - Generation still goes through `runtime.iterate()` and is consumed fully
        in both modes, so stats and navigating away mid-answer behave the same.
    - Do **not** apply it to transcription progress. There, per-page progress is
@@ -1273,7 +1474,7 @@ from the terminal, which has no Clear button.
    | INFO | Store maintenance | rows pruned at start-up, rows removed by Clear |
    | WARNING | Expected `classify()` kinds: `out_of_memory`, `download`, `disk_full` | kind, session prefix, budget, max tokens, page count, **no traceback** |
    | ERROR | `internal` failures | `logger.exception`, full traceback |
-   | DEBUG | Sampling settings, resolved image sizes, the reader's token count after the 6K cap | numbers only |
+   | DEBUG | Sampling settings, resolved image sizes, the reader's rendered-prompt tokens and pages dropped by the budget | numbers only |
 
    - The generation line is **step 5l's run record, logged once**. There is no
      separate `log_run` format: all five call sites go through the record, so
@@ -1327,7 +1528,7 @@ half the M2 Max's GPU cores and memory bandwidth.
 | Image prefill | ~300 tok/s (M2 Max baseline: 590) | Limited by compute |
 | One full-budget A4 page | ~12 s prefill (~3,700 tokens) + ~10 s to decode ~600 tokens | |
 | A 10-page document | **~4 minutes** to transcribe | |
-| Each question | **~10–15 s to the first word** | Command R7B re-processes ~6K tokens of transcripts |
+| Each question | **~10–15 s to the first word** | Command R7B re-processes the whole rendered prompt (up to ~7K tokens) and writes a thinking block first |
 
 Those two costs, transcription and repeated question prefill, are the targets.
 Keep each item below as its own commit.
@@ -1345,47 +1546,28 @@ Keep each item below as its own commit.
        original as well, at 13–48 MB.
      - Pass the upload with a leading underscore, so Streamlit does not hash
        its bytes. Grounding's docstring explains the cost.
-2. **Reuse the reader's computation across follow-ups.**
-   - **Why it works:** the `rag` template inserts the documents right after
-     the **first** user message. In the template, `document_turn(documents)`
-     sits inside the first `user` branch, guarded by `sent_documents`
-     (verified at the pinned revision on 2026-10-18). So every follow-up keeps
-     `[preamble][first question][documents]…` unchanged and only adds to the
-     end.
-   - **One prompt cache on the worker, for all tabs.** Keep it in a
-     worker-side module global, together with the token ids it covers. A
-     question from another session replaces it, because one cache per tab
-     would multiply KV memory on a machine with none to spare.
-   - **On each question:**
-     1. Tokenise the new prompt.
-     2. Count the leading tokens it shares with the cached ids.
-     3. If they cover the whole cache, generate on top of it, processing only
-        the new tokens.
-     4. If the cache is longer than the shared prefix, trim it when mlx-lm's
-        `can_trim_prompt_cache` allows (`trim_prompt_cache`), otherwise start
-        a fresh cache.
-     5. After generating, store the new ids, generated tokens included, since
-        `stream_generate` extends the cache with them.
-   - **Known limitation:** 24 of R7B's 32 layers use a 4096-token sliding
-     window (`sliding_window_pattern: 4`). A ~6K prompt fills it, so trimming
-     may be refused. Falling back to a full prefill is correct behaviour, not a
-     bug.
-   - **Log the outcome** as `prefix=hit|trimmed|full` on the step 5f
-     generation line, so step 8 measures how often reuse actually works.
-   - **If the template re-renders the earlier answer differently from what was
-     generated** (control tokens, citation tags), the shared prefix will stop at
-     the documents turn. Fix that by storing the assistant turn in history
-     exactly as generated, before cleaning it for display.
-   - **Reset the cache** when the selected documents change (new upload,
-     search hits added), when the reader reloads, and after any `out_of_memory`
-     (step 5e) before `clear_cache`.
-   - Check the exact names (`make_prompt_cache`, `can_trim_prompt_cache`,
-     `trim_prompt_cache`, the `prompt_cache=` keyword) against the installed
-     mlx-lm before writing code. Do not guess them.
-   - **Chat could benefit too:** it re-sends every image each turn, and
-     mlx-vlm 0.7.3's `generate/common.py` accepts `prompt_cache`. Check that
-     0.7.8 still does, then decide from step 8's numbers. Leave it out of this
-     step unless a Chat follow-up's first word is measured as slow.
+2. **Prefix reuse across follow-ups: moved to "Later". Do not build it in M3.**
+   - The review on 2026-10-18 showed it would almost never work for this model:
+     - **The history never matches the cache.** The template re-renders every
+       past answer as `<|START_RESPONSE|>{{content}}<|END_RESPONSE|>`, while the
+       generated tokens began with a thinking block (step 2). So cached token
+       ids and re-rendered ids diverge right after the documents (verified).
+     - **The cache holds one extra token.** `generate_step` feeds the EOS token
+       (or the token at `max_tokens`) into the cache before `stream_generate`
+       stops.
+     - **The sliding-window layers cannot be trimmed once full.**
+       `RotatingKVCache.is_trimmable()` is `offset < max_size`, and cohere2
+       puts a 4096-token rotating cache on 24 of 32 layers. With ~1.66K tokens
+       of template overhead, any document set over ~2.4K tokens makes trimming
+       impossible.
+     - So the outcome would be `full` in practically every real case.
+   - **The workable design, if it is ever wanted:** prefill
+     `[preamble + first question + documents]` once, keep a copy of that cache
+     state, and answer each follow-up from a copy. That costs a second copy of
+     the KV cache (~0.65 GB at 8K), a poor trade on 16 GB. Revisit only if
+     step 8 shows follow-up latency is the main complaint *and* memory allows.
+   - Until then, the run record's `prefix` field is always `n/a`. Do not add
+     prefix-reuse rows to 5h's e2e test or step 8's measurements.
 3. **Choose the transcription budget from data, not in advance.**
    - Step 8 transcribes the dense test document at 1.0, 2.0 and 3.87 MP and
      compares each with the 3.87 MP transcript by character error rate. A small
@@ -1444,7 +1626,8 @@ runner and helper.
    | Transcription (step 5's prompt) | the text, with whitespace and case normalised, contains `acme logistics`, `nmv-2026-0847`, `4,182.55` |
    | Reader: "What is the total due?" over that transcript | the answer contains `4,182.55`, and `nmv.citations.parse` finds at least one citation to page index 0 |
    | Locate on the first cited span | a box whose centre has x < 500 and y < 333: the "Total due" line in the upper left |
-   | Prefix reuse (step 5g): ask "Who issued it?" next | **report** the `prefix=` outcome; `full` is a reported result, not a failure (sliding-window limit) |
+   | Template overhead | the real rendered `rag` prompt for one short question and a one-character document is within ±10% of 1,658 tokens (step 2's measured figure) |
+   | Thinking phase | the displayed answer contains no `<|START_THINKING|>`, `<|START_RESPONSE|>` or other control-token text (step 2) |
    | Memory | **report** `get_peak_memory()` and `get_cache_memory()` against `max_recommended_working_set_size`; fail only if peak exceeds it |
 
    - **Write the expected values in the test file**, each with a comment naming
@@ -1539,9 +1722,16 @@ config change that protects everything after it.
    - **Every model-produced string goes through it before rendering:** Chat
      replies, reader answers, transcripts in expanders, and search snippets
      (step 9).
-     - For streamed output, apply it to each chunk as it accumulates
-       (`show_reply` from step 5d works on the accumulated text). Never render a
-       raw chunk.
+     - **Create `ui.show_reply(chunks) -> str` here, in M0**, and switch Chat to
+       it in the same commit.
+       - It renders `safe_markdown(accumulated)` into one `st.empty()` slot per
+         chunk, never `st.write_stream`. `write_stream` renders raw chunks with
+         `unterminated_parsing=True`, so an image could load mid-stream
+         (verified in the 1.64 source).
+       - **This closes a weakness on `main` today.** Chat streams model output
+         through `st.write_stream`, so an injected Markdown image in a document
+         could make the browser fetch an outside URL.
+       - Step 5d later adds the "Stream responses" toggle to this same helper.
      - Grounding's raw response is already in `st.code`, which renders nothing.
    - **Never `unsafe_allow_html=True`.** This becomes a static check (item 7).
    - **README:** this app has no tools, so injection can only produce **wrong
@@ -1761,14 +1951,13 @@ Give each item its own commit.
      - which models are loaded
      - the worker state: "idle", or "busy · N queued"
      - saved transcripts (count and size)
-     - the last 10 runs as a small `st.dataframe`: kind, tokens, tok/s, peak GB,
-       `prefix=`
+     - the last 10 runs as a small `st.dataframe` (columns below)
    - The limit is `max_recommended_working_set_size`, read once on the worker
      after load and stored in the snapshot (step 8 measures it).
    - **The run history shows step 5l's run records**, which are numbers only.
      The ring buffer of the last 10 records lives in `nmv/trace.py`, and the
-     panel shows kind, queue wait, first-token time, tokens, peak GB and
-     `prefix=`.
+     panel shows kind, queue wait, first-token time, tokens, thinking tokens
+     and peak GB.
    - **`sysctl` reads live in `nmv/system.py`** (no MLX, no Streamlit):
      `pressure_level()` and `swap_used_mb()`.
      - Each runs `subprocess.run([...], capture_output=True, timeout=1)`.
@@ -1846,7 +2035,15 @@ or why it was wrong. Build this before 5f and 5k start consuming it, or adjust
 them in the same commit.
 
 1. **The run record: `nmv/trace.py`** (pure; no MLX, no Streamlit).
-   - A frozen dataclass `RunRecord`:
+   - **Two types, because a frozen record cannot be filled in from the
+     worker:**
+     - `RunBuilder`: mutable and lock-protected. This is what the context
+       variable holds.
+     - `RunRecord`: a frozen dataclass built from it once, in `trace.finish`.
+     - **Why:** `copy_context().run` gives the worker a *copy* of the context,
+       so a `ContextVar.set` there is never seen page-side. But both sides share
+       the same builder *object*, so mutating it in place does flow back.
+     - Its fields:
 
      | Field | Answers the question |
      |---|---|
@@ -1856,8 +2053,8 @@ them in the same commit.
      | `first_token_s` | how long before the first word, measured page-side when the first chunk arrives |
      | `image_tokens`, `prompt_tokens`, `generated_tokens` | how big the job was |
      | `budget_px`, `resolved_px` | what resolution the model actually saw |
-     | `pages_used`, `pages_dropped` (reader) | did the 6K cap cut anything? |
-     | `prefix` (`hit` / `trimmed` / `full` / `n/a`), `store` (`hit` / `miss` / `not-saved` / `n/a`) | was earlier work reused? |
+     | `pages_used`, `pages_dropped` (reader) | did the context budget cut anything? |
+     | `store` (`hit` / `fallback-budget` / `miss` / `not-saved` / `n/a`), `prefix` (always `n/a` until step 5g.2 is built), `thinking_tokens` | was earlier work reused? how long did R7B plan before answering? |
      | `peak_gb`, `finish_reason`, `outcome` (`ok` or a `classify()` kind) | how it ended |
 
    - **Numbers, IDs and enum values only, never content.** It obeys step 5f's
@@ -1872,15 +2069,18 @@ them in the same commit.
      (`duration`, `status`), so moving to OTel later is a rename. Do not add OTel
      now (item 8).
 2. **Run context carried to the worker.**
-   - `trace.start(kind)` runs page-side when an action begins. It creates the
-     record, sets `run_id` / `session` / the record in `contextvars`, and
-     returns a handle the page closes with `trace.finish(...)`.
+   - `trace.start(kind)` runs page-side when an action begins. It creates a
+     `RunBuilder`, sets `run_id`, `session` and the builder in `contextvars`,
+     and returns a handle. The page closes it with `trace.finish(...)`, which
+     freezes it into a `RunRecord`.
    - **`runtime.submit()` wraps every job in `contextvars.copy_context().run`.**
      - Verified 2026-10-18: a plain `ThreadPoolExecutor.submit` arrives on
        `mlx-worker_0` with the variable's **default**. With `copy_context().run`
        it arrives with the value set before submitting.
-     - Worker-side code then reads the current record and adds spans without
-       any extra argument.
+     - Worker-side code reads the current **builder** from the context and
+       mutates it in place (spans, `queue_wait_s`, token counts) under its lock.
+       Never `ContextVar.set` on the worker; that would only change the
+       worker's copy.
      - Record the submit time in the context too, so the worker can set
        `queue_wait_s` when the job starts.
    - **A `logging.Filter`** on the `nmv` handler stamps `run` and `session` on
@@ -1904,7 +2104,7 @@ them in the same commit.
      response" expander, which Grounding keeps.
    - Contents:
      - **the prompt exactly as the chat template rendered it**: for the reader,
-       which pages were included and which the 6K cap dropped; control tokens
+       which pages were included and which the context budget dropped; control tokens
        left visible. Show it in `st.code(..., language=None, wrap_lines=True)`.
      - **the raw model output** before citation parsing and `safe_markdown`
        (step 5i), also in `st.code`, which renders nothing and is therefore
@@ -1936,8 +2136,10 @@ them in the same commit.
        free-text field. Inspect content lives in session state, never in the
        record.
    - **In `tests/test_runtime_abandon.py` (`mlx` tier):** a context variable set
-     before `runtime.submit()` is visible inside the job, and `queue_wait_s` is
-     ≥ 0. This needs a real submit.
+     before `runtime.submit()` is visible inside the job; a span the job adds
+     to the shared builder **is visible page-side after the job returns**
+     (guards against a regression to `ContextVar.set` on the worker); and
+     `queue_wait_s` is ≥ 0. This needs a real submit.
    - **In step 5h's UI smoke test:** Inspect renders with a fake turn, and the
      raw output appears inside a code block, not as rendered Markdown.
 8. **Not included:** OpenTelemetry exporters, Jaeger, or hosted tracing. They
@@ -1975,7 +2177,7 @@ document; everything else links to it.**
 | Someone using it | `docs/privacy.md` | Every data flow: what is stored and where (`transcripts.db`, its permissions), what is logged (metadata only, step 5f), the only network traffic (Hugging Face, first run), the save toggle, Clear, FileVault, `HF_HUB_OFFLINE` |
 | | `docs/troubleshooting.md` | One heading per `classify()` kind (`out_of_memory`, `download`, `disk_full`, `bad_image`), **using the in-app message's title as the heading**, so searching the on-screen text finds it. Also each doctor FAIL, the port being taken, and memory pressure / swap (step 5k) |
 | Someone curious how it works | `docs/architecture.md` | README's current "Things worth knowing" sections move here: token scaling, the 0–1000 grid, MLX's thread-bound streams, the model's limits. Add two **Mermaid** diagrams (GitHub renders them): read → reason → locate, and the single worker with its snapshot and queue |
-| | `docs/performance.md` | Measured baselines for both machines (the M2 Max 32 GB figures from `CLAUDE.md`, the M2 Pro 16 GB figures from step 8), the budget sweep, the prefix-reuse rate, and how to reproduce |
+| | `docs/performance.md` | Measured baselines for both machines (the M2 Max 32 GB figures from `CLAUDE.md`, the M2 Pro 16 GB figures from step 8), the budget sweep, and how to reproduce |
 | Contributors | `CONTRIBUTING.md` | Dev setup; test tiers and `tests/run.py`; the hooks and what a refusal means; the see-it-fail rule; the PR flow; "never bump `version`" (link `RELEASING.md`). Replaces README's "Development" and "CI and releases" sections |
 | | `RELEASING.md`, `SECURITY.md` | As planned in steps 5j and 5i |
 | AI agents | `CLAUDE.md` | **Rules and invariants, each with a one-line reason**, linking to `docs/` and code comments for the full reasoning. It is loaded into every session, so length costs context every time |
@@ -2225,8 +2427,8 @@ Record:
 6. **Per-page transcription time**, split into a miss (first run) and a hit
    (second run). The hit should be ~0 s.
 7. **Time to the first word for question 1 and question 2** on the same
-   documents, plus the `prefix=` outcome from the log line. Report how often
-   reuse happens (step 5g.2).
+   documents, plus the thinking tokens per answer. Long thinking is the first
+   thing to shorten if answers feel slow (prefix reuse is deferred; step 5g.2).
 8. **The transcription budget sweep** (step 5g.3): CER at 1.0 and 2.0 MP against
    3.87 MP, and seconds per page at each.
 9. **`mx.get_cache_memory()`** after a 10-page transcription. Tune
@@ -2329,7 +2531,7 @@ model and no extra memory.
   input like `AT&T "net 30` cannot raise `sqlite3.OperationalError`. On any
   remaining syntax error, show "no results", not a traceback.
 - Selecting hits adds their transcripts to the reader's documents for the next
-  question. They use the same 6K-token cap as uploads, and pages that do not fit
+  question. They go through the same context budget as uploads (step 2), and pages that do not fit
   are named, never silently dropped.
 - **Locate is unavailable for search hits until the page is re-uploaded.**
   - The store keeps text only, never page images; that is deliberate, for
