@@ -27,11 +27,11 @@ state from here.
 
 | Milestone | Steps, in this order | Read | Done when |
 |---|---|---|---|
-| **M0 · Foundations** | PR setup (below) → **0** upgrade → **5i.1** localhost binding → **3b** test runner (+ grounding parse test) → **3c** data model | those sections + "Claude Code hooks" | CI green on the upgraded lock; `lsof` shows localhost only |
-| **M1 · Feasibility** | **1** NMV 8-bit → **1b** vision eval (bf16 vs 8-bit) → **6** add `mlx-lm` → **2** reader → **3** worker boot → **the M1 memory check** (below) | 1, 1b, 6, 2, 3, the memory budget, 8 (pass bar only) | decisions 1 and 2 recorded in this section and confirmed by the user |
-| **M2 · Working pipeline** | **4** citations → **4b** store (with `.gitignore`, permissions **5i.4**) → **5i.2** `safe_markdown` → **5i.3** Pillow formats → **5i.7** static greps → **5i.9** security test → **5e** errors → **5** the page → **5h** e2e (weights) and UI smoke | those sections | Ask documents works on the sample invoice: transcribe → ask → cite → Locate; `tests/run.py all` and `weights` green |
-| **M3 · Quality and polish** | **5l** run record → **5f** logging → **5k** monitoring → **5g** performance → **5b** theme guard → **5c** layout → **5d** accessibility → **8b** eval part B + baseline | those sections | `evals/baseline.json` committed; step 8's performance items measured |
-| **M4 · Docs and release** | **6b** docs structure → **7** docs, guards, CI → **5j** deployment → **8** full measurement → **5i.5, 5i.6, 5i.8** (offline docs, SHA-pinned actions, `SECURITY.md`) → `RELEASING.md` run → **user bumps the version** → **10** repo details | those sections + the verification checklist | the full verification checklist passes; the release is published by the user |
+| **M0 · Foundations** | PR setup (below) → **0** upgrade → **5i.1** localhost binding → **5i.2** `safe_markdown` + `ui.show_reply`, with Chat switched to it → **5i.6** SHA-pinned actions → **3b** test runner (+ grounding parse test, + the CI tier steps and the CI pin check) → **3c** data model | those sections + "Claude Code hooks" | CI green on the upgraded lock; `lsof` shows localhost only; Chat no longer uses `st.write_stream` |
+| **M1 · Feasibility** | **1** NMV 8-bit → **1b** prompts module + vision eval (bf16 vs 8-bit) → **6** add `mlx-lm` → **2** reader (+ the import-guard regex in CI and `CLAUDE.md`) → **3** worker boot → **the M1 memory check** (below) | 1, 1b, 6, 2, 3, the memory budget, 8 (pass bar only) | decisions 1 and 2 recorded in this section and confirmed by the user |
+| **M2 · Working pipeline** | **4** citations → **4b** store (with `.gitignore`, permissions **5i.4**, ruff `S608`) → **5i.3** Pillow formats → **5i.7** static greps → **5i.9** security test (the Pillow cases; the localhost and `safe_markdown` cases landed in M0) → **5e** errors → **5** the page → **5h** e2e (weights) and UI smoke | those sections | Ask documents works on the sample invoice: transcribe → ask → cite → Locate; `tests/run.py all` and `weights` green |
+| **M3 · Quality and polish** | **5l** run record → **5f** logging → **5k** monitoring → **5g** performance → **step 8's performance pass** (items 6–9, including the budget sweep for decision 3) → **5b** theme guard → **5c** layout → **5d** accessibility → **8b** eval part B + baseline | those sections, and 8 items 6–9 | step 8 items 6–9 measured; decision 3 recorded; `evals/baseline.json` committed |
+| **M4 · Docs and release** | **6b** docs structure → **7** docs, guards, CI → **5j** deployment → **8** final memory re-check with every feature on (items 1–5 again) → **5i.5, 5i.8** (offline docs, `SECURITY.md`) → `RELEASING.md` run → **user bumps the version** → **10** repo details | those sections + the verification checklist | the full verification checklist passes; the release is published by the user |
 | **Later** (only if asked) | **9** search; reader prefix reuse and Chat prompt-cache reuse (5g.2); Dependabot (5i.6); `set-v2` injection documents (8b) | — | — |
 
 **Why this order, against the step numbers:**
@@ -45,6 +45,12 @@ state from here.
   output.** That means 5i.1 (localhost) in M0, and 5i.2 to 5i.4 in M2, before
   step 5.
 - **3b and 3c come before any new test or type is written.**
+- **Guards land with, or before, the code they guard.** The CI pin check comes
+  with 3b (M0), the `mlx_lm` import regex with step 2 (M1), and ruff `S608`
+  with the store (M2). Do not leave them for step 7.
+- **Step 8 is split three ways:** the memory decision in M1, the performance
+  pass in M3 (8b and decision 3 depend on it), and a final re-check with every
+  feature on in M4.
 
 ### The M1 memory check (the early half of step 8)
 
@@ -114,7 +120,7 @@ Verified on 2026-10-18 at those exact commits:
 - No `.py` files in any of the three repos.
 - No `auto_map` or `model_file` key in any `.json` file.
 
-**Fallback text model** if memory measurement fails (step 8):
+**Fallback text model** if the M1 memory check fails (decision 2):
 `mlx-community/tiny-aya-global-8bit-mlx` @ `5d5dc68b477abd7d583563a515bed98604d45d52`.
 - 3.58 GB, also clean.
 - No `rag` template, so citations would have to be prompted for and parsed
@@ -369,14 +375,30 @@ live in `evals/`, have their own runner, and are **never in CI** (GitHub's
      at once. bf16 NMV alone (~6.2 GB peak) fits on 16 GB.
    - **All MLX work goes through `nmv.runtime`.** `evals/` is new code, but the
      import invariant applies to it too.
-   - Fixed settings: temperature 0, the ceiling budget (3.87 MP), and fixed
-     `max_tokens` (grounding 512, transcription 2048). Use the same prompts as
-     the app: Grounding's preset wording, and the transcription prompt from
-     step 5. **A different prompt would measure a different system.**
-   - Tasks for part A:
-     - grounding: every `boxes` target, with the prompt
-       `Locate <target>. Return a JSON list of {"bbox_2d": [x1, y1, x2, y2]}.`
-     - transcription: every page
+   - **First, create `nmv/prompts.py`**, the one home for every model prompt
+     and its version (pure; no MLX, no Streamlit). Step 5 and step 5h import
+     from it, so the app and the eval cannot drift apart.
+     - `TRANSCRIBE_PROMPT = "Transcribe this page to Markdown. Preserve tables. Output only the transcription."`,
+       `TRANSCRIBE_PROMPT_VERSION = 1`, `TRANSCRIBE_MAX_TOKENS = 2048`.
+     - `LOCATE_PROMPT = 'Locate "{text}". Return a JSON list of {{"bbox_2d": [x1, y1, x2, y2]}}.'`
+       (filled with `.format(text=…)`), `LOCATE_PROMPT_VERSION = 1`,
+       `LOCATE_MAX_TOKENS = 512`.
+     - **Rule, as a comment at the top of the module:** any change to a prompt's
+       text bumps its `_VERSION`. The versions feed every `Derivation` key
+       (step 3c), so a reworded prompt never reuses old results.
+     - `tests/test_prompts.py` (`fast`) pins a sha256 of each prompt string next
+       to its version. Changing the text without bumping the version fails the
+       test.
+   - Fixed settings: temperature 0, the ceiling budget (3.87 MP), and the
+     `max_tokens` constants above. **A different prompt would measure a
+     different system**, so the eval uses exactly these:
+     - grounding: every `boxes` target, through `LOCATE_PROMPT` with the
+       target's description as `text`. This is the template Ask documents'
+       Locate uses. Grounding's presets are not part of the eval.
+     - transcription: every page, through `TRANSCRIBE_PROMPT`.
+   - **Create `docs/performance.md` here** as a stub with a "Quality" heading,
+     so this step's results have somewhere to go. Step 6b later reorganises
+     around it; it merges into existing files, never replaces them.
    - **Outputs:**
      - Raw model output goes to `evals/runs/<run>/`, which is git-ignored.
        The set is synthetic, so keeping it is safe, and it makes failures
@@ -574,9 +596,13 @@ The plan adds about nine test files. Listing them by hand in CI, in
    - Same output (`PASS`/`FAIL  name — detail`), same exit code.
    - The leading underscore keeps the runner from treating it as a test.
 4. **Wire the runner in once:**
-   - **CI:** replace the two existing test steps with a "Tests (fast)" step
-     and a "Tests (mlx)" step (`tests/run.py fast`, `tests/run.py mlx`). Add a
-     "Tests (ui)" step when step 5h adds the first UI test.
+   - **CI:** replace the two existing test steps with three tier steps, all
+     now: "Tests (fast)", "Tests (mlx)" and "Tests (ui)" (`tests/run.py fast`,
+     `mlx`, `ui`).
+     - A tier with no files yet exits 0 and prints "no tests", so `ui` is wired
+       before step 5h adds its file.
+     - In the same commit, add the "Checkpoint pins" CI step (step 7's final-state
+       list), so the pin check is live before `READER_REVISION` arrives in M1.
    - **`stop-checks.sh`:** replace its hard-coded test loop with
      `uv run python tests/run.py fast`. Widen its changed-file filter to also
      match `.streamlit/config.toml` (step 5b's theme test) and `tests/fixtures/`.
@@ -645,7 +671,7 @@ nothing.
 | `Derivation` | `page: PageId`, `resolved_px: int`, `model_revision: str`, `prompt_version: int`, `max_tokens: int` | `.key()` = sha256 over the fields in a fixed, documented order. **Every page-derived result carries one**, which is what makes caches invalidate themselves. `max_tokens` is in the key because a transcript cut off at one limit is a different result from a complete one |
 | `Transcript` | `derivation`, `text`, `finish_reason` | Stored under `derivation.key()` (step 4b) |
 | `Grounding` | `derivation`, `instruction`, `boxes: tuple[Box, ...]`, `truncated` | Replaces Grounding's `grounding_result` dict; the Locate cache stores these |
-| `Citation` | `span`, `doc_indices: tuple[int, ...]` | Indices into the list **as sent**, never page numbers (step 4 returns these) |
+| `Citation` | `span`, `doc_indices: tuple[int, ...]`, `start`, `end` (offsets in the clean text) | Indices into the list **as sent**, never page numbers (step 4 returns these) |
 | `Turn` | `role`, `display_text` (after `safe_markdown`), `history_text` (the **response body only**, with its `<co>` tags, no thinking or control tokens; step 2), `citations`, `sent_pages: tuple[PageId, ...]`, `run_id` | **`turn.page_for(index) -> PageId \| None`** maps a citation through `sent_pages`. An out-of-range index (the model invented `0:[7]` with 3 documents) returns `None`, never raises, because it runs while the page renders. The page shows such a citation as a disabled "source not found" pill. This fixes problem 2 |
 
 - `RunRecord` (5l) and `Failure` (5e) are unchanged.
@@ -711,16 +737,24 @@ or trace files; **metadata** can go anywhere.
 
 - Format, taken from the template: `<co>span</co: 0:[1,2]>`.
   - `0` is the tool-call id. Always `0` for directly injected documents.
-  - `[1,2]` are 0-based document (page) indices.
+  - `[1,2]` are 0-based positions **in the document list as sent** (step 3c's
+    `sent_pages`), never page numbers. Map them with `Turn.page_for`.
   - A closing tag can list several groups joined by `,`.
-- `parse(text) -> tuple[str, list[Citation]]`:
-  - Returns the clean text plus `Citation(start, end, span, pages)`.
+- `parse(response_text) -> tuple[str, list[Citation]]`, where `Citation` is
+  step 3c's type: `span`, `doc_indices`, plus `start` and `end` (character
+  offsets in the clean text, for highlighting). Add those two fields to 3c's
+  definition; there is only one `Citation`.
+  - Input is the **response body only**, never the thinking block (step 2).
+  - **Keep only tool-call id `0`.** Drop groups with any other id (`1:[0]`),
+    since directly injected documents are always id 0.
   - Tolerant of a stream cut off mid-tag. Leave an unclosed `<co>` as plain text.
 - Pure Python, no MLX import.
 - Test as a plain script in the same style as the existing tests:
   - nested and multiple groups
   - a truncated tag
   - no citations at all
+  - a group with tool-call id `1`, which is dropped
+  - a plain `[1]` in the prose, which is not a citation
   - stray control tokens
 
 ### 4b. Transcript store — new `nmv/transcripts.py` + `tests/test_transcripts.py`
@@ -1632,7 +1666,7 @@ runner and helper.
 
    - **Write the expected values in the test file**, each with a comment naming
      its source (the invoice image, step 5d's grid maths).
-   - **When to run it:** before merging the PR, and after any change to a
+   - **When to run it:** before merging each milestone PR from M2 on, and after any change to a
      model pin, mlx, mlx-vlm or mlx-lm. **Never in CI**: GitHub's 7 GB macOS
      runner cannot hold both models.
    - If the weights are not cached, print one line saying so and exit 0 as
@@ -1656,7 +1690,7 @@ runner and helper.
    - **Do not test page-switch persistence with AppTest.** `CLAUDE.md`
      documents why AppTest gives the wrong answer there; the browser check
      stays authoritative. Say so in the file's docstring.
-   - Add the "Tests (ui)" CI step in the same commit (step 7).
+   - The "Tests (ui)" CI step already exists from step 3b (M0); this file simply joins the `ui` tier.
 
 **What each test protects:**
 
@@ -1978,7 +2012,7 @@ Give each item its own commit.
      - It calls `load_reader.clear()`, then a worker job that drops the
        worker-held reference and calls `mx.clear_cache()`.
      - It also resets step 5g's prompt cache.
-     - This is step 8's "unload the idle model" fallback, offered to users. The
+     - This is decision 2's "unload the idle model" option, offered to users. The
        next question reloads the reader (cached weights, a few seconds).
 4. **Weekly CI** for upstream changes. Dependencies are locked, but runner
    images change and vulnerabilities get disclosed.
@@ -2015,7 +2049,8 @@ Give each item its own commit.
      - `runtime.snapshot()` returns a copy, safe to read from several threads
      - the pending counter returns to 0 after jobs that succeed and jobs that
        raise
-     - the run ring buffer keeps exactly the last 10 entries
+     - (the run ring buffer is tested in `tests/test_trace.py`, step 5l, where
+       it lives)
      - **Split by tier.** Importing `nmv.runtime` does not load mlx-vlm
        (checked 2026-10-18); the boot happens on the first `submit()`.
        - So the snapshot, `nmv/system.py` and ring-buffer cases stay in
@@ -2175,7 +2210,7 @@ document; everything else links to it.**
 |---|---|---|
 | Someone deciding whether to use it | `README.md` (**≤ 250 lines**) | What it is; screenshots of all three pages; requirements; the 3-command quick start (step 5j); a short tour of each page; a privacy summary; the licence table (step 7); an accessibility summary; links to everything below |
 | Someone using it | `docs/privacy.md` | Every data flow: what is stored and where (`transcripts.db`, its permissions), what is logged (metadata only, step 5f), the only network traffic (Hugging Face, first run), the save toggle, Clear, FileVault, `HF_HUB_OFFLINE` |
-| | `docs/troubleshooting.md` | One heading per `classify()` kind (`out_of_memory`, `download`, `disk_full`, `bad_image`), **using the in-app message's title as the heading**, so searching the on-screen text finds it. Also each doctor FAIL, the port being taken, and memory pressure / swap (step 5k) |
+| | `docs/troubleshooting.md` | One heading per `classify()` kind (`out_of_memory`, `download`, `disk_full`, `bad_image`, `internal`), **using the in-app message's title as the heading**, so searching the on-screen text finds it. Also each doctor FAIL, the port being taken, and memory pressure / swap (step 5k) |
 | Someone curious how it works | `docs/architecture.md` | README's current "Things worth knowing" sections move here: token scaling, the 0–1000 grid, MLX's thread-bound streams, the model's limits. Add two **Mermaid** diagrams (GitHub renders them): read → reason → locate, and the single worker with its snapshot and queue |
 | | `docs/performance.md` | Measured baselines for both machines (the M2 Max 32 GB figures from `CLAUDE.md`, the M2 Pro 16 GB figures from step 8), the budget sweep, and how to reproduce |
 | Contributors | `CONTRIBUTING.md` | Dev setup; test tiers and `tests/run.py`; the hooks and what a refusal means; the see-it-fail rule; the PR flow; "never bump `version`" (link `RELEASING.md`). Replaces README's "Development" and "CI and releases" sections |
@@ -2228,13 +2263,13 @@ Items, in order:
      so keep them imperative and meaningful to a user. No `CHANGELOG.md`.
    - Each step updates the document that owns its facts **in the same commit
      as the code**.
-3. **This plan becomes a record.** In the PR's final commit, add a status
+3. **This plan becomes a record.** In the M4 PR's final commit, add a status
    header at the top: "Implemented in vX.Y (merged YYYY-MM-DD). README,
    `CLAUDE.md` and `docs/` are the current truth; this file is not
    maintained." Do not edit it after that.
 4. **`tests/test_docs.py`** (`fast` tier):
    1. **Links resolve.** Every relative link and image target in `*.md` (repo
-      root, `docs/`, `.github/`) exists.
+      root, `docs/`, `.github/`, `evals/`) exists.
       - **Strip fenced code blocks and inline code first.** On 2026-10-18 a
         checker without that flagged `![](url)` inside a code example in this
         plan as a broken link.
@@ -2272,16 +2307,19 @@ Items, in order:
 
 ### 7. Docs, guards and CI
 
-**Import-guard regex** — change it everywhere from `mlx(_vlm)?` to `mlx(_vlm|_lm)?`:
-- `CLAUDE.md`
-- `.github/workflows/ci.yml:61`
-- `.claude/settings.json`: **already done** on the plan branch (see "Claude Code
-  hooks" below).
+**Guards that land earlier, not here** (they must arrive with the code they
+guard; see "Implementation order"):
+- **Import-guard regex** `mlx(_vlm)?` → `mlx(_vlm|_lm)?`: change it in
+  `CLAUDE.md` and `.github/workflows/ci.yml:61` **in step 2's commit (M1)**,
+  where the first `mlx_lm` import appears. `.claude/settings.json` is already
+  done on the plan branch.
+- **ruff `S608`** (hardcoded SQL expression): add it to `[tool.ruff.lint] select`
+  **in step 4b's commit (M2)**, with `nmv/transcripts.py`. If it flags
+  anything, fix the code; do not ignore the rule.
+- **The CI pin check** lands with step 3b (M0), before `READER_REVISION`
+  exists.
 
-**ruff:** add `S608` (hardcoded SQL expression) to `[tool.ruff.lint] select`.
-This catches f-string SQL in `nmv/transcripts.py` in the edit hook, CI and the
-editor alike. Run `uv run ruff check .` after adding it. If it flags anything,
-fix the code; do not ignore the rule.
+Step 7 only confirms these are present.
 
 These edits land in step 6b's structure. Use its mapping table whenever an item
 here or in an earlier step says "README", and keep `CLAUDE.md` to rules plus
@@ -2292,10 +2330,27 @@ links.
   variants without being asked.
 - Describe both pinned checkpoints.
 - Add a second prefetch command.
-- PLC0415 count: six becomes six + the new `mlx_lm` imports + `huggingface_hub`
-  in `reader.py`.
-- Add `nmv/reader.py`, `nmv/citations.py`, `nmv/transcripts.py` and
-  `app_pages/documents.py` to the module table.
+- **Regenerate the PLC0415 note from the final code, not from this plan.**
+  Run `uv run ruff check --select PLC0415 --no-fix .` and list each
+  function-local import with its reason. Expect at least:
+  - the existing mlx-vlm imports and `huggingface_hub` in `is_cached()`
+  - the `mlx_lm` imports in `nmv/reader.py`
+  - `huggingface_hub` in `reader.download_reader` and in
+    `errors.classify` (5e)
+  - `mlx.core` in the worker-side `_clear_cache` (5e) and `set_cache_limit`
+    (5g)
+  - the worker-side memory snapshot calls (5k)
+  State the count the command reports, not a number written in advance.
+- **Regenerate the module table from the final tree** (`ls nmv/ app_pages/ scripts/`).
+  Expect at least:
+  - `nmv/`: `reader.py`, `r7b_format.py`, `prompts.py`, `domain.py`,
+    `citations.py`, `transcripts.py`, `errors.py`, `log.py`, `render.py`,
+    `trace.py`, `system.py`
+  - `app_pages/documents.py`
+  - `scripts/doctor.py` and `scripts/memory_check.py`
+  - `evals/`, as its own row
+- Update the "CI and releases" paragraph: name the `audit` job as the one Linux
+  job, and why it is allowed (it installs nothing project-specific).
 - Document where transcripts are stored (`transcripts.db`) and how to clear
   them.
 - Add the per-call connection rule to the "constraint" section as a sibling of
@@ -2348,51 +2403,63 @@ links.
   - Run `uv lock` afterwards in case uv records it, then commit both files.
 - `.github/workflows/ci.yml:39` comment ("5 GB").
 
-**`.github/workflows/ci.yml` — the `check` job.** Keep every existing step;
-each one guards part of this plan:
-- `uv sync --locked`: steps 0 and 6.
-- ruff: the formatter change and `S608`.
-- ty: the upgraded diagnostics.
-- the import grep: step 2.
-- resize parity: the mlx-vlm upgrade.
-- abandon test: step 3.
+**`.github/workflows/ci.yml` — the final state, for step 7 to confirm.** Each
+item below lands in the milestone named, not in step 7. Step 7 checks the
+workflow matches this list and fixes any drift.
 
-Leave the `release` job untouched. Its `needs: check` is what stops a broken
-upgrade from ever publishing. Change or add, inside `check`:
+`check` job (macOS), in order:
+1. `uv sync --locked`: catches lock drift from steps 0 and 6.
+2. Lint and Format (ruff, with `S608` from M2).
+3. Type check (ty).
+4. **Static checks** (tier 0), one named step each:
+   - "No module-scope MLX imports" with `mlx(_vlm|_lm)?` (regex changed in M1)
+   - "Checkpoint pins" (M0, below)
+   - "No unsafe rendering or remote code", the 5i.7 grep (M2)
+   - "No content in logs", 5f's grep (M3)
+5. **Tests, by tier,** through step 3b's runner, all added in M0:
+   - "Tests (fast)" → `tests/run.py fast`
+   - "Tests (mlx)" → `tests/run.py mlx`
+   - "Tests (ui)" → `tests/run.py ui`
+   - A tier with no files yet must exit 0 and print "no tests", so `ui` can be
+     wired in M0 before step 5h adds its file. Test that in `tests/run.py`'s own
+     behaviour.
+   - **Never add a CI step per test file.** The transcript store test (fast
+     tier) also proves FTS5 exists in the runner's uv-managed Python. `weights`
+     never runs in CI.
 
-1. **Import grep regex** (`ci.yml:61`): `mlx(_vlm)?` → `mlx(_vlm|_lm)?`. Update the
-   step's comment to name mlx-lm.
-2. **Tests run through step 3b's runner, by tier:**
-   - "Tests (fast)" (`tests/run.py fast`) and "Tests (mlx)"
-     (`tests/run.py mlx`), from step 3b.
-   - "Tests (ui)" (`tests/run.py ui`), from step 5h.
-   - Every new test file joins its tier automatically. Do not add a CI step per
-     test.
-   - The transcript store test, in the `fast` tier, also proves FTS5 exists in
-     the runner's uv-managed Python.
-   - `weights` never runs in CI.
-   - Static (tier 0) checks keep their own named steps: the import grep (item
-     1), the pin check (item 3) and step 5f's "No content in logs".
-3. **Checkpoint pin check**, reusing the local hook so there is one
-   implementation:
+`audit` job (ubuntu, step 5k, M3): the pinned `pip-audit` over the exported
+lock. It is the one Linux job and installs nothing project-specific, so it does
+not contradict `CLAUDE.md`'s "no Linux job" reasoning. Step 7 updates that
+paragraph to name this exception.
 
-   ```yaml
-   # A checkpoint can run code here (CLAUDE.md), so every *_REVISION must be a
-   # 40-hex commit and no download may fetch *.py. Same script as the edit hook.
-   - name: Checkpoint pins
-     run: |
-       rc=0   # not `status`: read-only in zsh, so a local paste would break
-       for f in nmv/*.py; do
-         jq -n --arg f "$PWD/$f" '{tool_input: {file_path: $f}}' \
-           | .claude/hooks/pin-guard.sh || rc=1
-       done
-       exit $rc
-   ```
+`release` job:
+- Its only change is 5k's `&& github.event_name != 'schedule'` (M3).
+  Otherwise leave it alone; its `needs: check` is what stops a broken upgrade
+  from ever publishing.
 
-   `jq` is preinstalled on GitHub's macOS images, but confirm on the first run.
-   The script matches `*/nmv/*.py`, so pass an absolute path, as above. Before
-   pushing, prove the step can fail: temporarily set a revision to `"main"`
-   locally and run the loop.
+All actions in every job are pinned to commit SHAs with version comments
+(5i.6, M0). New jobs follow the same form.
+
+**The checkpoint pin step** (M0, reusing the local hook so there is one
+implementation):
+
+```yaml
+# A checkpoint can run code here (CLAUDE.md), so every *_REVISION must be a
+# 40-hex commit and no download may fetch *.py. Same script as the edit hook.
+- name: Checkpoint pins
+  run: |
+    rc=0   # not `status`: read-only in zsh, so a local paste would break
+    for f in nmv/*.py; do
+      jq -n --arg f "$PWD/$f" '{tool_input: {file_path: $f}}' \
+        | .claude/hooks/pin-guard.sh || rc=1
+    done
+    exit $rc
+```
+
+- `jq` is preinstalled on GitHub's macOS images, but confirm on the first run.
+- The script matches `*/nmv/*.py`, so pass an absolute path, as above.
+- Before pushing, prove the step can fail: temporarily set a revision to
+  `"main"` locally and run the loop.
 
 **Deliberately not in CI** (write this as a comment above the test steps, so
 nobody "fixes" it later):
@@ -2453,8 +2520,9 @@ both models are loaded, the sidebar's peak figure includes both models' weights.
 
 ### 8b. Evaluation, part B — the reader, citations and Locate, plus a baseline
 
-Uses part A's set, runner and metrics (step 1b). Run it after step 8, once the
-pipeline exists and memory has passed.
+Uses part A's set, runner and metrics (step 1b). Run it in M3, after step 8's
+performance pass (items 6–9), once the pipeline exists and the M1 memory check
+has passed.
 
 1. **Reader configs:** `reader-r7b`, and `reader-tinyaya` (step 8's fallback,
    evaluated on quality as well as memory).
@@ -2485,7 +2553,7 @@ pipeline exists and memory has passed.
      instruction. Create this as `set-v2` alongside `set-v1`, so earlier
      comparisons stay valid.
 3. **The committed baseline: `evals/baseline.json`.** The first full run of the
-   shipped configuration (NMV 8-bit + R7B on `set-v1`, or Tiny Aya if step 8
+   shipped configuration (NMV 8-bit + R7B on `set-v1`, or Tiny Aya if decision 2
    fell back) becomes the baseline.
    - **`evals/report.py --against baseline` fails when, in counts:**
      - more than 1 additional grounding target misses
@@ -2499,8 +2567,10 @@ pipeline exists and memory has passed.
    - Decoding is greedy, so the same code and weights give the same numbers.
      **Any change in the report comes from a code, weight or package change,**
      which is why the report records package versions.
-4. **R7B against Tiny Aya on quality.** If step 8 forces the fallback, report
-   both configs' answer, citation and refusal scores before switching. A
+4. **R7B against Tiny Aya on quality.** Decision 2 is made at the end of M1, on
+   memory. If it chose Tiny Aya, this is where its answers, citations and
+   refusals are first scored. Report them against R7B's gold-transcript scores
+   (the reader can run on gold text without NMV loaded) before M3 closes. A
    fallback that fits in memory but cites badly is not automatically
    acceptable; the user decides.
 5. **When to run it** (add to `RELEASING.md`, step 5j):
@@ -2550,7 +2620,7 @@ model and no extra memory.
   - snippet contains the term
   - hostile query strings return a list, not an exception
 
-### 10. After the PR merges — GitHub repo details
+### 10. After the M4 PR merges — GitHub repo details
 
 The description and topics describe `main`, so change them only once the
 pipeline is on `main`, never earlier. **Ask the user before running this**:
@@ -2614,7 +2684,7 @@ git check-ignore -q transcripts.db transcripts.db-wal transcripts.db-shm local/s
 git check-ignore -q uv.lock .claude/settings.json .claude/hooks/pin-guard.sh assets/sample-invoice.png || echo tracked   # must print "tracked"
 ```
 
-Then confirm the PR's CI run is green, including the three new steps.
+Then confirm each milestone PR's CI run is green, including every step named in step 7's CI list.
 
 Then check in a real browser, restarting the server after the `nmv/` edits:
 
@@ -2729,4 +2799,4 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   one user on one machine, and their RAM competes with the models.
 - Storing page images in the database.
 - Keeping bf16 as an option.
-- A version bump or release.
+- Claude making a version bump. The release itself is part of M4, but the bump is the user's (decision 7).
