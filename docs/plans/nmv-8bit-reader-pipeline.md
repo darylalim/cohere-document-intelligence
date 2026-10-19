@@ -1317,7 +1317,9 @@ regression is easy to bisect.
      `(820, 1180, 1140, 1400)` on a 1240×1754 page, which is
      `(661, 673, 919, 798)` on the 0–1000 grid. Its centre is (790, 735), so it
      must describe as `"lower right · about 25% of the page wide, 15% tall"`
-     (26% and 13%, rounded to 5). Verified 2026-10-18.
+     (on the grid: 25.8% wide → 25, 12.5% tall → **15 only with half-up
+     rounding**; Python's `round()` would give 10). This case is the test for the
+     rounding rule. Verified 2026-10-18.
 2. **Never use colour as the only link between a box and its row** (WCAG
    1.4.1).
    - `PALETTE` holds red `(255, 92, 92)` and green `(74, 222, 128)`, the pair
