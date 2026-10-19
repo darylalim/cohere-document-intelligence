@@ -61,7 +61,15 @@ state from here.
 3. Load NMV 8-bit, then the reader.
 4. Run one grounding on `assets/sample-invoice.png` at the ceiling budget, then
    one question over its transcript.
-5. Print active, peak and cache memory after each, and swap after.
+5. **The worst case:** with the reader still loaded, run a Chat-style call with
+   **three** ceiling-budget images in one conversation (Chat re-sends every
+   earlier image each turn).
+6. Print active, peak and cache memory after each, and swap after.
+
+- **Idle unload is part of decision 2.** One question loads the reader, which
+  then stays resident for Chat users for the rest of the process. If item 5
+  fails while items 3–4 pass, the answer may be "keep R7B, but unload it after
+  N minutes idle", not "switch to Tiny Aya". Present both options.
 
 - **Pass:** peak plus cache ≤ ~90% of the limit, with no swap growth (step 8's
   bar).
@@ -74,7 +82,7 @@ Record each answer here, with the date, before moving past it.
 | # | Decision | When | Input |
 |---|---|---|---|
 | 1 | Is 8-bit's quality cost acceptable, or go back to bf16? | end of M1 | step 1b's report |
-| 2 | Keep R7B, switch to Tiny Aya, or add "unload the idle model"? | end of M1 | the M1 memory check (+ 8b quality later, if Tiny Aya) |
+| 2 | Keep R7B, keep R7B with idle unload, or switch to Tiny Aya (which costs a citation redesign in M2)? | end of M1 | the M1 memory check, including its Chat worst case (+ 8b quality later, if Tiny Aya) |
 | 3 | Cap the transcription budget? | M3 | step 5g.3's CER sweep |
 | 4 | Push branches and open each PR | every milestone | — |
 | 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8 |
@@ -123,9 +131,22 @@ Verified on 2026-10-18 at those exact commits:
 **Fallback text model** if the M1 memory check fails (decision 2):
 `mlx-community/tiny-aya-global-8bit-mlx` @ `5d5dc68b477abd7d583563a515bed98604d45d52`.
 - 3.58 GB, also clean.
-- No `rag` template, so citations would have to be prompted for and parsed
-  loosely.
-- Keep the text-model repo/revision in constants so this swap is a two-line change.
+- **Switching is not a two-line change.** Tiny Aya has no `rag` template, so
+  `documents=` / `enable_citations`, the `<co>` parser (step 4), the
+  thinking-phase handling (step 2), the citation-precision defence (8b) and the
+  e2e citation check would all need a second design: a prompted citation syntax
+  such as `[p1]` with a loose parser and its own fixtures.
+- **Keep everything format-specific behind one small interface,** so the
+  fallback is a second module rather than a rewrite. `nmv/r7b_format.py`
+  (step 2) provides:
+  - `render(tokenizer, history, documents) -> str`
+  - `stream_phases(chunks)` (thinking / response)
+  - `parse_citations(response) -> (clean_text, list[Citation])`
+
+  A Tiny Aya fallback adds `nmv/aya_format.py` with the same three functions,
+  chosen alongside `READER_REPO`.
+- Decision 2's input must say this plainly: **choosing Tiny Aya costs a
+  citation redesign in M2**, not just a smaller download.
 
 **Licence:**
 - **This repo's code stays Apache-2.0. Do not change `LICENSE`.**
@@ -164,7 +185,13 @@ The GPU working-set limit on a 16 GB machine is **assumed** to be about
 | NMV activations + KV at the 3.87 MP ceiling | ~1.2 GB (bf16 peak 6.17 − ~5 GB weights) |
 | R7B 4-bit weights | 4.5 GB |
 | R7B KV at 8K context | ~0.65 GB |
-| **Total** | **~9.6 GB** — fits, but with little headroom |
+| MLX buffer cache (capped by `MLX_CACHE_LIMIT_BYTES`, step 5g) | up to 1 GB |
+| **Total** | **~9.6 GB + up to 1 GB of buffer cache** — fits only with little headroom |
+
+Chat can need more than this table shows. It re-sends every earlier image on
+each turn, so three ceiling-budget images is ~11K prefill tokens of NMV
+activations, possibly while the reader sits resident. The M1 memory check
+measures that case.
 
 How the R7B KV figure is derived:
 - `sliding_window_pattern: 4` gives 8 global layers × 32 KB/token and 24 sliding
@@ -535,6 +562,14 @@ body that runs on the worker.**
 - Command R7B **does** accept a system preamble. "Never send a system prompt" is
   an NMV rule, so add a comment saying so where the reader builds messages.
   Even so, start with no preamble; the `rag` template already instructs the model.
+- **Answer language is not specified anywhere yet.** The `rag` preamble is
+  multilingual, so R7B may answer in the *document's* language rather than the
+  question's (a French invoice asked about in English).
+  - Measure it in 8b: the French and Spanish set documents get English
+    questions, and the eval records the answer's language.
+  - Only if it answers in the wrong language, add a one-line developer preamble
+    ("Answer in the language of the user's question"). The template accepts a
+    preamble, and this is the reader, not NMV.
 - **Tests for the budget:**
   - Make the budget logic a pure function that takes `render(history, docs) -> str`
     and `count(str) -> int` as parameters.
