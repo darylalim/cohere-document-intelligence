@@ -440,7 +440,13 @@ a publish action.
 **Import-guard regex** — change it everywhere from `mlx(_vlm)?` to `mlx(_vlm|_lm)?`:
 - `CLAUDE.md`
 - `.github/workflows/ci.yml:61`
-- `.claude/settings.json:13` (the edit hook)
+- `.claude/settings.json`: **already done** on the plan branch (see "Claude Code
+  hooks" below).
+
+**ruff:** add `S608` (hardcoded SQL expression) to `[tool.ruff.lint] select`.
+This catches f-string SQL in `nmv/transcripts.py` in the edit hook, CI and the
+editor alike. Run `uv run ruff check .` after adding it. If it flags anything,
+fix the code; do not ignore the rule.
 
 **`CLAUDE.md`:**
 - Replace the bf16-only rule with: 8-bit chosen for 16 GB; don't add other
@@ -455,6 +461,8 @@ a publish action.
   them.
 - Add the per-call connection rule to the "constraint" section as a sibling of
   the MLX one: never share a `sqlite3` connection across threads.
+- Add a short "Claude Code hooks" section listing the hooks below, so a future
+  session knows why an edit was refused.
 - Add the new test command.
 - Make the baseline section name both machines.
 
@@ -519,6 +527,29 @@ model and no extra memory.
   - ranking order
   - snippet contains the term
   - hostile query strings return a list, not an exception
+
+## Claude Code hooks (already installed on the plan branch)
+
+These live in `.claude/settings.json`, with scripts in `.claude/hooks/`, and are
+active from the first prompt of the implementation session. They enforce the
+plan's hardest rules mechanically, so treat a hook refusal as the plan speaking.
+Do not work around one.
+
+| Event | Hook | What it does |
+|---|---|---|
+| PreToolUse `Edit\|Write\|MultiEdit\|Bash` | `version-guard.sh` | **Denies** any change to `version` in `pyproject.toml`, `uv version --bump`/`uv version X.Y`, and in-place `sed`/`perl` rewrites of it. A version line passed through unchanged (e.g. by `uv add`) is allowed |
+| PostToolUse `Edit\|Write` | ruff fix + format | Unchanged |
+| PostToolUse `Edit\|Write` | MLX import guard | Regex now `mlx(_vlm\|_lm)?`, so a module-scope `mlx_lm` import in step 2 is caught |
+| PostToolUse `Edit\|Write` | `pin-guard.sh` | Blocks a `nmv/*.py` edit that leaves any `*_REVISION` not a 40-hex commit, or puts `"*.py"` in a download allowlist |
+| PostToolUse `Edit\|Write` | `restart-reminder.sh` | Once per session, after the first `nmv/` edit: restart Streamlit before checking in a browser |
+| Stop | `stop-checks.sh` | When Python under the app is changed or untracked: runs `ty check` plus `tests/test_citations.py` / `tests/test_transcripts.py` (each once it exists). On failure, sends the output back. Skips itself on a hook-triggered re-stop, so it cannot loop |
+
+**Permission rules** (`permissions.ask`): `hf cache rm`/`delete` (with or
+without `uv run`) and `rm *transcripts.db*` always prompt. The bf16 cleanup in
+step 1 therefore asks the user even in auto mode.
+
+**If a guard is wrong, fix the script and re-test it with a piped payload.**
+Never delete the hook to get past it.
 
 ## Verification checklist (run before calling it done)
 

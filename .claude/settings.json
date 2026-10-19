@@ -1,5 +1,25 @@
 {
+  "permissions": {
+    "ask": [
+      "Bash(uv run hf cache rm *)",
+      "Bash(uv run hf cache delete *)",
+      "Bash(hf cache rm *)",
+      "Bash(hf cache delete *)",
+      "Bash(rm *transcripts.db*)"
+    ]
+  },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/version-guard.sh"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -10,7 +30,27 @@
           },
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; hits=$(grep -rnE --include='*.py' '^(from|import) mlx(_vlm)?\\b' nmv/ app_pages/ streamlit_app.py) || exit 0; printf 'Module-scope MLX import detected. CLAUDE.md invariant: mlx-vlm is imported only inside worker functions, never at module scope (MLX evaluates an array only on the thread that queued it, so all MLX work, imports included, stays on the nmv.runtime worker; Streamlit reruns on a fresh thread). Move the import into the function body.\\n%s\\n' \"$hits\" >&2; exit 2"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; hits=$(grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\\b' nmv/ app_pages/ streamlit_app.py) || exit 0; printf 'Module-scope MLX import detected. CLAUDE.md invariant: mlx-vlm and mlx-lm are imported only inside worker functions, never at module scope (MLX evaluates an array only on the thread that queued it, so all MLX work, imports included, stays on the nmv.runtime worker; Streamlit reruns on a fresh thread). Move the import into the function body.\\n%s\\n' \"$hits\" >&2; exit 2"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pin-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/restart-reminder.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-checks.sh",
+            "timeout": 120,
+            "statusMessage": "Running ty and the fast tests…"
           }
         ]
       }
