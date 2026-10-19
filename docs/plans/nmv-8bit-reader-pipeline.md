@@ -36,8 +36,25 @@ Verified on 2026-10-18 at those exact commits:
   loosely.
 - Keep the text-model repo/revision in constants so this swap is a two-line change.
 
-**Licence:** NMV is Apache-2.0. Command R7B and Tiny Aya are CC-BY-NC-4.0. State
-this in the README and in the sidebar caption.
+**Licence:**
+- **This repo's code stays Apache-2.0. Do not change `LICENSE`.**
+  - The weights are not vendored, so the R7B licence covers the weights only,
+    not the code that loads them.
+  - Every dependency is permissive (Apache-2.0, MIT, BSD), and SQLite is public
+    domain.
+  - Apache's §6 statement, that no trademark rights come with the code, matters
+    more now that the project name contains "Cohere".
+- **NMV** is Apache-2.0.
+- **Command R7B and Tiny Aya** are CC-BY-NC-4.0 plus
+  [Cohere's C4AI licence agreement](https://cohere.com/c4ai-cc-by-nc-license).
+  - That agreement is linked from the mlx-community card's `extra_gated_prompt`.
+  - The Hub reports that repo as `gated=False`, so the download needs no form.
+    The terms still apply.
+- So **Ask documents is non-commercial, while Chat and Grounding stay fully
+  Apache-2.0.** No Cohere text model with an MLX build is permissively licensed,
+  so making the pipeline commercial-safe would mean a non-Cohere reader.
+- Where these facts appear: step 5 (first load), step 7 (README, `pyproject.toml`)
+  and the sidebar caption.
 
 ## Memory budget (estimate — step 8 replaces it with measurements)
 
@@ -430,6 +447,14 @@ Rules that apply to this page:
   This means Chat/Grounding users never pay 4.5 GB.
 - Add `ui.ensure_reader()` alongside `ensure_studio()`, with the same cached /
   download warning.
+  - When it is about to load the reader for the first time (not cached yet),
+    also show a one-line `st.info`: "Command R7B is licensed CC-BY-NC-4.0 under
+    Cohere's C4AI licence agreement — non-commercial use only", with the
+    agreement link.
+  - Show it every time the reader is not yet cached, not just once per session.
+    This is the moment someone starts using non-commercial weights.
+- Reader sidebar caption: `8B · 4-bit · CC-BY-NC-4.0 · non-commercial`. Keep
+  NMV's caption saying Apache 2.0.
 - Reuse `ui.sidebar()` as is. Any new sidebar widget needs
   `persist_state="session"`.
 - Fill the stats slot after each stage, and show which model ran it.
@@ -482,12 +507,36 @@ fix the code; do not ignore the rule.
 **`README.md`:**
 - 8-bit throughout.
 - Prefetch commands for both repos with `--revision`.
-- Licence note for R7B.
+- **Rewrite the `## License` section.** The current text says both NMV checkpoints
+  are Apache-2.0 "so the two halves line up", which stops being true with R7B.
+  - Keep the reasons for choosing Apache: the §3 patent grant, and §6 (no
+    trademark rights), plus the "unaffiliated project" sentence.
+  - Say that no weights are vendored.
+  - Replace the two-halves paragraph with a three-row table:
+
+    | Part | Licence | Commercial use |
+    |---|---|---|
+    | App code (this repo) | Apache-2.0 | Yes |
+    | North Micro Vision 8-bit weights | Apache-2.0 | Yes |
+    | Command R7B 4-bit weights | CC-BY-NC-4.0 + [C4AI licence agreement](https://cohere.com/c4ai-cc-by-nc-license) | No |
+
+  - Then one paragraph covering three points:
+    - Ask documents uses R7B, so it is non-commercial; Chat and Grounding use
+      only NMV.
+    - The R7B download is not gated on the Hub, but its terms still apply.
+    - Each checkpoint's model card governs its weights, not this `LICENSE`.
+  - Link both pinned conversions. Drop the bf16 link.
+- Add the bf16-cache cleanup note from step 1.
 - Requirements line: 16 GB with both models resident, with the peak from step 8.
 - Screenshot of the new page, if you take one.
 
 **Elsewhere:**
 - `pyproject.toml` `description`.
+- `pyproject.toml`: add `license = "Apache-2.0"` and `license-files = ["LICENSE"]`
+  to `[project]`, which gives SPDX metadata (PEP 639).
+  - Harmless under `package = false`.
+  - The version guard allows it, because the `version` line is untouched.
+  - Run `uv lock` afterwards in case uv records it, then commit both files.
 - `.github/workflows/ci.yml:39` comment ("5 GB").
 
 **`.github/workflows/ci.yml` — the `check` job.** Keep every existing step;
