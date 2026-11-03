@@ -17,7 +17,8 @@ from nmv.imaging import (
     prepare,
 )
 from nmv.model import RunStats, assistant_turn, stream_reply, user_turn
-from nmv.ui import ensure_studio, render_stats, sidebar
+from nmv.render import safe_markdown
+from nmv.ui import ensure_studio, render_stats, show_reply, sidebar
 
 SUGGESTIONS = {
     ":blue[:material/description:] Read a document": (
@@ -57,7 +58,9 @@ for record in st.session_state.chat:
             st.image(record["images"], width=180)
         if record.get("note"):
             st.caption(record["note"])
-        st.markdown(record["text"])
+        # User turns too: text pasted from a document can carry an image just as
+        # a reply can. The record keeps the raw text for the conversation history.
+        st.markdown(safe_markdown(record["text"]))
         if record.get("stats_line"):
             st.caption(record["stats_line"])
 
@@ -132,7 +135,7 @@ if text or uploads:
                 st.image(images, width=180)
             if notes:
                 st.caption(" · ".join(f"`{n}`" for n in notes))
-            st.markdown(text)
+            st.markdown(safe_markdown(text))
 
         # Rebuild the whole conversation each turn. Images are collected in the
         # same order the markers appear, which is how they get matched up.
@@ -159,7 +162,7 @@ if text or uploads:
 
         stats = RunStats()
         with st.chat_message("assistant"):
-            reply = st.write_stream(
+            reply = show_reply(
                 stream_reply(studio, messages, ordered_images, sampling, stats)
             )
             stats_line = (

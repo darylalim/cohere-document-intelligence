@@ -166,7 +166,7 @@ def stream_reply(
     sampling: Sampling,
     stats: RunStats | None = None,
 ) -> Iterator[str]:
-    """Yield response deltas, suitable for ``st.write_stream``."""
+    """Yield response deltas, suitable for ``ui.show_reply``."""
 
     def produce(emit):
         from mlx_vlm import stream_generate
