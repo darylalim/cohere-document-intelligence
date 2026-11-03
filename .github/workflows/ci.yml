@@ -25,11 +25,11 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v7
+      # Every action is pinned to a full commit SHA, with its version beside it.
+      # Tags can be moved, and the release job below holds contents: write.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # Pinned to an exact release on purpose: setup-uv stopped publishing
-      # floating major tags after v7, so `@v10` is not a resolvable ref.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
 
@@ -117,11 +117,11 @@ jobs:
     steps:
       # fetch-depth: 0 for the tags: both the version check and the notes below
       # read them, and the default shallow clone fetches none.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
 
