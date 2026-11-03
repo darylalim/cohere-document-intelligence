@@ -210,6 +210,10 @@ codeBackgroundColor = "#dee1e8"
 borderColor = "#7b7e86"
 
 [server]
+# Local only. Unset, Streamlit listens on every interface, so anyone on the
+# same network could open the app and read what is on screen. If this is ever
+# widened, set [client] showErrorDetails = "none" in the same change.
+address = "localhost"
 # Native-resolution means big uploads are useful; the encoder downsamples them
 # to the token budget anyway.
 maxUploadSize = 50
