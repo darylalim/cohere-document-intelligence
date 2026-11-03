@@ -61,8 +61,8 @@ class Sampling:
     top_k: int = DEFAULT_TOP_K
     repetition_penalty: float = 1.0
     # No `seed` field on purpose. mlx-vlm 0.6.15 ignored a seed unless top_k == 0.
-    # 0.7.3 honours one at any top_k once temperature > 0, but only by swapping
-    # make_sampler for _PositionedTargetSampler (mlx_vlm/generate/ar.py:296-309),
+    # 0.7.11 honours one at any top_k once temperature > 0, but only by swapping
+    # make_sampler for _PositionedTargetSampler (mlx_vlm/generate/ar.py:293-306),
     # which applies top_k before top_p and takes the nucleus after temperature.
     # Whenever top_p < 1 that samples a different distribution, so a seed would
     # quietly change what the Temperature/Top-p/Top-k sliders mean.

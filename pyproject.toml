@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "streamlit>=1.62",
-    "mlx-vlm==0.7.3",
+    "mlx-vlm==0.7.11",
     "huggingface-hub>=1.0",
     "pillow>=11.0",
     "numpy>=2.0",
