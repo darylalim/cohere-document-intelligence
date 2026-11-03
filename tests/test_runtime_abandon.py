@@ -1,3 +1,4 @@
+# tier: mlx
 """Regression test: abandoning a stream must not wedge the MLX worker.
 
 `nmv.runtime` funnels every MLX call through one process-wide worker thread.
@@ -20,20 +21,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from _check import check, finish  # noqa: E402
+
 from nmv import runtime  # noqa: E402
 
 CHANNEL_LIMIT = 128  # nmv.runtime.iterate's queue maxsize
 PROBE_TIMEOUT = 15.0
-
-failures: list[str] = []
-
-
-def check(name: str, condition: bool, detail: str = "") -> None:
-    print(
-        f"  {'PASS' if condition else 'FAIL'}  {name}{f' — {detail}' if detail else ''}"
-    )
-    if not condition:
-        failures.append(name)
 
 
 def worker_responds(timeout: float = PROBE_TIMEOUT) -> bool:
@@ -115,8 +108,4 @@ check(
 )
 check("worker still usable after a failure", worker_responds())
 
-print()
-if failures:
-    print(f"FAILED: {', '.join(failures)}")
-    sys.exit(1)
-print("all runtime checks passed")
+finish()
