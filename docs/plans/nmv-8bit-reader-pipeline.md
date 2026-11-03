@@ -18,7 +18,7 @@ state from here.
 
 - [x] **Plan and guards** (PR #1, squash-merged): this plan, the Claude Code
   hooks and `.claude/settings.json`
-- [ ] **M0 · Foundations** (PR 2)
+- [x] **M0 · Foundations** (PR 2)
 - [ ] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
 - [ ] **M2 · Working pipeline** (PR 4)
 - [ ] **M3 · Quality and polish** (PR 5)
@@ -262,6 +262,11 @@ since newer releases may have shipped.
 | `ruff` (dev) | 0.16.9 | 0.17.1 | Minor; the formatter style may change |
 | `ty` (dev) | 0.0.84 | 0.0.89 | New diagnostics are possible |
 | `pillow` | 12.3.0 | 13.0.0 | Expect it to **stay** on 12.x: the dry run did not move it, so a dependency caps it below 13. Leave that alone |
+
+**Landed 2026-11-03, newer than this snapshot:** mlx-vlm 0.7.11, transformers
+5.22.1, huggingface-hub 2.4.0, streamlit 1.66.1, ruff 0.17.3, ty 0.0.96, and
+pillow **13.0.0**: the cap the snapshot expected had gone, so it moved after all.
+ty no longer flags `st.navigation`, so the ignore and its comment went.
 
 Commands:
 
@@ -667,6 +672,8 @@ The plan adds about nine test files. Listing them by hand in CI, in
    - **Write by hand only the cases the model will not produce on demand**
      (truncated, swapped), and name those files `*.handmade.txt` so the
      difference is visible.
+     The empty `[]` is handmade too: asked for something absent, the model
+     returned the PAID box rather than an empty list.
    - **Fixtures come only from `assets/`, never `local/`.** Committed test data
      is published.
 
@@ -1851,6 +1858,9 @@ config change that protects everything after it.
          through `st.write_stream`, so an injected Markdown image in a document
          could make the browser fetch an outside URL.
        - Step 5d later adds the "Stream responses" toggle to this same helper.
+     - **User turns in Chat go through it too** (found in M0, in a real browser):
+       text pasted from a document can carry an image just as a reply can. The
+       record keeps the raw text for the conversation history.
      - Grounding's raw response is already in `st.code`, which renders nothing.
    - **Never `unsafe_allow_html=True`.** This becomes a static check (item 7).
    - **README:** this app has no tools, so injection can only produce **wrong
