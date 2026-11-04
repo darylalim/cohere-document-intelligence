@@ -13,6 +13,7 @@ from io import BytesIO
 
 import streamlit as st
 from PIL import Image
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 from streamlit.typing import UploadedFile
 
 from nmv import trace, transcripts
@@ -214,6 +215,16 @@ def _reuse(
     return "hit"
 
 
+def _panel_only() -> bool:
+    """Whether this is a fragment's own rerun, not a full run passing through it.
+
+    Such a run cannot write to the sidebar: Streamlit reserves a fragment's place in
+    an outside container during a full run, and these fragments never claim one.
+    """
+    context = get_script_run_ctx()
+    return bool(context and context.fragment_ids_this_run)
+
+
 def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
     """Box the document's text for a cited span, cached and always greedy.
 
@@ -254,7 +265,6 @@ def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
             )
         )
         state.last_stats = stats
-        render_stats(stats_slot, stats)
         with trace.span("parse"):
             boxes = tuple(parse_boxes(raw))
         result = Grounding(derivation, sent, boxes, stats.truncated)
@@ -272,6 +282,10 @@ def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
             ),
         )
         state.locate_cache[key] = (result, raw, record.run_id)
+        # The rerun's Locate is a cache hit, and it costs nothing next to the model.
+        if _panel_only():
+            st.rerun()
+        render_stats(stats_slot, stats)
     return state.locate_cache[key]
 
 
@@ -283,17 +297,26 @@ def _new_conversation() -> None:
 
 
 def _pick_citation(widget: str, entries: list[tuple[str, PageId]], view: str) -> None:
-    """Move the page viewer to a citation, and leave only that pill selected."""
+    """Move the page viewer to a citation, and leave only that pill selected.
+
+    Redraws the page panel and the turn that lost its selection, and nothing else.
+    The exception is a click during a transcription or an answer. It joins the full
+    rerun that ends that run, and a keyed rerun here would replace it: the queue
+    would stop with pages left, or a new answer would have no citations.
+    """
     choice = state[widget]
+    panels = ["page_panel"]
     for index in range(len(state.ask_turns)):
         other = f"ask_cite_{index}"
-        if other != widget and other in state:
+        if other != widget and state.get(other) is not None:
             state[other] = None
-    if choice is None:
-        state.locate_target = None
-        return
-    state.locate_target = entries[choice]
-    state[view] = entries[choice][1]
+            panels.append(other)
+    state.locate_target = None if choice is None else entries[choice]
+    if choice is not None:
+        state[view] = entries[choice][1]
+    if state.transcribe_queue or state.ask_answering:
+        st.rerun()
+    st.rerun(panels)
 
 
 def _citations(index: int, turn: Turn, numbers: dict[PageId, int], view: str) -> None:
@@ -343,6 +366,100 @@ def _citations(index: int, turn: Turn, numbers: dict[PageId, int], view: str) ->
         st.caption("Re-upload this page to locate it.")
 
 
+@st.fragment(key="page_panel")
+def _page_panel(
+    by_id: dict[PageId, Page],
+    numbers: dict[PageId, int],
+    found: dict[PageId, Transcript | None],
+    budget: int,
+    busy: bool,
+    view_key: str,
+) -> None:
+    """The viewer column, so picking a page or citation reruns only this much.
+
+    A click here also leaves a transcription or answer in progress running, where a
+    full rerun would abandon it and start the page again.
+    """
+    first = next(iter(by_id))
+    # Through session state and not `default=`: a citation sets this key too,
+    # and Streamlit warns about a widget that has both.
+    state.setdefault(view_key, first)
+    shown = (
+        st.pills(
+            "Page",
+            list(by_id),
+            format_func=lambda page: f"p.{numbers[page]}",
+            key=view_key,
+            wrap=True,
+        )
+        or first
+    )
+    page = by_id[shown]
+    assert page.image is not None
+    transcript = found.get(shown) or _usable_transcript(page, budget)
+
+    image = page.image
+    target = state.locate_target
+    located = None
+    if target is not None and target[1] == shown:
+        try:
+            with st.spinner("Locating…"):
+                located = _locate(page, target[0], transcript, budget)
+        except Exception as exc:
+            action = trace.active()  # None if it failed before reaching the model
+            failure = show_failure(
+                exc,
+                retry=lambda: None,
+                retry_key="retry_locate",
+                run_id=action.run_id if action else "",
+            )
+            if action is not None:
+                trace.finish(action, failure.kind)
+                if not _panel_only():
+                    render_stats(stats_slot, None)
+    if located is not None and located[0].boxes:
+        image = draw_boxes(page.image, list(located[0].boxes))
+    st.image(image, width=PAGE_IMAGE_WIDTH)
+    if located is not None:
+        result, raw, located_run = located
+        st.caption(
+            safe_markdown(f"Located “{result.instruction}”.")
+            + " Greedy, whatever the sidebar says."
+        )
+        if not result.boxes:
+            explain_no_boxes(raw, result.truncated, fixed_limit=True)
+        show_inspect("ask", located_run)
+
+    with st.expander("Transcript"):
+        if transcript is None:
+            st.caption("Not transcribed yet.")
+        else:
+            wanted = _transcribe_derivation(page, budget)
+            if transcript.derivation.resolved_px != wanted.resolved_px:
+                megapixels = transcript.derivation.resolved_px / 1_000_000
+                st.caption(f"Saved at {megapixels:.1f} MP.")
+            if transcript.truncated:
+                st.warning(
+                    f"This page stopped at {TRANSCRIBE_MAX_TOKENS:,} tokens, so "
+                    "its transcript is incomplete.",
+                    icon=":material/content_cut:",
+                )
+            if transcript.empty:
+                st.warning(
+                    "This page looks empty, so it is not sent to the reader.",
+                    icon=":material/hide_image:",
+                )
+            st.markdown(safe_markdown(transcript.text))
+            if st.button(
+                "Re-transcribe at the current budget",
+                icon=":material/refresh:",
+                disabled=busy,
+            ):
+                state.transcribe_queue.append(shown)
+                state.transcribe_total = len(state.transcribe_queue)
+                st.rerun()
+
+
 for name, value in (
     ("ask_turns", []),
     ("ask_notes", {}),
@@ -354,6 +471,7 @@ for name, value in (
     ("transcribe_total", 0),
 ):
     state.setdefault(name, value)
+state.ask_answering = False  # after the callbacks, which read it from the last run
 
 st.title("Ask documents")
 st.caption(
@@ -515,87 +633,15 @@ with conversation:
                 if index in state.ask_notes:
                     st.caption(state.ask_notes[index])
                 if turn.role == "assistant":
-                    _citations(index, turn, numbers, view_key)
+                    # Keyed by turn, so a callback can redraw just the one it cleared.
+                    st.fragment(_citations, key=f"ask_cite_{index}")(
+                        index, turn, numbers, view_key
+                    )
                     show_inspect("ask", turn.run_id)
 
 with viewer:
     if pages:
-        # Through session state and not `default=`: a citation sets this key too,
-        # and Streamlit warns about a widget that has both.
-        state.setdefault(view_key, pages[0].id)
-        shown = (
-            st.pills(
-                "Page",
-                list(by_id),
-                format_func=lambda page: f"p.{numbers[page]}",
-                key=view_key,
-                wrap=True,
-            )
-            or pages[0].id
-        )
-        page = by_id[shown]
-        assert page.image is not None
-        transcript = found.get(shown) or _usable_transcript(page, budget)
-
-        image = page.image
-        target = state.locate_target
-        located = None
-        if target is not None and target[1] == shown:
-            try:
-                with st.spinner("Locating…"):
-                    located = _locate(page, target[0], transcript, budget)
-            except Exception as exc:
-                action = trace.active()  # None if it failed before reaching the model
-                failure = show_failure(
-                    exc,
-                    retry=lambda: None,
-                    retry_key="retry_locate",
-                    run_id=action.run_id if action else "",
-                )
-                if action is not None:
-                    trace.finish(action, failure.kind)
-                    render_stats(stats_slot, None)
-        if located is not None and located[0].boxes:
-            image = draw_boxes(page.image, list(located[0].boxes))
-        st.image(image, width=PAGE_IMAGE_WIDTH)
-        if located is not None:
-            result, raw, located_run = located
-            st.caption(
-                safe_markdown(f"Located “{result.instruction}”.")
-                + " Greedy, whatever the sidebar says."
-            )
-            if not result.boxes:
-                explain_no_boxes(raw, result.truncated, fixed_limit=True)
-            show_inspect("ask", located_run)
-
-        with st.expander("Transcript"):
-            if transcript is None:
-                st.caption("Not transcribed yet.")
-            else:
-                wanted = _transcribe_derivation(page, budget)
-                if transcript.derivation.resolved_px != wanted.resolved_px:
-                    megapixels = transcript.derivation.resolved_px / 1_000_000
-                    st.caption(f"Saved at {megapixels:.1f} MP.")
-                if transcript.truncated:
-                    st.warning(
-                        f"This page stopped at {TRANSCRIBE_MAX_TOKENS:,} tokens, so "
-                        "its transcript is incomplete.",
-                        icon=":material/content_cut:",
-                    )
-                if transcript.empty:
-                    st.warning(
-                        "This page looks empty, so it is not sent to the reader.",
-                        icon=":material/hide_image:",
-                    )
-                st.markdown(safe_markdown(transcript.text))
-                if st.button(
-                    "Re-transcribe at the current budget",
-                    icon=":material/refresh:",
-                    disabled=busy,
-                ):
-                    queue.append(shown)
-                    state.transcribe_total = len(queue)
-                    st.rerun()
+        _page_panel(by_id, numbers, found, budget, busy, view_key)
     else:
         st.info("Upload page images to begin.", icon=":material/description:")
 
@@ -620,6 +666,7 @@ if question:
             deterministic = sampling.temperature == 0.0
             action = begin_run("ask")
             action.set(store=_reuse(found, by_id, budget))
+            state.ask_answering = True
             try:
                 reader = ensure_reader()
                 show_answer(

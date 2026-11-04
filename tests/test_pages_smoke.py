@@ -362,6 +362,52 @@ with stubbed():
         check("a cached Locate does not resize", len(resizes) == 1, str(resizes))
 
 
+print("Ask documents: a citation click redraws only what changed")
+with stubbed():
+    app = page("documents.py").run()
+    app.file_uploader[0].set_value(
+        [
+            ("first.png", png("#654321"), "image/png"),
+            ("second.png", png("#abcdef"), "image/png"),
+        ]
+    ).run()
+    button(app, "Transcribe").click().run()
+    app.chat_input[0].set_value("What is the total due?").run()
+    app.chat_input[0].set_value("And again?").run()
+    app.button_group(key="ask_cite_1").set_value(0).run()
+    check("no exception on a miss", not uncaught(app), str(app.exception))
+    check("the miss reached the sidebar", "· locate" in text_of(app), text_of(app))
+
+    full_runs = []
+    real_usage = transcripts.usage
+
+    def counted_usage():
+        full_runs.append(1)
+        return real_usage()
+
+    with patch("nmv.transcripts.usage", counted_usage):
+        app.button_group(key="ask_cite_3").set_value(0).run()
+        check("no exception on a hit", not uncaught(app), str(app.exception))
+        check("no full run on a hit", not full_runs, str(len(full_runs)))
+        check("the panel kept its box", "Located" in text_of(app), text_of(app))
+    check("the other turn was cleared", app.session_state["ask_cite_1"] is None)
+
+    # AppTest delivers a click as a full run, which is what a click that lands during
+    # a run becomes when it joins that run's closing st.rerun().
+    app.session_state["transcribe_queue"] = [app.session_state["ask_signature"][0]]
+    app.session_state["transcribe_total"] = 1
+    app.button_group(key="ask_cite_1").set_value(0).run()
+    check("no exception mid-queue", not uncaught(app), str(app.exception))
+    check("a click does not stall the queue", app.session_state["transcribe_queue"] == [])
+
+    app.session_state["ask_answering"] = True
+    full_runs.clear()
+    with patch("nmv.transcripts.usage", counted_usage):
+        app.button_group(key="ask_cite_3").set_value(0).run()
+    check("a click after an answer redraws it", bool(full_runs))
+    check("the next full run clears the flag", not app.session_state["ask_answering"])
+
+
 print("Ask documents: a point answer")
 
 
