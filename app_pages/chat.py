@@ -20,6 +20,7 @@ from nmv.imaging import (
 from nmv.model import Rendered, RunStats, assistant_turn, stream_reply, user_turn
 from nmv.render import safe_markdown
 from nmv.ui import (
+    READING_WIDTH,
     Inspection,
     begin_run,
     ensure_studio,
@@ -70,23 +71,35 @@ if st.session_state.chat:
         on_click=_clear_conversation,
     )
 
-for record in st.session_state.chat:
-    with st.chat_message(record["role"]):
-        if record["images"]:
-            st.image(record["images"], width=180)
-        if record.get("note"):
-            st.caption(record["note"])
-        # User turns too: text pasted from a document can carry an image just as
-        # a reply can. The record keeps the raw text for the conversation history.
-        st.markdown(safe_markdown(record["text"]))
-        if record.get("stats_line"):
-            st.caption(record["stats_line"])
-        if record.get("run_id"):
-            show_inspect("chat", record["run_id"])
+# Replayed and new turns share it, so a long line reads the same on any display.
+messages_area = st.container(width=READING_WIDTH)
+with messages_area:
+    for record in st.session_state.chat:
+        with st.chat_message(record["role"]):
+            if record["images"]:
+                st.image(record["images"], width=180)
+            if record.get("note"):
+                st.caption(record["note"])
+            # User turns too: text pasted from a document can carry an image just as
+            # a reply can. The record keeps the raw text for the conversation history.
+            st.markdown(safe_markdown(record["text"]))
+            if record.get("stats_line"):
+                st.caption(record["stats_line"])
+            if record.get("run_id"):
+                show_inspect("chat", record["run_id"])
 
 queued = st.session_state.pop("queued_prompt", None)
 
-if not st.session_state.chat and not queued:
+submission = st.chat_input(
+    "Ask about a page, chart, or photo",
+    accept_file="multiple",
+    file_type=IMAGE_TYPES,
+    submit_mode="disable",
+)
+
+# After the input, so a first message removes them: the conversation container sits
+# above this point, and they would otherwise linger under the reply.
+if not st.session_state.chat and not queued and submission is None:
     picked = st.pills(
         "Try asking",
         list(SUGGESTIONS),
@@ -96,13 +109,6 @@ if not st.session_state.chat and not queued:
     if picked:
         st.session_state.queued_prompt = SUGGESTIONS[picked]
         st.rerun()
-
-submission = st.chat_input(
-    "Ask about a page, chart, or photo",
-    accept_file="multiple",
-    file_type=IMAGE_TYPES,
-    submit_mode="disable",
-)
 
 if submission is not None:
     text = (submission.text or "").strip()
@@ -157,7 +163,7 @@ if text or uploads:
             "note": " · ".join(f"`{n}`" for n in notes) if notes else "",
             "tokens": turn_tokens,
         }
-        with st.chat_message("user"):
+        with messages_area.chat_message("user"):
             if images:
                 st.image(images, width=180)
             if notes:
@@ -180,7 +186,7 @@ if text or uploads:
         # figure is per-image and cannot show this.
         carried = sum(r.get("tokens", 0) for r in st.session_state.chat) + turn_tokens
         if carried > VALIDATED_CONTEXT_TOKENS:
-            st.warning(
+            messages_area.warning(
                 f"Images in this conversation now total ~{carried:,} tokens, past the "
                 f"{VALIDATED_CONTEXT_TOKENS:,}-token multimodal context this model was "
                 "validated at. Start a new conversation for reliable answers.",
@@ -190,7 +196,7 @@ if text or uploads:
         action.set(image_tokens=carried, budget_px=budget, resolved_px=largest)
         stats = RunStats()
         rendered = Rendered()
-        with st.chat_message("assistant"):
+        with messages_area.chat_message("assistant"):
             try:
                 reply = show_reply(
                     stream_reply(
