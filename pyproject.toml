@@ -28,7 +28,7 @@ line-length = 90
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "S608"]
 
 [tool.ty.environment]
 # Match the floor of requires-python and ruff's target-version, so anything

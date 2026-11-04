@@ -20,7 +20,7 @@ state from here.
   hooks and `.claude/settings.json`
 - [x] **M0 · Foundations** (PR 2)
 - [x] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
-- [ ] **M2 · Working pipeline** (PR 4)
+- [x] **M2 · Working pipeline** (PR 4) — decision 8 recorded below
 - [ ] **M3 · Quality and polish** (PR 5)
 - [ ] **M4 · Docs and release** (PR 6) — decision 7 by the user
 - [ ] Later items, each only if the user asks
@@ -88,8 +88,9 @@ Record each answer here, with the date, before moving past it.
 | 3 | Cap the transcription budget? | M3 | step 5g.3's CER sweep |
 | 4 | Push branches and open each PR | every milestone | — |
 | 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8 |
-| 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1. **2026-11-03: keep them for now**; ask again at the end of M1 |
+| 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1. **2026-11-04: keep them for now**, asked again at the end of M2; ask again at the end of M4 |
 | 7 | Release: bump `version` (by hand) | end of M4 | `RELEASING.md` |
+| 8 | When NMV answers Locate with a point, not a box: a message or an approximate marker? | M2, before step 5 | `docs/performance.md`: 6 of 57 targets, only 3 inside the truth. **Decided 2026-11-04: a message**, because a marker would be wrong about half the time |
 
 ### Cut list, if time runs short
 
@@ -869,7 +870,8 @@ step 9).
 
   ```sql
   CREATE TABLE IF NOT EXISTS transcripts (
-      key            TEXT PRIMARY KEY,   -- Derivation.key(), see below
+      id             INTEGER PRIMARY KEY, -- explicit: VACUUM may renumber implicit rowids, which FTS refers to
+      key            TEXT NOT NULL UNIQUE, -- Derivation.key(), see below
       page_id        TEXT NOT NULL,      -- domain.page_id(bytes), step 3c
       text           TEXT NOT NULL,
       finish_reason  TEXT,
@@ -884,7 +886,7 @@ step 9).
   );
   CREATE INDEX IF NOT EXISTS transcripts_page ON transcripts(page_id);
   CREATE VIRTUAL TABLE IF NOT EXISTS transcripts_fts USING fts5(
-      text, content='transcripts', content_rowid='rowid'
+      text, content='transcripts', content_rowid='id'
   );
   -- plus AFTER INSERT / AFTER DELETE / AFTER UPDATE triggers that keep
   -- transcripts_fts in sync (the standard external-content pattern from the
@@ -933,7 +935,7 @@ step 9).
        the plan itself tells users to switch tags (step 5j). So an immediate
        prune on start-up would delete the other checkout's valid transcripts
        on every switch, costing minutes of re-transcription.
-     - `prune(model_revision, prompt_version, older_than_days=30) -> int` runs
+     - `prune(model_revision, prompt_version, max_tokens, older_than_days=30) -> int` runs
        `DELETE … WHERE (model_revision != ? OR prompt_version != ? OR max_tokens != ?) AND created < ?`
        and returns the row count, followed by `'optimize'` (see "Deleting
        really deletes").
@@ -957,7 +959,8 @@ step 9).
   - `by_page(page_id) -> list[Transcript]`: every saved transcript of a page,
     at any budget, newest first. Needed by step 5 (best available transcript),
     step 9 (re-upload reconnects) and step 3c's tests.
-  - `put(key, Transcript, filename: str | None)`. **Write it as
+  - `put(Transcript, filename: str | None) -> bool`, keyed by its own
+    `derivation.key()`, and False if the store failed. **Write it as
     `INSERT … ON CONFLICT(key) DO UPDATE SET …`, never `INSERT OR REPLACE`.**
     - `REPLACE` deletes the old row *without* firing the AFTER DELETE trigger
       (unless `recursive_triggers` is on), which leaves stale entries in the
@@ -1166,7 +1169,11 @@ same shape as the two existing pages.
    - **Why:** in Command R's format, `<co>…</co: 0:[i]>` wraps a span of the
      *answer* ("The total amount due is…"), and the closing tag only names the
      documents. That phrasing is often not on the page.
-   - **Before grounding**, fuzzy-match the span against the cited page's
+   - **A span already on the page is sent as it stands**, less trailing
+     punctuation, and never widened to its line. Measured on the sample invoice
+     (2026-11-04): `$4,182.55` gets a box on target, `Total due: $4,182.55` gets
+     the meaningless point `[500, 0, 500, 0]`.
+   - **Otherwise, before grounding**, fuzzy-match the span against the cited page's
      transcript and send the best-matching verbatim line or value. Use
      `difflib.SequenceMatcher` over the transcript's lines and keep the best
      ratio; above 0.5, use that line, otherwise fall back to the span itself.
@@ -1186,6 +1193,9 @@ same shape as the two existing pages.
        system from the one measured.
      - Grounding keeps its sliders. This rule covers Locate only.
    - Parse with `grounding.parse_boxes`.
+   - **A point answer gets its own message (decision 8).** `parse_boxes` rejects
+     a degenerate box such as `[852, 301, 852, 301]`, so detect that case and say
+     the model could not locate the text precisely. Never draw a marker for it.
    - Draw with `grounding.draw_boxes` on the full-resolution `normalize()`d page.
    - Labels are optional; do not assume them.
    - A cited page that is no longer uploaded (removed from the uploader, or a
@@ -1550,6 +1560,7 @@ the most likely new failure, so give it a plain answer.
    - **Locate with no box** reuses Grounding's three-way message (truncated /
      empty / prose). Move that branch into a `ui.explain_no_boxes(result)`
      helper, so both pages share it rather than keeping a fourth copy.
+     A point answer is a fourth case of that helper (decision 8).
 4. **Keep `client.showErrorDetails` at its default.** Every expected failure
    now has its own message, so Streamlit's raw traceback only appears for real
    bugs. On a local single-user app, full detail is what you want there.

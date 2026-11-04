@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import BinaryIO
 
 from PIL import Image, ImageOps
 
@@ -48,6 +49,11 @@ MEGAPIXEL = 1_000_000
 # constraints so the two pages cannot drift apart.
 IMAGE_TYPES = ["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"]
 
+# The same list as Pillow's decoder names. The uploader filters by extension, but
+# Image.open picks a decoder from the file's content, so without this a renamed
+# file could reach any of them, including EPS, which hands work to Ghostscript.
+PIL_FORMATS = ["PNG", "JPEG", "WEBP", "BMP", "TIFF"]
+
 # Everything PIL can raise for a corrupt, hostile or unsupported upload.
 # DecompressionBombError descends straight from Exception -- not OSError, not
 # ValueError -- so it must be named explicitly or it escapes the handler and
@@ -62,6 +68,16 @@ IMAGE_ERRORS: tuple[type[Exception], ...] = (
 
 class AspectRatioError(ValueError):
     """Raised for images too elongated for the vision encoder."""
+
+
+def open_upload(fp: BinaryIO) -> Image.Image:
+    """Open an upload with only the decoders ``IMAGE_TYPES`` allows.
+
+    Anything else raises ``UnidentifiedImageError``, which ``IMAGE_ERRORS`` catches.
+    Leave Pillow's ``MAX_IMAGE_PIXELS`` at its default: the largest useful input is
+    3.9 MP, against a limit of 89 MP.
+    """
+    return Image.open(fp, formats=PIL_FORMATS)
 
 
 def smart_resize(

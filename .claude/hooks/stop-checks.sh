@@ -19,6 +19,10 @@ changed=$(
 [[ -z "$changed" ]] && exit 0
 
 failures=""
+if out=$(grep -rnE --include='*.py' '^[^#]*(unsafe_allow_html=True|trust_remote_code=True)' \
+  nmv/ app_pages/ streamlit_app.py); then
+  failures+=$'\n--- unsafe_allow_html or trust_remote_code ---\n'"$out"
+fi
 if ! out=$(uv run ty check 2>&1); then
   failures+=$'\n--- uv run ty check ---\n'"$(tail -n 40 <<<"$out")"
 fi

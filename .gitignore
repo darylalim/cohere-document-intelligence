@@ -5,3 +5,14 @@ __pycache__/
 .claude/settings.local.json
 .DS_Store
 evals/runs/
+
+# Transcript store (nmv/transcripts.py). It lives in ~/.cache by default, but
+# NMV_TRANSCRIPT_DB can point anywhere, and these files hold document text.
+# The -wal/-shm files are SQLite's WAL sidecars and contain the same data.
+*.db
+*.db-wal
+*.db-shm
+
+# Private test documents, e.g. the multi-page document for step 8. Keep real
+# invoices and scans here, never in assets/, which is tracked and published.
+/local/

@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import logging
+from collections.abc import Callable, Iterable
+from contextlib import suppress
 
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+from nmv import runtime
+from nmv.citations import parse
+from nmv.errors import Failure, classify
+from nmv.grounding import contains_json, is_point_answer
 from nmv.imaging import MAX_PIXELS, MEGAPIXEL, PIXELS_PER_TOKEN
 from nmv.model import (
     DEFAULT_TEMPERATURE,
@@ -19,9 +25,16 @@ from nmv.model import (
     is_cached,
     load_studio,
 )
+from nmv.r7b_format import Phase, Piece
+from nmv.reader import READER_REPO, Reader, is_reader_cached, load_reader
 from nmv.render import safe_markdown
 
+logger = logging.getLogger("nmv")
+
 MAX_MEGAPIXELS = MAX_PIXELS / MEGAPIXEL
+MAX_PAGES = 10  # about memory and transcription time; the reader's budget is its own
+READING_WIDTH = 760  # about 80 characters at the theme's 15 px base size
+PAGE_IMAGE_WIDTH = 880  # above this an A4 page is taller than a 1440p screen
 
 # Every widget below carries `persist_state="session"`, and a bare `key` is not
 # a substitute. Streamlit folds the active page's script hash into every element
@@ -50,6 +63,92 @@ def show_reply(chunks: Iterable[str]) -> str:
     return reply
 
 
+def show_answer(pieces: Iterable[Piece]) -> None:
+    """Stream the reader's response, without its plan and its citation tags.
+
+    ``parse`` tolerates a tag cut off mid-stream, so no half-written ``<co>`` flashes
+    past. The reader's ``Answer`` keeps the raw response for the history.
+    """
+    slot = st.empty()
+    slot.caption("Planning the answer…")
+    reply = ""
+    for piece in pieces:
+        if piece.phase is Phase.RESPONSE:
+            reply += piece.text
+            slot.markdown(safe_markdown(parse(reply)[0]))
+
+
+def show_failure(
+    exc: Exception,
+    retry: Callable[[], None] | None = None,
+    *,
+    retry_key: str = "retry",
+    first_report: bool = True,
+) -> Failure:
+    """The one way a page reports a load or generation failure.
+
+    Wrap the call in ``except Exception`` and nothing broader: ``st.stop()`` and
+    ``st.rerun()`` raise a ``BaseException``. ``retry`` runs when the user presses
+    Retry, before the rerun, so it can put back what the run was doing. Pass
+    ``first_report=False`` to redraw a failure that was already logged.
+    """
+    failure = classify(exc)
+    if first_report:
+        logger.error("%s: %s", failure.kind, type(exc).__name__, exc_info=exc)
+        if failure.kind == "out_of_memory":
+            with suppress(Exception):  # the page must still report the first failure
+                runtime.clear_cache()
+    st.error(f"**{failure.title}.** {failure.remedy}", icon=":material/error:")
+    with st.expander("Details"):
+        st.exception(exc)
+    if retry is not None:
+        st.button("Retry", icon=":material/refresh:", on_click=retry, key=retry_key)
+    return failure
+
+
+def explain_no_boxes(raw: str, truncated: bool, *, fixed_limit: bool = False) -> None:
+    """Say why a reply drew no boxes. Their remedies point in different directions.
+
+    Truncation comes first: a reply cut off at max tokens leaves a half-written
+    array that decodes as nothing, and would otherwise be misread as prose. A point
+    comes before the JSON test, because it decodes as JSON. ``fixed_limit`` is for
+    callers that ignore the sidebar's max tokens, so the slider is no remedy.
+    """
+    if truncated:
+        remedy = (
+            "Try another citation."
+            if fixed_limit
+            else "Raise **Max new tokens** in the sidebar."
+        )
+        st.warning(
+            f"The response stopped at the max-tokens limit, so the box list was cut "
+            f"off mid-array. {remedy}",
+            icon=":material/content_cut:",
+        )
+    elif is_point_answer(raw):
+        st.info(
+            "The model could not locate this precisely: it gave a single point, not "
+            "a box, so nothing is drawn. Raising the image budget can help.",
+            icon=":material/my_location:",
+        )
+    elif contains_json(raw):
+        # The model answered, and the answer is "nothing here matches": a correct
+        # result, not a failure, so this says nothing about sampling.
+        st.info(
+            "The model returned an empty result — it found nothing matching this "
+            "instruction. Try different wording or another task preset, or raise "
+            "the image budget if the target is small.",
+            icon=":material/search_off:",
+        )
+    else:
+        remedy = "" if fixed_limit else " Try the deterministic toggle, or ask for JSON."
+        st.warning(
+            f"No boxes parsed from the response. The model sometimes answers in "
+            f"prose.{remedy}",
+            icon=":material/format_quote:",
+        )
+
+
 def ensure_studio() -> Studio:
     """Load the checkpoint, warning first if it still has to be downloaded.
 
@@ -69,8 +168,39 @@ def ensure_studio() -> Studio:
             "downloads about 3.2 GB.",
             icon=":material/cloud_download:",
         )
-    with st.spinner("Loading North Micro Vision (8-bit)…"):
-        return load_studio()
+    try:
+        with st.spinner("Loading North Micro Vision (8-bit)…"):
+            return load_studio()
+    except Exception as exc:
+        # cache_resource does not cache a function that raised, so the rerun that
+        # Retry causes genuinely tries the load again.
+        show_failure(exc, retry=lambda: None)
+        st.stop()
+
+
+def ensure_reader() -> Reader:
+    """Load the reader, on the first question and never at page render.
+
+    Raises what the load raises, so the page keeps the question it was answering.
+    """
+    if not is_reader_cached():
+        st.warning(
+            f"`{READER_REPO}` is not in the Hugging Face cache yet — the first "
+            "question downloads about 4.5 GB.",
+            icon=":material/cloud_download:",
+        )
+        show_reader_licence()
+    with st.spinner("Loading Command R7B…"):
+        return load_reader()
+
+
+def show_reader_licence() -> None:
+    st.info(
+        "Command R7B is licensed CC-BY-NC-4.0 under [Cohere's C4AI licence "
+        "agreement](https://cohere.com/c4ai-cc-by-nc-license) — non-commercial use "
+        "only.",
+        icon=":material/gavel:",
+    )
 
 
 def _budget_control() -> int:
@@ -193,6 +323,8 @@ def render_stats(slot: DeltaGenerator, stats: RunStats | None) -> None:
         return
     with slot.container():
         st.subheader("Last run", divider="gray")
+        if stats.model:
+            st.caption(stats.model)
         with st.container(horizontal=True):
             st.metric("Prefill tokens", f"{stats.prompt_tokens:,}")
             st.metric("Decode tok/s", f"{stats.generation_tps:.0f}")
@@ -201,8 +333,8 @@ def render_stats(slot: DeltaGenerator, stats: RunStats | None) -> None:
             st.metric("Peak memory GB", f"{stats.peak_memory:.2f}")
 
 
-def sidebar() -> tuple[int, Sampling, DeltaGenerator]:
-    """Render every shared control.
+def sidebar(*, reader: bool = False) -> tuple[int, Sampling, DeltaGenerator]:
+    """Render every shared control. ``reader`` adds Command R7B's model caption.
 
     Returns the image budget, the sampling config, and a slot the caller fills
     with run statistics once generation finishes.
@@ -211,6 +343,9 @@ def sidebar() -> tuple[int, Sampling, DeltaGenerator]:
         st.caption("Model")
         st.code(MODEL_REPO, language=None, wrap_lines=True)
         st.caption("2.4B · 8-bit · Apache 2.0 · native resolution")
+        if reader:
+            st.code(READER_REPO, language=None, wrap_lines=True)
+            st.caption("8B · 4-bit · CC-BY-NC-4.0 · non-commercial")
         budget = _budget_control()
         sampling = _sampling_control()
         stats_slot = st.empty()

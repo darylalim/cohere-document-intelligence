@@ -62,7 +62,13 @@ def run_file(path: Path) -> bool:
         check=False,
     )
     passed = done.returncode == 0
-    print(f"{'PASS' if passed else 'FAIL'}  {path.name}", flush=True)
+    # A test that could not run says so on its first line, and must never read as
+    # green: a missing weights cache would otherwise pass without checking anything.
+    skipped = passed and done.stdout.startswith("SKIP")
+    status = "SKIP" if skipped else "PASS" if passed else "FAIL"
+    print(f"{status}  {path.name}", flush=True)
+    if skipped:
+        print(f"      {done.stdout.splitlines()[0]}", flush=True)
     if not passed:
         print("\n".join(done.stdout.splitlines()[-TAIL_LINES:]), flush=True)
     return passed

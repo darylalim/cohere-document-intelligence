@@ -8,17 +8,17 @@ question can refer back to a page uploaded three turns ago.
 from typing import Any
 
 import streamlit as st
-from PIL import Image
 
 from nmv.imaging import (
     IMAGE_ERRORS,
     IMAGE_TYPES,
     VALIDATED_CONTEXT_TOKENS,
+    open_upload,
     prepare,
 )
 from nmv.model import RunStats, assistant_turn, stream_reply, user_turn
 from nmv.render import safe_markdown
-from nmv.ui import ensure_studio, render_stats, show_reply, sidebar
+from nmv.ui import ensure_studio, render_stats, show_failure, show_reply, sidebar
 
 SUGGESTIONS = {
     ":blue[:material/description:] Read a document": (
@@ -97,7 +97,7 @@ if text or uploads:
     turn_tokens = 0
     for upload in uploads:
         try:
-            image, resolved = prepare(Image.open(upload), budget)
+            image, resolved = prepare(open_upload(upload), budget)
         except IMAGE_ERRORS as error:
             failures.append(f"**{upload.name}** — {error}")
             continue
@@ -162,9 +162,20 @@ if text or uploads:
 
         stats = RunStats()
         with st.chat_message("assistant"):
-            reply = show_reply(
-                stream_reply(studio, messages, ordered_images, sampling, stats)
-            )
+            try:
+                reply = show_reply(
+                    stream_reply(studio, messages, ordered_images, sampling, stats)
+                )
+            except Exception as exc:
+                # The pending turn is simply never committed. Only a text turn can
+                # be put back: the queue holds no images.
+                show_failure(
+                    exc,
+                    retry=None
+                    if images
+                    else lambda: st.session_state.update(queued_prompt=text),
+                )
+                st.stop()
             stats_line = (
                 f"{stats.prompt_tokens:,} prompt tokens · "
                 f"{stats.generation_tokens:,} generated at "

@@ -12,10 +12,17 @@ import streamlit as st
 from PIL import Image
 from streamlit.typing import UploadedFile
 
-from nmv.grounding import Box, contains_json, draw_boxes, parse_boxes
-from nmv.imaging import IMAGE_ERRORS, IMAGE_TYPES, ImagePlan, encode, normalize
+from nmv.grounding import Box, draw_boxes, parse_boxes
+from nmv.imaging import (
+    IMAGE_ERRORS,
+    IMAGE_TYPES,
+    ImagePlan,
+    encode,
+    normalize,
+    open_upload,
+)
 from nmv.model import RunStats, stream_reply, user_turn
-from nmv.ui import ensure_studio, render_stats, sidebar
+from nmv.ui import ensure_studio, explain_no_boxes, render_stats, show_failure, sidebar
 
 PRESETS = {
     "Objects": (
@@ -55,7 +62,7 @@ def _encode_upload(
     """
     # Normalise first so the overlay is drawn on exactly the orientation the
     # encoder saw; otherwise EXIF-rotated photos get boxes on the wrong axis.
-    original = normalize(Image.open(_upload))
+    original = normalize(open_upload(_upload))
     encoded, resolved = encode(original, budget_pixels)  # already normalised
     return original, encoded, resolved
 
@@ -151,6 +158,7 @@ run = st.button(
     type="primary",
     disabled=upload is None or not instruction.strip(),
 )
+run = run or st.session_state.pop("grounding_retry", False)
 
 if upload is None:
     st.info("Upload an image to begin.", icon=":material/image:")
@@ -174,10 +182,16 @@ st.caption(
 
 if run:
     stats = RunStats()
-    with st.spinner("Locating…"):
-        raw = "".join(
-            stream_reply(studio, [user_turn(instruction, 1)], [encoded], sampling, stats)
-        )
+    try:
+        with st.spinner("Locating…"):
+            raw = "".join(
+                stream_reply(
+                    studio, [user_turn(instruction, 1)], [encoded], sampling, stats
+                )
+            )
+    except Exception as exc:
+        show_failure(exc, retry=lambda: st.session_state.update(grounding_retry=True))
+        st.stop()
     st.session_state.last_stats = stats
     render_stats(stats_slot, stats)
     st.session_state.grounding_result = {
@@ -217,33 +231,7 @@ with details:
             key="grounding_boxes",
         )
     else:
-        # Three different things produce zero boxes and their remedies point in
-        # different directions, so the message has to name the right one.
-        # Truncation is tested first: a reply cut off at max_tokens leaves a
-        # half-written array that decodes as nothing, and would otherwise be
-        # misread as prose.
-        if result.get("truncated"):
-            st.warning(
-                "The response stopped at the max-tokens limit, so the box list was "
-                "cut off mid-array. Raise **Max new tokens** in the sidebar.",
-                icon=":material/content_cut:",
-            )
-        elif contains_json(result["raw"]):
-            # Well-formed JSON holding no boxes. The model answered, and the
-            # answer is "nothing here matches" — a correct result, not a
-            # failure, so this is st.info and says nothing about sampling.
-            st.info(
-                "The model returned an empty result — it found nothing matching this "
-                "instruction. Try different wording or another task preset, or raise "
-                "the image budget if the target is small.",
-                icon=":material/search_off:",
-            )
-        else:
-            st.warning(
-                "No boxes parsed from the response. The model sometimes answers in "
-                "prose — try the deterministic toggle, or ask explicitly for JSON.",
-                icon=":material/format_quote:",
-            )
+        explain_no_boxes(result["raw"], result.get("truncated", False))
 
     raw_panel = st.expander("Raw response", on_change="rerun")
     if raw_panel.open:

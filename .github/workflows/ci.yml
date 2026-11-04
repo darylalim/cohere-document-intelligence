@@ -65,6 +65,19 @@ jobs:
             exit 1
           fi
 
+      # Model output is untrusted, and so is checkpoint code. The ^[^#]* prefix
+      # skips comments, such as the one in nmv/model.py explaining what mlx-vlm
+      # does with trust_remote_code, and still catches a real call.
+      - name: No unsafe HTML or remote code
+        run: |
+          if grep -rnE --include='*.py' \
+            '^[^#]*(unsafe_allow_html=True|trust_remote_code=True)' \
+            nmv/ app_pages/ streamlit_app.py
+          then
+            echo "::error::unsafe_allow_html and trust_remote_code stay off (see the plan, step 5i)."
+            exit 1
+          fi
+
       # A checkpoint can run code here (CLAUDE.md), so every *_REVISION must be a
       # 40-hex commit and no download may fetch *.py. Same script as the edit hook.
       - name: Checkpoint pins
