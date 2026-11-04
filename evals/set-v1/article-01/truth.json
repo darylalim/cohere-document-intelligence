@@ -1,0 +1,113 @@
+{
+  "id": "article-01",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Commission Weighs the Old Pier",
+      "bbox": [
+        73,
+        51,
+        592,
+        76
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Opinion on the quay",
+      "bbox": [
+        524,
+        127,
+        720,
+        140
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Commission Weighs the Old Pier\nBy Emeric Halloway\nThe commission will publish its findings after a further\nround of soundings, and has promised a public meeting\nbefore any contract is signed. Until then the gates on the\npier will stay locked and the warning notices will remain.\nRepairs would take the better part of two summers. The\nsurveyor told the meeting that the piles nearest the\nchannel were sound, but that the deck had softened\nalong much of its length and could not safely carry a\nvehicle.\nA smaller group argued for doing nothing at all. The\ntide, they said, would settle the question eventually, and\nthe money would be better spent on the lifeboat station,\nwhose slipway has needed attention for some years.\nTraders along the waterfront were divided. Some saw a\nmarket hall on the pier as the only way to bring visitors\ndown the hill, while others feared that a long closure of\nthe quay road would cost them a season of custom.\nThe harbour commission met on Tuesday to weigh the\nfuture of the old grain pier, which has stood idle since\nthe last barge left. Members heard from engineers,\nfishermen and a delegation of residents from the\nterraces above the quay, most of whom wanted the\ntimber kept.\nEstimated cost: 625,000 pounds\nOpinion on the quay\nLetters to this paper have run strongly in favour of\nkeeping the pier, though few of the writers offer to pay\nfor it. One retired pilot recalled tying up alongside it in\nfog, guided only by the smell of the malt sheds.\nYounger residents see it differently. A petition from the\nsixth-form college asks for a rowing club and a small\nboatyard, arguing that a working pier would keep skills\nin the town that a market stall never could.\nThe quay has changed hands four times since the war,\nand each owner has left behind a plan that came to\nnothing. A folder of drawings for a ferry terminal still sits\nin the commission's basement, its corners nibbled by\nmice.\nWhat the town lacks is not ideas but a season long\nenough to pay for them. The hotels on the front open at\nEaster and shutter by the first gales, and their owners are\nwary of promises about year-round trade.\nWhatever is decided, the engineers agree on one thing:\nthe longer the timber sits untreated, the less there will be\nto argue over. Each winter takes a little more of the outer\ndeck, and the gulls have already moved in.",
+      "fields": [
+        "Commission Weighs the Old Pier",
+        "Emeric Halloway",
+        "Estimated cost: 625,000 pounds"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "Who wrote this article?",
+      "answer": "Emeric Halloway",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          89,
+          233,
+          100
+        ]
+      }
+    },
+    {
+      "q": "What is the estimated cost, in thousands of pounds?",
+      "answer": "625",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          544,
+          337,
+          556
+        ]
+      }
+    },
+    {
+      "q": "What is the headline?",
+      "answer": "Commission Weighs the Old Pier",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          51,
+          592,
+          76
+        ]
+      }
+    },
+    {
+      "q": "What is the second column's heading?",
+      "answer": "Opinion on the quay",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          524,
+          127,
+          720,
+          140
+        ]
+      }
+    },
+    {
+      "q": "On what date will the public meeting be held?",
+      "answer": null
+    }
+  ]
+}

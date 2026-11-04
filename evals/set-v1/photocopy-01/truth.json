@@ -1,0 +1,124 @@
+{
+  "id": "photocopy-01",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $7,335.26",
+      "bbox": [
+        706,
+        506,
+        927,
+        522
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the PAID stamp",
+      "bbox": [
+        99,
+        709,
+        274,
+        796
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Dunmarrow Cold Storage",
+      "bbox": [
+        613,
+        50,
+        929,
+        68
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Dunmarrow Cold Storage\n6 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 2320-72\nDate: 27 June 2026\nBill to:\nNorthwick Glassworks\nDescription Qty Unit price Amount\nStainless fittings, box 12 $259.55 $3,114.60\nReplacement filter set 6 $29.34 $176.04\nInspection visit 5 $335.36 $1,676.80\nLabel roll, thermal 4 $286.32 $1,145.28\nSubtotal: $6,112.72\nTax: $1,222.54\nTotal due: $7,335.26\nPAID",
+      "fields": [
+        "Dunmarrow Cold Storage",
+        "Northwick Glassworks",
+        "2320-72",
+        "7,335.26"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "7,335.26",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          706,
+          506,
+          927,
+          522
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 2320-72?",
+      "answer": "Northwick Glassworks",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          182,
+          284,
+          193
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "1,222.54",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          808,
+          480,
+          927,
+          492
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "27 June 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          103,
+          231,
+          112
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}

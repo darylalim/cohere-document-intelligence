@@ -1,0 +1,124 @@
+{
+  "id": "photocopy-02",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $5,602.39",
+      "bbox": [
+        73,
+        243,
+        294,
+        259
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the PAID stamp",
+      "bbox": [
+        615,
+        173,
+        789,
+        258
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Hollowbrook Instruments",
+      "bbox": [
+        73,
+        50,
+        390,
+        64
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Hollowbrook Instruments\n11 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 6305-29\nDate: 15 January 2026\nBill to:\nElmhurst Tutors\nTotal due: $5,602.39\nDescription Qty Unit price Amount\nCourier service, zone 3 2 $299.19 $598.38\nStainless fittings, box 7 $60.78 $425.46\nInspection visit 4 $74.44 $297.76\nPallet wrap, 500 mm 9 $293.21 $2,638.89\nCalibration certificate 1 $385.57 $385.57\nReplacement filter set 2 $161.30 $322.60\nSubtotal: $4,668.66\nTax: $933.73\nPAID",
+      "fields": [
+        "Hollowbrook Instruments",
+        "Elmhurst Tutors",
+        "6305-29",
+        "5,602.39"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "5,602.39",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          243,
+          294,
+          259
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 6305-29?",
+      "answer": "Elmhurst Tutors",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          182,
+          226,
+          193
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "933.73",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          823,
+          574,
+          927,
+          585
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "15 January 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          613,
+          103,
+          796,
+          114
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}

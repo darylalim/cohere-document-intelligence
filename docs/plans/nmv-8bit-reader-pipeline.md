@@ -358,6 +358,11 @@ live in `evals/`, have their own runner, and are **never in CI** (GitHub's
      - On Pillow 12.3 that is FreeType "Aileron Regular", shipped inside the
        package, so rendering does not depend on the fonts installed on the Mac.
        Repeated renders are byte-identical (checked 2026-10-18).
+     - **It is ASCII-only** (found 2026-11-03: accents and the euro sign render
+       as tofu). So `Sheet.text` draws the ASCII base string and adds accents as
+       drawn marks, and amounts use `EUR`. This keeps rendering independent of
+       installed fonts and avoids vendoring one. All-caps French drops the accent
+       (`PAYE`), so the truth matches the pixels.
    - **The generator writes its own ground truth.** It knows every string it
      drew, and `ImageDraw.textbbox` gives each one's exact pixel box. Convert
      boxes to the 0–1000 grid as `round(v / size * 1000)` per axis; for

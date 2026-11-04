@@ -1,0 +1,114 @@
+{
+  "id": "statement-02",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Closing balance: $13,211.76",
+      "bbox": [
+        658,
+        656,
+        927,
+        671
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Sundial Row Clinic",
+      "bbox": [
+        185,
+        371,
+        319,
+        380
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Wrenfield Mutual Savings\nCurrent account statement, April 2026\nAccount holder: Maren Oskalde\nAccount number: 27-4975-124\nOpening balance: $18,428.68\nDate Details Paid out Paid in Balance\n01 Apr Port Selwyn Transit $701.56  $17,727.12\n02 Apr Ferncombe Energy $46.78  $17,680.34\n03 Apr Pellworth Bakery $554.19  $17,126.15\n04 Apr Rent, Flat 4 Moorgate $334.25  $16,791.90\n06 Apr Ferncombe Energy $668.09  $16,123.81\n08 Apr Thistlebank Farm Shop $377.10  $15,746.71\n09 Apr Sundial Row Clinic $682.55  $15,064.16\n10 Apr Tarnwick Water Board $541.16  $14,523.00\n11 Apr Marrowgate Cycles $525.21  $13,997.79\n12 Apr Salary, Corvane Holdings  $3,342.29 $17,340.08\n14 Apr Ferncombe Energy $407.29  $16,932.79\n15 Apr Linden Grocers $742.79  $16,190.00\n16 Apr Marrowgate Cycles $494.41  $15,695.59\n21 Apr Tarnwick Water Board $525.13  $15,170.46\n23 Apr Linden Grocers $768.11  $14,402.35\n24 Apr Marrowgate Cycles $37.53  $14,364.82\n27 Apr Linden Grocers $394.20  $13,970.62\n28 Apr Sundial Row Clinic $758.86  $13,211.76\nClosing balance: $13,211.76",
+      "fields": [
+        "Maren Oskalde",
+        "27-4975-124",
+        "$18,428.68",
+        "$13,211.76"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the closing balance?",
+      "answer": "13,211.76",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          658,
+          656,
+          927,
+          671
+        ]
+      }
+    },
+    {
+      "q": "What is the opening balance?",
+      "answer": "18,428.68",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          168,
+          315,
+          180
+        ]
+      }
+    },
+    {
+      "q": "How much was paid to Sundial Row Clinic the first time it appears?",
+      "answer": "682.55",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          607,
+          371,
+          669,
+          381
+        ]
+      }
+    },
+    {
+      "q": "Who holds this account?",
+      "answer": "Maren Oskalde",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          117,
+          332,
+          127
+        ]
+      }
+    },
+    {
+      "q": "What is the overdraft limit on this account?",
+      "answer": null
+    }
+  ]
+}

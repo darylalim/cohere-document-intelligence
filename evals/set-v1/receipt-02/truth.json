@@ -1,0 +1,113 @@
+{
+  "id": "receipt-02",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "TOTAL $51.30",
+      "bbox": [
+        635,
+        299,
+        931,
+        316
+      ]
+    },
+    {
+      "page": 0,
+      "target": "CARD ENDING 1434",
+      "bbox": [
+        69,
+        334,
+        328,
+        341
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Larkspur Corner Stores\n14 Saltmarsh Lane\n12/05/2026 19:17\nRYE LOAF $9.59\nDISH SOAP $1.60\nCOFFEE BEANS $1.56\nOAT MILK 1L $2.86\nBATTERIES AA $5.42\nNOTEBOOK A5 $5.71\nHONEY 340G $11.29\nPEARS 1KG $13.27\nTOTAL $51.30\nCARD ENDING 1434\nTHANK YOU, CALL AGAIN",
+      "fields": [
+        "Larkspur Corner Stores",
+        "$51.30",
+        "1434"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What was the total paid?",
+      "answer": "51.30",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          635,
+          299,
+          931,
+          316
+        ]
+      }
+    },
+    {
+      "q": "Which shop issued this receipt?",
+      "answer": "Larkspur Corner Stores",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          69,
+          34,
+          580,
+          52
+        ]
+      }
+    },
+    {
+      "q": "What are the last four digits of the card?",
+      "answer": "1434",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          69,
+          334,
+          328,
+          341
+        ]
+      }
+    },
+    {
+      "q": "How much was RYE LOAF?",
+      "answer": "9.59",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          854,
+          114,
+          931,
+          125
+        ]
+      }
+    },
+    {
+      "q": "What is the name of the cashier?",
+      "answer": null
+    }
+  ]
+}

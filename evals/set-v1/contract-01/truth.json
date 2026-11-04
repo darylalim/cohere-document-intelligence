@@ -1,0 +1,131 @@
+{
+  "id": "contract-01",
+  "pages": [
+    "page-1.png",
+    "page-2.png"
+  ],
+  "boxes": [
+    {
+      "page": 1,
+      "target": "the handwritten signature",
+      "bbox": [
+        73,
+        675,
+        315,
+        718
+      ]
+    },
+    {
+      "page": 1,
+      "target": "Termination",
+      "bbox": [
+        73,
+        585,
+        174,
+        594
+      ]
+    },
+    {
+      "page": 0,
+      "target": "SERVICES AGREEMENT",
+      "bbox": [
+        73,
+        51,
+        389,
+        66
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "SERVICES AGREEMENT\nThis Agreement is made between Elmhurst Tutors (the Client) and Hollowbrook Instruments (the Supplier), and takes\neffect on 1 February 2026.\nMonthly fee: $1,864.37\nInitial term: 12 months\n1. Notices\nAny notice under this Agreement shall be delivered by hand or sent by recorded post to the address stated above, and shall be\ndeemed received on the second working day after posting. For the purposes of clause 1 the reference period is 11 weeks, the\nresponsible office is Linden, and the file reference is A778/17.\n2. Confidentiality\nEach party shall keep confidential all information of a commercial nature which it receives from the other, and shall use that\ninformation only for the purpose of performing its obligations under this Agreement. For the purposes of clause 2 the reference\nperiod is 10 weeks, the responsible office is Tarnwick, and the file reference is H638/62.\n3. Variation\nNo variation of this Agreement shall be effective unless it is made in writing and signed by an authorised representative of each\nparty, and no failure to exercise a right shall operate as a waiver of that right. For the purposes of clause 3 the reference period is\n15 weeks, the responsible office is Saltmarsh, and the file reference is B220/12.\n4. Standard of service\nThe Supplier shall carry out the Services with reasonable care and skill and in accordance with the Schedule, and shall keep the\nClient informed of any matter likely to delay the Services by more than five working days. For the purposes of clause 4 the\nreference period is 27 weeks, the responsible office is Harrowfield, and the file reference is D310/52.\n5. Insurance\nThe Supplier shall maintain adequate insurance against its liabilities under this Agreement and shall produce evidence of that\ninsurance on request, not more than once in any period of twelve months. For the purposes of clause 5 the reference period is 27\nweeks, the responsible office is Harrowfield, and the file reference is D315/37.\n6. Access and co-operation\nThe Client shall provide access to its premises and records at such times as the Supplier may reasonably request, and shall ensure\nthat its staff give all co-operation needed for the Services to proceed on schedule. For the purposes of clause 6 the reference\nperiod is 28 weeks, the responsible office is Saltmarsh, and the file reference is A152/33.\n7. Events beyond control\nNeither party shall be liable for any failure to perform caused by events beyond its reasonable control, provided that it gives\nprompt written notice and takes all reasonable steps to resume performance. For the purposes of clause 7 the reference period is\n24 weeks, the responsible office is Tarnwick, and the file reference is D251/58.\n8. Intellectual property\nAll intellectual property created by the Supplier in the course of the Services shall remain with the Supplier, and the Client is\ngranted a non-exclusive licence to use it for its internal business purposes. For the purposes of clause 8 the reference period is 3\nweeks, the responsible office is Port Selwyn, and the file reference is H766/37.\n9. Notices\nAny notice under this Agreement shall be delivered by hand or sent by recorded post to the address stated above, and shall be\ndeemed received on the second working day after posting. For the purposes of clause 9 the reference period is 15 weeks, the\nresponsible office is Moorgate, and the file reference is F298/52.\n10. Confidentiality\nEach party shall keep confidential all information of a commercial nature which it receives from the other, and shall use that\ninformation only for the purpose of performing its obligations under this Agreement. For the purposes of clause 10 the reference\nperiod is 16 weeks, the responsible office is Moorgate, and the file reference is A369/53.",
+      "fields": [
+        "Elmhurst Tutors",
+        "Hollowbrook Instruments",
+        "$1,864.37"
+      ]
+    },
+    {
+      "page": 1,
+      "reference": "11. Variation\nNo variation of this Agreement shall be effective unless it is made in writing and signed by an authorised representative of each\nparty, and no failure to exercise a right shall operate as a waiver of that right. For the purposes of clause 11 the reference period is\n20 weeks, the responsible office is Harrowfield, and the file reference is G593/92.\n12. Standard of service\nThe Supplier shall carry out the Services with reasonable care and skill and in accordance with the Schedule, and shall keep the\nClient informed of any matter likely to delay the Services by more than five working days. For the purposes of clause 12 the\nreference period is 22 weeks, the responsible office is Tarnwick, and the file reference is B908/49.\n13. Insurance\nThe Supplier shall maintain adequate insurance against its liabilities under this Agreement and shall produce evidence of that\ninsurance on request, not more than once in any period of twelve months. For the purposes of clause 13 the reference period is 13\nweeks, the responsible office is Saltmarsh, and the file reference is E195/32.\n14. Access and co-operation\nThe Client shall provide access to its premises and records at such times as the Supplier may reasonably request, and shall ensure\nthat its staff give all co-operation needed for the Services to proceed on schedule. For the purposes of clause 14 the reference\nperiod is 14 weeks, the responsible office is Port Selwyn, and the file reference is F812/22.\n15. Events beyond control\nNeither party shall be liable for any failure to perform caused by events beyond its reasonable control, provided that it gives\nprompt written notice and takes all reasonable steps to resume performance. For the purposes of clause 15 the reference period\nis 27 weeks, the responsible office is Harrowfield, and the file reference is E764/35.\n16. Intellectual property\nAll intellectual property created by the Supplier in the course of the Services shall remain with the Supplier, and the Client is\ngranted a non-exclusive licence to use it for its internal business purposes. For the purposes of clause 16 the reference period is 9\nweeks, the responsible office is Moorgate, and the file reference is D919/52.\n17. Notices\nAny notice under this Agreement shall be delivered by hand or sent by recorded post to the address stated above, and shall be\ndeemed received on the second working day after posting. For the purposes of clause 17 the reference period is 30 weeks, the\nresponsible office is Moorgate, and the file reference is A675/25.\nTermination\nEither party may terminate on 90 days written notice.\nSigned for Hollowbrook Instruments:\nName: Ilse Warrender, Director",
+      "fields": [
+        "Either party may terminate on 90 days written notice."
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the monthly fee?",
+      "answer": "1,864.37",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          131,
+          240,
+          143
+        ]
+      }
+    },
+    {
+      "q": "How many days of notice does termination require?",
+      "answer": "90",
+      "kind": "number",
+      "pages": [
+        1
+      ],
+      "answer_bbox": {
+        "page": 1,
+        "bbox": [
+          73,
+          604,
+          419,
+          615
+        ]
+      }
+    },
+    {
+      "q": "How long is the initial term, in months?",
+      "answer": "12",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          150,
+          231,
+          158
+        ]
+      }
+    },
+    {
+      "q": "Who signed for the Supplier?",
+      "answer": "Ilse Warrender",
+      "kind": "text",
+      "pages": [
+        1
+      ],
+      "answer_bbox": {
+        "page": 1,
+        "bbox": [
+          73,
+          732,
+          273,
+          741
+        ]
+      }
+    },
+    {
+      "q": "Which court has jurisdiction over disputes?",
+      "answer": null
+    }
+  ]
+}

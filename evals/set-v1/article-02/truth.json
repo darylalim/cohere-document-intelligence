@@ -1,0 +1,113 @@
+{
+  "id": "article-02",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Grain Pier Faces a Long Wait",
+      "bbox": [
+        73,
+        52,
+        531,
+        76
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Opinion on the quay",
+      "bbox": [
+        524,
+        127,
+        720,
+        140
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Grain Pier Faces a Long Wait\nBy Rosalind Tiernan\nLetters to this paper have run strongly in favour of\nkeeping the pier, though few of the writers offer to pay\nfor it. One retired pilot recalled tying up alongside it in\nfog, guided only by the smell of the malt sheds.\nThe quay has changed hands four times since the war,\nand each owner has left behind a plan that came to\nnothing. A folder of drawings for a ferry terminal still sits\nin the commission's basement, its corners nibbled by\nmice.\nYounger residents see it differently. A petition from the\nsixth-form college asks for a rowing club and a small\nboatyard, arguing that a working pier would keep skills\nin the town that a market stall never could.\nWhat the town lacks is not ideas but a season long\nenough to pay for them. The hotels on the front open at\nEaster and shutter by the first gales, and their owners are\nwary of promises about year-round trade.\nWhatever is decided, the engineers agree on one thing:\nthe longer the timber sits untreated, the less there will be\nto argue over. Each winter takes a little more of the outer\ndeck, and the gulls have already moved in.\nEstimated cost: 725,000 pounds\nOpinion on the quay\nRepairs would take the better part of two summers. The\nsurveyor told the meeting that the piles nearest the\nchannel were sound, but that the deck had softened\nalong much of its length and could not safely carry a\nvehicle.\nThe commission will publish its findings after a further\nround of soundings, and has promised a public meeting\nbefore any contract is signed. Until then the gates on the\npier will stay locked and the warning notices will remain.\nThe harbour commission met on Tuesday to weigh the\nfuture of the old grain pier, which has stood idle since\nthe last barge left. Members heard from engineers,\nfishermen and a delegation of residents from the\nterraces above the quay, most of whom wanted the\ntimber kept.\nTraders along the waterfront were divided. Some saw a\nmarket hall on the pier as the only way to bring visitors\ndown the hill, while others feared that a long closure of\nthe quay road would cost them a season of custom.\nA smaller group argued for doing nothing at all. The\ntide, they said, would settle the question eventually, and\nthe money would be better spent on the lifeboat station,\nwhose slipway has needed attention for some years.",
+      "fields": [
+        "Grain Pier Faces a Long Wait",
+        "Rosalind Tiernan",
+        "Estimated cost: 725,000 pounds"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "Who wrote this article?",
+      "answer": "Rosalind Tiernan",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          89,
+          236,
+          100
+        ]
+      }
+    },
+    {
+      "q": "What is the estimated cost, in thousands of pounds?",
+      "answer": "725",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          513,
+          337,
+          524
+        ]
+      }
+    },
+    {
+      "q": "What is the headline?",
+      "answer": "Grain Pier Faces a Long Wait",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          52,
+          531,
+          76
+        ]
+      }
+    },
+    {
+      "q": "What is the second column's heading?",
+      "answer": "Opinion on the quay",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          524,
+          127,
+          720,
+          140
+        ]
+      }
+    },
+    {
+      "q": "On what date will the public meeting be held?",
+      "answer": null
+    }
+  ]
+}

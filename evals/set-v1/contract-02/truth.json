@@ -1,0 +1,137 @@
+{
+  "id": "contract-02",
+  "pages": [
+    "page-1.png",
+    "page-2.png",
+    "page-3.png"
+  ],
+  "boxes": [
+    {
+      "page": 2,
+      "target": "the handwritten signature",
+      "bbox": [
+        73,
+        675,
+        315,
+        713
+      ]
+    },
+    {
+      "page": 2,
+      "target": "Termination",
+      "bbox": [
+        73,
+        585,
+        174,
+        594
+      ]
+    },
+    {
+      "page": 0,
+      "target": "SERVICES AGREEMENT",
+      "bbox": [
+        73,
+        51,
+        389,
+        66
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "SERVICES AGREEMENT\nThis Agreement is made between Corvane Holdings (the Client) and Brackenfold Freight Ltd (the Supplier), and takes\neffect on 1 February 2026.\nMonthly fee: $2,205.91\nInitial term: 18 months\n1. Access and co-operation\nThe Client shall provide access to its premises and records at such times as the Supplier may reasonably request, and shall ensure\nthat its staff give all co-operation needed for the Services to proceed on schedule. For the purposes of clause 1 the reference\nperiod is 22 weeks, the responsible office is Saltmarsh, and the file reference is F963/17.\n2. Variation\nNo variation of this Agreement shall be effective unless it is made in writing and signed by an authorised representative of each\nparty, and no failure to exercise a right shall operate as a waiver of that right. For the purposes of clause 2 the reference period is\n35 weeks, the responsible office is Linden, and the file reference is H479/86.\n3. Confidentiality\nEach party shall keep confidential all information of a commercial nature which it receives from the other, and shall use that\ninformation only for the purpose of performing its obligations under this Agreement. For the purposes of clause 3 the reference\nperiod is 2 weeks, the responsible office is Saltmarsh, and the file reference is C637/11.\n4. Intellectual property\nAll intellectual property created by the Supplier in the course of the Services shall remain with the Supplier, and the Client is\ngranted a non-exclusive licence to use it for its internal business purposes. For the purposes of clause 4 the reference period is 33\nweeks, the responsible office is Linden, and the file reference is D956/46.\n5. Standard of service\nThe Supplier shall carry out the Services with reasonable care and skill and in accordance with the Schedule, and shall keep the\nClient informed of any matter likely to delay the Services by more than five working days. For the purposes of clause 5 the\nreference period is 14 weeks, the responsible office is Moorgate, and the file reference is B442/25.\n6. Events beyond control\nNeither party shall be liable for any failure to perform caused by events beyond its reasonable control, provided that it gives\nprompt written notice and takes all reasonable steps to resume performance. For the purposes of clause 6 the reference period is\n4 weeks, the responsible office is Saltmarsh, and the file reference is B845/30.\n7. Insurance\nThe Supplier shall maintain adequate insurance against its liabilities under this Agreement and shall produce evidence of that\ninsurance on request, not more than once in any period of twelve months. For the purposes of clause 7 the reference period is 30\nweeks, the responsible office is Port Selwyn, and the file reference is G150/14.\n8. Notices\nAny notice under this Agreement shall be delivered by hand or sent by recorded post to the address stated above, and shall be\ndeemed received on the second working day after posting. For the purposes of clause 8 the reference period is 37 weeks, the\nresponsible office is Harrowfield, and the file reference is D267/69.\n9. Access and co-operation\nThe Client shall provide access to its premises and records at such times as the Supplier may reasonably request, and shall ensure\nthat its staff give all co-operation needed for the Services to proceed on schedule. For the purposes of clause 9 the reference\nperiod is 21 weeks, the responsible office is Linden, and the file reference is H271/78.\n10. Variation\nNo variation of this Agreement shall be effective unless it is made in writing and signed by an authorised representative of each\nparty, and no failure to exercise a right shall operate as a waiver of that right. For the purposes of clause 10 the reference period is\n21 weeks, the responsible office is Saltmarsh, and the file reference is B888/14.",
+      "fields": [
+        "Corvane Holdings",
+        "Brackenfold Freight Ltd",
+        "$2,205.91"
+      ]
+    },
+    {
+      "page": 1,
+      "reference": "11. Confidentiality\nEach party shall keep confidential all information of a commercial nature which it receives from the other, and shall use that\ninformation only for the purpose of performing its obligations under this Agreement. For the purposes of clause 11 the reference\nperiod is 39 weeks, the responsible office is Harrowfield, and the file reference is D395/52.\n12. Intellectual property\nAll intellectual property created by the Supplier in the course of the Services shall remain with the Supplier, and the Client is\ngranted a non-exclusive licence to use it for its internal business purposes. For the purposes of clause 12 the reference period is 7\nweeks, the responsible office is Tarnwick, and the file reference is G961/47.\n13. Standard of service\nThe Supplier shall carry out the Services with reasonable care and skill and in accordance with the Schedule, and shall keep the\nClient informed of any matter likely to delay the Services by more than five working days. For the purposes of clause 13 the\nreference period is 29 weeks, the responsible office is Linden, and the file reference is B912/71.\n14. Events beyond control\nNeither party shall be liable for any failure to perform caused by events beyond its reasonable control, provided that it gives\nprompt written notice and takes all reasonable steps to resume performance. For the purposes of clause 14 the reference period\nis 2 weeks, the responsible office is Tarnwick, and the file reference is H266/99.\n15. Insurance\nThe Supplier shall maintain adequate insurance against its liabilities under this Agreement and shall produce evidence of that\ninsurance on request, not more than once in any period of twelve months. For the purposes of clause 15 the reference period is 7\nweeks, the responsible office is Port Selwyn, and the file reference is C777/43.\n16. Notices\nAny notice under this Agreement shall be delivered by hand or sent by recorded post to the address stated above, and shall be\ndeemed received on the second working day after posting. For the purposes of clause 16 the reference period is 5 weeks, the\nresponsible office is Saltmarsh, and the file reference is E249/59.\n17. Access and co-operation\nThe Client shall provide access to its premises and records at such times as the Supplier may reasonably request, and shall ensure\nthat its staff give all co-operation needed for the Services to proceed on schedule. For the purposes of clause 17 the reference\nperiod is 5 weeks, the responsible office is Tarnwick, and the file reference is A601/10.\n18. Variation\nNo variation of this Agreement shall be effective unless it is made in writing and signed by an authorised representative of each\nparty, and no failure to exercise a right shall operate as a waiver of that right. For the purposes of clause 18 the reference period is\n34 weeks, the responsible office is Saltmarsh, and the file reference is F469/72.\n19. Confidentiality\nEach party shall keep confidential all information of a commercial nature which it receives from the other, and shall use that\ninformation only for the purpose of performing its obligations under this Agreement. For the purposes of clause 19 the reference\nperiod is 32 weeks, the responsible office is Tarnwick, and the file reference is F637/83.\n20. Intellectual property\nAll intellectual property created by the Supplier in the course of the Services shall remain with the Supplier, and the Client is\ngranted a non-exclusive licence to use it for its internal business purposes. For the purposes of clause 20 the reference period is\n34 weeks, the responsible office is Tarnwick, and the file reference is D492/58.\n21. Standard of service\nThe Supplier shall carry out the Services with reasonable care and skill and in accordance with the Schedule, and shall keep the\nClient informed of any matter likely to delay the Services by more than five working days. For the purposes of clause 21 the\nreference period is 39 weeks, the responsible office is Linden, and the file reference is F299/75.\n22. Events beyond control\nNeither party shall be liable for any failure to perform caused by events beyond its reasonable control, provided that it gives\nprompt written notice and takes all reasonable steps to resume performance. For the purposes of clause 22 the reference period\nis 10 weeks, the responsible office is Saltmarsh, and the file reference is F761/57.",
+      "fields": []
+    },
+    {
+      "page": 2,
+      "reference": "23. Insurance\nThe Supplier shall maintain adequate insurance against its liabilities under this Agreement and shall produce evidence of that\ninsurance on request, not more than once in any period of twelve months. For the purposes of clause 23 the reference period is 10\nweeks, the responsible office is Saltmarsh, and the file reference is D101/73.\n24. Notices\nAny notice under this Agreement shall be delivered by hand or sent by recorded post to the address stated above, and shall be\ndeemed received on the second working day after posting. For the purposes of clause 24 the reference period is 3 weeks, the\nresponsible office is Port Selwyn, and the file reference is A707/31.\n25. Access and co-operation\nThe Client shall provide access to its premises and records at such times as the Supplier may reasonably request, and shall ensure\nthat its staff give all co-operation needed for the Services to proceed on schedule. For the purposes of clause 25 the reference\nperiod is 22 weeks, the responsible office is Moorgate, and the file reference is D567/61.\n26. Variation\nNo variation of this Agreement shall be effective unless it is made in writing and signed by an authorised representative of each\nparty, and no failure to exercise a right shall operate as a waiver of that right. For the purposes of clause 26 the reference period is\n7 weeks, the responsible office is Harrowfield, and the file reference is G270/56.\n27. Confidentiality\nEach party shall keep confidential all information of a commercial nature which it receives from the other, and shall use that\ninformation only for the purpose of performing its obligations under this Agreement. For the purposes of clause 27 the reference\nperiod is 21 weeks, the responsible office is Port Selwyn, and the file reference is D232/98.\n28. Intellectual property\nAll intellectual property created by the Supplier in the course of the Services shall remain with the Supplier, and the Client is\ngranted a non-exclusive licence to use it for its internal business purposes. For the purposes of clause 28 the reference period is\n39 weeks, the responsible office is Harrowfield, and the file reference is H796/56.\n29. Standard of service\nThe Supplier shall carry out the Services with reasonable care and skill and in accordance with the Schedule, and shall keep the\nClient informed of any matter likely to delay the Services by more than five working days. For the purposes of clause 29 the\nreference period is 26 weeks, the responsible office is Port Selwyn, and the file reference is A722/33.\nTermination\nEither party may terminate on 45 days written notice.\nSigned for Brackenfold Freight Ltd:\nName: Ilse Warrender, Director",
+      "fields": [
+        "Either party may terminate on 45 days written notice."
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the monthly fee?",
+      "answer": "2,205.91",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          131,
+          240,
+          143
+        ]
+      }
+    },
+    {
+      "q": "How many days of notice does termination require?",
+      "answer": "45",
+      "kind": "number",
+      "pages": [
+        2
+      ],
+      "answer_bbox": {
+        "page": 2,
+        "bbox": [
+          73,
+          604,
+          419,
+          615
+        ]
+      }
+    },
+    {
+      "q": "How long is the initial term, in months?",
+      "answer": "18",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          150,
+          231,
+          158
+        ]
+      }
+    },
+    {
+      "q": "Who signed for the Supplier?",
+      "answer": "Ilse Warrender",
+      "kind": "text",
+      "pages": [
+        2
+      ],
+      "answer_bbox": {
+        "page": 2,
+        "bbox": [
+          73,
+          732,
+          273,
+          741
+        ]
+      }
+    },
+    {
+      "q": "Which court has jurisdiction over disputes?",
+      "answer": null
+    }
+  ]
+}
