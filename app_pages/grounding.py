@@ -13,7 +13,14 @@ from PIL import Image
 from streamlit.typing import UploadedFile
 
 from nmv.grounding import Box, contains_json, draw_boxes, parse_boxes
-from nmv.imaging import IMAGE_ERRORS, IMAGE_TYPES, ImagePlan, encode, normalize
+from nmv.imaging import (
+    IMAGE_ERRORS,
+    IMAGE_TYPES,
+    ImagePlan,
+    encode,
+    normalize,
+    open_upload,
+)
 from nmv.model import RunStats, stream_reply, user_turn
 from nmv.ui import ensure_studio, render_stats, sidebar
 
@@ -55,7 +62,7 @@ def _encode_upload(
     """
     # Normalise first so the overlay is drawn on exactly the orientation the
     # encoder saw; otherwise EXIF-rotated photos get boxes on the wrong axis.
-    original = normalize(Image.open(_upload))
+    original = normalize(open_upload(_upload))
     encoded, resolved = encode(original, budget_pixels)  # already normalised
     return original, encoded, resolved
 

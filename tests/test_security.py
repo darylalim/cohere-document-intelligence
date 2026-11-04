@@ -3,6 +3,7 @@
 Run:  uv run python tests/test_security.py
 """
 
+import io
 import re
 import sys
 import tomllib
@@ -12,7 +13,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from _check import check, finish  # noqa: E402
+from PIL import Image  # noqa: E402
 
+from nmv.imaging import IMAGE_ERRORS, PIL_FORMATS, open_upload  # noqa: E402
 from nmv.render import safe_markdown  # noqa: E402
 
 print("config.toml")
@@ -83,5 +86,35 @@ check("no st.write_stream", "write_stream" not in chat)
 check("streams through show_reply", "show_reply(" in chat)
 bare = re.findall(r"st\.markdown\((?!safe_markdown\()", chat)
 check("every st.markdown goes through safe_markdown", not bare, str(bare))
+
+print("open_upload")
+
+
+def encoded(file_format: str) -> io.BytesIO:
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8), "white").save(buffer, file_format)
+    buffer.seek(0)
+    return buffer
+
+
+for name in PIL_FORMATS:
+    check(f"accepts {name}", open_upload(encoded(name)).format == name)
+for name in ("GIF", "EPS"):
+    try:
+        open_upload(encoded(name))
+    except IMAGE_ERRORS:
+        check(f"rejects {name}", True)
+    else:
+        check(f"rejects {name}", False)
+for path in sorted((ROOT / "app_pages").glob("*.py")):
+    check(f"{path.name} opens uploads through it", "Image.open" not in path.read_text())
+
+print("hostile document")
+fixture = ROOT / "tests/fixtures/security/injected_transcript.txt"
+hostile = fixture.read_text(encoding="utf-8")
+check("the fixture carries an image", "![" in hostile and "<img" in hostile)
+rendered = safe_markdown(hostile)
+check("nothing in it can load", "![" not in rendered and "<img" not in rendered)
+check("its text survives", "Total due: $4,182.55" in rendered)
 
 finish()

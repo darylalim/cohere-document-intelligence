@@ -8,12 +8,12 @@ question can refer back to a page uploaded three turns ago.
 from typing import Any
 
 import streamlit as st
-from PIL import Image
 
 from nmv.imaging import (
     IMAGE_ERRORS,
     IMAGE_TYPES,
     VALIDATED_CONTEXT_TOKENS,
+    open_upload,
     prepare,
 )
 from nmv.model import RunStats, assistant_turn, stream_reply, user_turn
@@ -97,7 +97,7 @@ if text or uploads:
     turn_tokens = 0
     for upload in uploads:
         try:
-            image, resolved = prepare(Image.open(upload), budget)
+            image, resolved = prepare(open_upload(upload), budget)
         except IMAGE_ERRORS as error:
             failures.append(f"**{upload.name}** — {error}")
             continue
