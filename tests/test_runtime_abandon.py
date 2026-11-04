@@ -145,4 +145,50 @@ blocker.result(PROBE_TIMEOUT)
 record = trace.finish(run)
 check("the wait is the queue's", record.queue_wait_s >= 0.05, str(record.queue_wait_s))
 
+
+def settled(timeout: float = PROBE_TIMEOUT) -> bool:
+    """A waiter can wake before the future's callbacks run, so give them a moment."""
+    deadline = time.monotonic() + timeout
+    while runtime.pending() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    return runtime.pending() == 0
+
+
+print("pending jobs")
+check("nothing pending when idle", settled())
+release = threading.Event()
+blocker = runtime.submit(release.wait, PROBE_TIMEOUT)
+queued = runtime.submit(lambda: None)
+check("running and queued both count", runtime.pending() == 2, str(runtime.pending()))
+release.set()
+blocker.result(PROBE_TIMEOUT)
+queued.result(PROBE_TIMEOUT)
+check("back to 0 after jobs that succeed", settled(), str(runtime.pending()))
+
+
+def fails() -> None:
+    raise RuntimeError("job exploded")
+
+
+failed = runtime.submit(fails)
+check("the job's own exception survives", isinstance(failed.exception(), RuntimeError))
+check("back to 0 after a job that raises", settled(), str(runtime.pending()))
+
+print("snapshot")
+run = trace.start("ask")
+runtime.call(time.sleep, 0.02)
+trace.finish(run)
+latest = runtime.snapshot()
+check("a job publishes its kind", latest["last_kind"] == "ask", str(latest["last_kind"]))
+check("and its length", latest["last_seconds"] >= 0.02, str(latest["last_seconds"]))
+check("the limit is read", latest["limit_gb"] > 0, str(latest["limit_gb"]))
+check("memory is never negative", min(latest["active_gb"], latest["peak_gb"]) >= 0)
+runtime.call(lambda: None)
+later = runtime.snapshot()["updated"]
+check(
+    "a job outside a run still refreshes it",
+    later is not None and latest["updated"] is not None and later > latest["updated"],
+)
+check("under its own label", runtime.snapshot()["last_kind"] == runtime.NO_RUN)
+
 finish()

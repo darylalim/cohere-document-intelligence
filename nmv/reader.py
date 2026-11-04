@@ -91,6 +91,7 @@ def _load(local_path: str) -> Reader:
         trace.clock() - began,
         runtime.active_gb(),
     )
+    runtime.mark_loaded("reader")
     return Reader(model=loaded[0], tokenizer=loaded[1])
 
 

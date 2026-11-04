@@ -141,6 +141,7 @@ def _load(repo_id: str, revision: str) -> Studio:
         trace.clock() - began,
         runtime.active_gb(),
     )
+    runtime.mark_loaded("nmv")
     return Studio(model=model, processor=processor, config=config)
 
 
