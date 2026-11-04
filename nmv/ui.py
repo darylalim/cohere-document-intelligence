@@ -31,7 +31,7 @@ from nmv.r7b_format import Phase, Piece
 from nmv.reader import READER_REPO, Reader, is_reader_cached, load_reader
 from nmv.render import safe_markdown
 
-logger = logging.getLogger("nmv")
+logger = logging.getLogger(__name__)
 
 MAX_MEGAPIXELS = MAX_PIXELS / MEGAPIXEL
 MAX_PAGES = 10  # about memory and transcription time; the reader's budget is its own
@@ -160,7 +160,12 @@ def show_failure(
     """
     failure = classify(exc)
     if first_report:
-        logger.error("%s: %s", failure.kind, type(exc).__name__, exc_info=exc)
+        # The class only: an exception's message can carry a file name. Expected
+        # kinds get no traceback, and a run's own record already reports them.
+        if failure.kind == "internal":
+            logger.error("%s: %s", failure.kind, type(exc).__name__, exc_info=exc)
+        elif not run_id:
+            logger.warning("%s: %s", failure.kind, type(exc).__name__)
         if failure.kind == "out_of_memory":
             with suppress(Exception):  # the page must still report the first failure
                 runtime.clear_cache()

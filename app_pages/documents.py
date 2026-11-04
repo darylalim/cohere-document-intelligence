@@ -7,6 +7,7 @@ tokens, and Transcribe and Locate ignore its sampling too: a transcript is cache
 and a box is a measurement, so neither may vary from click to click.
 """
 
+import logging
 from dataclasses import replace
 from io import BytesIO
 
@@ -62,6 +63,8 @@ from nmv.ui import (
     show_reader_licence,
     sidebar,
 )
+
+logger = logging.getLogger("nmv.pages.documents")
 
 LOCATE_CACHE_ENTRIES = 64
 NMV = "North Micro Vision"
@@ -139,8 +142,11 @@ def _usable_transcript(page: Page, budget: int) -> Transcript | None:
 
 def _transcribe(
     page: Page, budget: int, save: bool, action: trace.RunBuilder, stats: RunStats
-) -> None:
-    """One page, kept the moment it finishes, so a later failure cannot lose it."""
+) -> str:
+    """One page, kept the moment it finishes, so a later failure cannot lose it.
+
+    Returns the run record's ``store`` value.
+    """
     assert page.image is not None
     with trace.span("prep"):
         encoded, resolved = encode(page.image, budget)
@@ -168,9 +174,10 @@ def _transcribe(
         saved = save and transcripts.put(transcript, page.display_name)
     if not saved:
         state.ask_held[transcript.derivation.key()] = transcript
-    action.set(store="miss" if saved else "not-saved")
     state.last_stats = stats
-    trace.finish(action, stats=stats)
+    outcome = "miss" if saved else "not-saved"
+    action.set(store=outcome)
+    return outcome
 
 
 def _reuse(
@@ -679,10 +686,16 @@ if queue:
     )
     action = begin_run("transcribe")
     stats = RunStats(model=f"{NMV} · transcribe")
+    position = f"{done}/{state.transcribe_total}"
     try:
-        _transcribe(page, budget, save, action, stats)
+        stored = _transcribe(page, budget, save, action, stats)
+        logger.info(
+            "page %s %s %s %.1f s", position, page.id[:8], stored, action.elapsed()
+        )
+        trace.finish(action, stats=stats)
     except Exception as exc:
         failure = show_failure(exc, run_id=action.run_id)
+        logger.warning("page %s %s %s", position, page.id[:8], failure.kind)
         trace.finish(action, failure.kind, stats)
         state.ask_failed.append((page.display_name, exc, action.run_id))
     queue.pop(0)

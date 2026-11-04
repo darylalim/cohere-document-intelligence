@@ -13,6 +13,7 @@ thread, and calls tend to follow their imports.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, cast
@@ -21,6 +22,8 @@ import streamlit as st
 from PIL import Image
 
 from nmv import runtime, trace
+
+logger = logging.getLogger(__name__)
 
 MODEL_REPO = "mlx-community/North-Micro-Vision-Instruct-8bit"
 # A commit on that repo, not a branch, because a checkpoint can run code here.
@@ -127,8 +130,17 @@ def _load(repo_id: str, revision: str) -> Studio:
     from mlx_vlm import load
     from mlx_vlm.utils import load_config
 
+    logger.info("loading %s @ %s", repo_id, revision[:7])
+    began = trace.clock()
     model, processor = load(repo_id, revision=revision)
     config = load_config(repo_id, revision=revision)
+    logger.info(
+        "loaded %s @ %s in %.1f s, %.2f GB active",
+        repo_id,
+        revision[:7],
+        trace.clock() - began,
+        runtime.active_gb(),
+    )
     return Studio(model=model, processor=processor, config=config)
 
 
@@ -177,6 +189,14 @@ def stream_reply(
     rendered: Rendered | None = None,
 ) -> Iterator[str]:
     """Yield response deltas, suitable for ``ui.show_reply``."""
+    run = trace.active()
+    if run is not None:
+        run.set(max_tokens=sampling.max_tokens)
+    logger.debug(
+        "sampling %s, resolved sizes %s",
+        sampling.as_kwargs(),
+        [image.size for image in images],
+    )
 
     def produce(emit):
         from mlx_vlm import stream_generate

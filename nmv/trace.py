@@ -83,6 +83,7 @@ class RunRecord:
     queue_wait_s: float = 0.0
     first_token_s: float | None = None
     spans: dict[str, float] = field(default_factory=dict)
+    max_tokens: int = 0
     image_tokens: int = 0
     prompt_tokens: int = 0
     generated_tokens: int = 0
@@ -100,6 +101,7 @@ class RunRecord:
 # What a page may fill in. The rest comes from the clock, or from finish().
 _SETTABLE = frozenset(
     {
+        "max_tokens",
         "image_tokens",
         "thinking_tokens",
         "budget_px",
@@ -131,6 +133,9 @@ class RunBuilder:
             raise TypeError(f"not a settable run field: {sorted(unknown)}")
         with self._lock:
             self._values.update(values)
+
+    def elapsed(self) -> float:
+        return clock() - self._started
 
     def add_span(self, name: SpanName, seconds: float) -> None:
         """Repeats add up, so a span names where the time went, not one event."""
@@ -232,6 +237,10 @@ def summary(record: RunRecord) -> str:
             parts.append(f"{item.name}={value:.3f}")
         else:
             parts.append(f"{item.name}={value}")
+    if record.spans.get("prefill"):
+        parts.append(f"prefill_tps={record.prompt_tokens / record.spans['prefill']:.0f}")
+    if record.spans.get("decode"):
+        parts.append(f"decode_tps={record.generated_tokens / record.spans['decode']:.0f}")
     return " ".join(parts)
 
 

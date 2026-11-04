@@ -145,7 +145,7 @@ def _or_else(miss: Callable[[], R]) -> Callable[[Callable[P, R]], Callable[P, R]
             try:
                 return function(*args, **kwargs)
             except STORE_ERRORS as error:
-                logger.warning("transcript store at %s failed: %s", db_path(), error)
+                logger.warning("the store at %s failed: %s", db_path(), error)
                 return miss()
 
         return guarded
@@ -294,6 +294,8 @@ def prune(
             ).rowcount
         if removed:
             _scrub(db)
+    if removed:
+        logger.info("pruned %d rows", removed)
     return removed
 
 
@@ -310,6 +312,7 @@ def clear() -> int:
         _scrub(db)
         db.execute("VACUUM")
         db.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+    logger.info("cleared %d rows", removed)
     return removed
 
 

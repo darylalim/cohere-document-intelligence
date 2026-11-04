@@ -78,6 +78,13 @@ jobs:
             exit 1
           fi
 
+      - name: No content in logs
+        run: |
+          if grep -rnE 'log(ger)?\.(debug|info|warning|error|exception|critical)\(.*\b(text|transcript|prompt|messages|reply|raw|span|query|label|name)\b' nmv/ app_pages/; then
+            echo "::error::A logging call references document content (see the plan, step 5f)."
+            exit 1
+          fi
+
       # A checkpoint can run code here (CLAUDE.md), so every *_REVISION must be a
       # 40-hex commit and no download may fetch *.py. Same script as the edit hook.
       - name: Checkpoint pins

@@ -35,7 +35,7 @@ from nmv import trace
 
 T = TypeVar("T")
 
-logger = logging.getLogger("nmv.runtime")
+logger = logging.getLogger(__name__)
 
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="mlx-worker")
 _BOOT_LOCK = threading.Lock()
@@ -62,6 +62,13 @@ def limit_cache() -> None:
     import mlx.core as mx
 
     mx.set_cache_limit(MLX_CACHE_LIMIT_BYTES)
+
+
+def active_gb() -> float:
+    """What MLX holds right now. Call it on the worker, like all MLX work."""
+    import mlx.core as mx
+
+    return mx.get_active_memory() / 1e9
 
 
 def clear_cache() -> None:

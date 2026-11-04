@@ -11,6 +11,7 @@ preamble, but none is sent: the ``rag`` template already instructs the model.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Any
@@ -21,6 +22,8 @@ from nmv import runtime, trace
 from nmv.domain import PageId
 from nmv.model import RunStats
 from nmv.r7b_format import Phase, PhaseParser, Piece, render
+
+logger = logging.getLogger(__name__)
 
 READER_REPO = "mlx-community/c4ai-command-r7b-12-2024-4bit"
 # A commit, not a branch, for the reasons at MODEL_REVISION. This commit has no .py
@@ -75,10 +78,19 @@ def download_reader() -> str:
 def _load(local_path: str) -> Reader:
     from mlx_lm import load
 
+    logger.info("loading %s @ %s", READER_REPO, READER_REVISION[:7])
+    began = trace.clock()
     loaded = load(local_path)
     # Here and not at boot: only with both models resident does the cache matter.
     # This already runs on the worker, so it calls limit_cache directly.
     runtime.limit_cache()
+    logger.info(
+        "loaded %s @ %s in %.1f s, %.2f GB active",
+        READER_REPO,
+        READER_REVISION[:7],
+        trace.clock() - began,
+        runtime.active_gb(),
+    )
     return Reader(model=loaded[0], tokenizer=loaded[1])
 
 
@@ -217,7 +229,14 @@ def stream_answer(
 
     fit = fit_context(history, pages, render_prompt, count, sampling.max_tokens)
     prompt = render_prompt(fit.history, fit.pages)
-    check_fits(count(prompt), sampling.max_tokens)
+    tokens = count(prompt)
+    check_fits(tokens, sampling.max_tokens)
+    logger.debug(
+        "reader input: %d tokens, %d pages dropped, %d turns dropped",
+        tokens,
+        len(fit.dropped_pages),
+        fit.dropped_turns,
+    )
     answer.sent_pages = tuple(page_id for page_id, _ in fit.pages)
     answer.dropped_pages = fit.dropped_pages
     answer.dropped_turns = fit.dropped_turns
@@ -225,7 +244,11 @@ def stream_answer(
     run = trace.active()
     if run is not None:
         # Here and not after the stream, so a failed answer still records them.
-        run.set(pages_used=len(fit.pages), pages_dropped=len(fit.dropped_pages))
+        run.set(
+            max_tokens=sampling.max_tokens,
+            pages_used=len(fit.pages),
+            pages_dropped=len(fit.dropped_pages),
+        )
 
     def produce(emit):
         from mlx_lm import stream_generate
