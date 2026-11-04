@@ -23,6 +23,7 @@ from nmv.domain import Derivation, Grounding, Page, PageId, Transcript, Turn, pa
 from nmv.grounding import describe, draw_boxes, parse_boxes
 from nmv.imaging import (
     IMAGE_ERRORS,
+    IMAGE_REMEDY,
     IMAGE_TYPES,
     ImagePlan,
     encode,
@@ -124,7 +125,10 @@ def _read_pages(uploads: list[UploadedFile], budget: int) -> list[Page]:
             page = _read_upload(upload, upload.file_id)
             plan(*page.source_size, budget)  # refuses a page too elongated to encode
         except IMAGE_ERRORS as error:
-            st.error(f"**{upload.name}** — {error}", icon=":material/broken_image:")
+            st.error(
+                f"**{upload.name}** — {error} {IMAGE_REMEDY}",
+                icon=":material/broken_image:",
+            )
             continue
         if page.id in numbers:
             st.caption(f"{upload.name} is a duplicate of p.{numbers[page.id]}.")
@@ -135,7 +139,8 @@ def _read_pages(uploads: list[UploadedFile], budget: int) -> list[Page]:
             numbers[page.id] = len(pages)
     if skipped:
         st.warning(
-            f"Only the first {MAX_PAGES} pages are used. Skipped: {', '.join(skipped)}.",
+            f"Only the first {MAX_PAGES} pages are used. Skipped: {', '.join(skipped)}. "
+            "Remove some pages to make room.",
             icon=":material/content_cut:",
         )
     return pages
@@ -351,6 +356,7 @@ def _citations(index: int, turn: Turn, numbers: dict[PageId, int], view: str) ->
             key=widget,
             on_change=_pick_citation,
             args=(widget, entries, view),
+            # Each pill names its page and quote, and a screen reader still gets this.
             label_visibility="collapsed",
             wrap=True,
         )
@@ -360,6 +366,7 @@ def _citations(index: int, turn: Turn, numbers: dict[PageId, int], view: str) ->
             ["source not found"],
             key=f"ask_unknown_{index}",
             disabled=True,
+            # The pill says it all, and a screen reader still gets this label.
             label_visibility="collapsed",
         )
     if missing:
@@ -419,7 +426,11 @@ def _page_panel(
                     render_stats(stats_slot, None)
     if located is not None and located[0].boxes:
         image = draw_boxes(page.image, list(located[0].boxes))
-    st.image(image, width=PAGE_IMAGE_WIDTH)
+    # st.image has no alt text, so a caption stands in. It renders Markdown and skips
+    # safe_markdown, so the model's span stays out of it, in the caption below.
+    boxed = located is not None and located[0].boxes
+    alt = f"Page {numbers[shown]} of {len(numbers)}" + (", box drawn" if boxed else "")
+    st.image(image, caption=alt, width=PAGE_IMAGE_WIDTH)
     if located is not None:
         result, raw, located_run = located
         found_at = [describe(box) for box in result.boxes]
@@ -445,12 +456,14 @@ def _page_panel(
             if transcript.truncated:
                 st.warning(
                     f"This page stopped at {TRANSCRIBE_MAX_TOKENS:,} tokens, so "
-                    "its transcript is incomplete.",
+                    "its transcript is incomplete. Crop it into two images to read all "
+                    "of it.",
                     icon=":material/content_cut:",
                 )
             if transcript.empty:
                 st.warning(
-                    "This page looks empty, so it is not sent to the reader.",
+                    "This page looks empty, so it is not sent to the reader. Check the "
+                    "image, then re-transcribe it.",
                     icon=":material/hide_image:",
                 )
             st.markdown(safe_markdown(transcript.text))
@@ -521,7 +534,11 @@ with st.container(horizontal=True):
             try:
                 removed = transcripts.clear()
             except transcripts.STORE_ERRORS as error:
-                st.error(f"Nothing was cleared: {error}", icon=":material/error:")
+                st.error(
+                    f"Nothing was cleared: {error}. Let any transcription in another "
+                    "tab finish, then try again.",
+                    icon=":material/error:",
+                )
             else:
                 st.toast(f"Removed {removed}. {transcripts.usage()[0]} remain.")
         others = transcripts.other_versions(
@@ -548,7 +565,8 @@ else:
 if not transcripts.available():
     st.warning(
         f"Transcripts are not being saved: `{transcripts.db_path()}` could not be "
-        "opened. They last until this session ends.",
+        "opened. They last until this session ends. Check that file, or set "
+        "`NMV_TRANSCRIPT_DB` to another path and restart the app.",
         icon=":material/database_off:",
     )
 

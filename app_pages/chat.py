@@ -12,6 +12,7 @@ import streamlit as st
 from nmv import trace
 from nmv.imaging import (
     IMAGE_ERRORS,
+    IMAGE_REMEDY,
     IMAGE_TYPES,
     VALIDATED_CONTEXT_TOKENS,
     open_upload,
@@ -133,6 +134,7 @@ if not st.session_state.chat and not queued and submission is None:
     st.pills(
         "Try asking",
         list(SUGGESTIONS),
+        # Each pill names its task, and a screen reader still gets this label.
         label_visibility="collapsed",
         key="chat_suggestion",
         on_change=_use_suggestion,
@@ -148,7 +150,7 @@ if text or uploads:
             try:
                 image, resolved = prepare(open_upload(upload), budget)
             except IMAGE_ERRORS as error:
-                failures.append(f"**{upload.name}** — {error}")
+                failures.append(f"**{upload.name}** — {error} {IMAGE_REMEDY}")
                 continue
             images.append(image)
             turn_tokens += resolved.tokens

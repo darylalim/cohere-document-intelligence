@@ -188,7 +188,8 @@ def check_fits(
     if prompt_tokens + max_tokens > context:
         raise ContextExceeded(
             f"The prompt needs {prompt_tokens} tokens and the answer up to "
-            f"{max_tokens}, past the reader's limit of {context}."
+            f"{max_tokens}, past the reader's limit of {context}. Ask about fewer "
+            "pages, or start a new conversation."
         )
 
 

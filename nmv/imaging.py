@@ -66,6 +66,10 @@ IMAGE_ERRORS: tuple[type[Exception], ...] = (
 )
 
 
+# Said after any IMAGE_ERRORS message, whose own text names no fix.
+IMAGE_REMEDY = "Crop it, or export it again as PNG or JPEG."
+
+
 class AspectRatioError(ValueError):
     """Raised for images too elongated for the vision encoder."""
 

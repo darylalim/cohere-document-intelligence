@@ -16,6 +16,7 @@ from nmv import trace
 from nmv.grounding import Box, describe, draw_boxes, parse_boxes
 from nmv.imaging import (
     IMAGE_ERRORS,
+    IMAGE_REMEDY,
     IMAGE_TYPES,
     ImagePlan,
     encode,
@@ -112,10 +113,13 @@ def _overlay_panel(image: Image.Image, file_id: str, boxes: list[Box], stem: str
     """
     show_labels = st.toggle("Show label text", value=True, key="grounding_labels")
     if not boxes:
-        st.image(image, width=PAGE_IMAGE_WIDTH)
+        st.image(image, caption="Your image, no boxes", width=PAGE_IMAGE_WIDTH)
         return
     annotated, png_bytes = _render_overlay(image, file_id, tuple(boxes), show_labels)
-    st.image(annotated, width=PAGE_IMAGE_WIDTH)
+    # st.image has no alt text, so a caption stands in: the table holds the detail.
+    count = "1 box" if len(boxes) == 1 else f"{len(boxes)} boxes"
+    alt = f"Your image with {count} drawn, numbered as in the table"
+    st.image(annotated, caption=alt, width=PAGE_IMAGE_WIDTH)
     st.download_button(
         "Download overlay",
         png_bytes,
@@ -176,7 +180,7 @@ if upload is None:
 try:
     original, encoded, resolved = _encode_upload(upload, upload.file_id, budget)
 except IMAGE_ERRORS as error:
-    st.error(str(error), icon=":material/broken_image:")
+    st.error(f"{error} {IMAGE_REMEDY}", icon=":material/broken_image:")
     st.stop()
 
 st.caption(
