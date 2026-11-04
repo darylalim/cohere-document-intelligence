@@ -57,7 +57,7 @@ def _encode_upload(
     """Normalise and resize an upload, once per (file, budget) pair.
 
     Uncached, this ran on *every* rerun: nudging a sampling slider or flipping
-    "Show labels" paid a full EXIF transpose and resize of the original. Measured
+    "Show label text" paid a full EXIF transpose and resize of the original. Measured
     on an M2 Max, encoding costs 27 ms for the sample invoice and 100 ms for a
     12 MP phone photo, against ~2 ms and ~9 ms to unpickle the cached result.
 
@@ -100,7 +100,7 @@ def _render_overlay(
 
 @st.fragment
 def _overlay_panel(image: Image.Image, file_id: str, boxes: list[Box], stem: str) -> None:
-    """The overlay column, isolated so "Show labels" reruns only this much.
+    """The overlay column, isolated so "Show label text" reruns only this much.
 
     The toggle lives inside the fragment on purpose: a fragment only scopes
     reruns triggered by widgets it owns, so leaving the toggle outside would
@@ -110,7 +110,7 @@ def _overlay_panel(image: Image.Image, file_id: str, boxes: list[Box], stem: str
     A full-app rerun (any sidebar widget) still re-executes this body, which is
     why :func:`_render_overlay` is cached rather than merely fragment-scoped.
     """
-    show_labels = st.toggle("Show labels", value=True, key="grounding_labels")
+    show_labels = st.toggle("Show label text", value=True, key="grounding_labels")
     if not boxes:
         st.image(image, width=PAGE_IMAGE_WIDTH)
         return
@@ -154,7 +154,7 @@ instruction = st.text_area(
 # Keying on the upload alone let a new instruction, preset or image budget
 # render a fresh "Encoding at ..." caption directly above the previous run's
 # overlay, table and download — stale output indistinguishable from current.
-# "Show labels" is deliberately absent: it only re-renders what is already
+# "Show label text" is deliberately absent: it only re-renders what is already
 # there, and re-running the model for it would be wasteful.
 signature = (getattr(upload, "file_id", None), instruction, budget)
 if st.session_state.get("grounding_signature") != signature:

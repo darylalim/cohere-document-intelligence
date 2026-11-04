@@ -305,7 +305,12 @@ def _font(size: int) -> ImageFont.BaseImageFont:
 def draw_boxes(
     image: Image.Image, boxes: list[Box], *, show_labels: bool = True
 ) -> Image.Image:
-    """Composite translucent boxes and label chips over a copy of ``image``."""
+    """Composite translucent boxes and numbered chips over a copy of ``image``.
+
+    Every box keeps its ``#N``: it is what links a box to its table row, because
+    colour alone cannot, and ``PALETTE`` holds a red and a green. ``show_labels``
+    only adds the label's text.
+    """
     canvas = image.convert("RGBA")
     overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -331,9 +336,9 @@ def draw_boxes(
             (x1, y1, x2, y2), fill=(*colour, 38), outline=(*colour, 255), width=stroke
         )
 
-        if not show_labels:
-            continue
-        caption = box.label or f"#{index + 1}"
+        caption = f"#{index + 1}"
+        if show_labels and box.label:
+            caption += f" {box.label}"
         left, top, right, bottom = draw.textbbox((0, 0), caption, font=font)
         chip_w, chip_h = right - left + 2 * pad, bottom - top + 2 * pad
 

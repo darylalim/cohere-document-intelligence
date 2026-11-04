@@ -170,7 +170,7 @@ linkColor = "#272f55"
 # Ink with an indigo cast. Inline code inside a caption (Chat file names) reads
 # 4.73:1 on the mat and 4.63 in the user bubble; the dark half reads 4.72.
 codeTextColor = "#0c1023"
-# 3.2:1 on the ground, as in the dark half. It is also the "Show labels" off
+# 3.2:1 on the ground, as in the dark half. It is also the "Show label text" off
 # track, where the ground-coloured knob sits at 3.2 as well.
 borderColor = "#797c83"
 dataframeHeaderBackgroundColor = "#e6e9f0"

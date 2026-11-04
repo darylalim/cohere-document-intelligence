@@ -5,12 +5,14 @@ Run:  uv run python tests/test_grounding_describe.py
 
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from _check import check, finish  # noqa: E402
+from PIL import Image, ImageDraw  # noqa: E402
 
-from nmv.grounding import Box, describe, parse_boxes  # noqa: E402
+from nmv.grounding import Box, describe, draw_boxes, parse_boxes  # noqa: E402
 
 
 def place(x: float, y: float) -> str:
@@ -67,6 +69,26 @@ check(
     "a label changes nothing",
     describe(Box(0, 0, 100, 100, "stamp")) == describe(Box(0, 0, 100, 100)),
 )
+
+print("every box keeps its number")
+
+
+def captions(boxes: list[Box], show_labels: bool) -> list[str]:
+    drawn: list[str] = []
+    real = ImageDraw.ImageDraw.text
+
+    def spy(self, xy, text, *args, **kwargs):
+        drawn.append(text)
+        return real(self, xy, text, *args, **kwargs)
+
+    with patch.object(ImageDraw.ImageDraw, "text", spy):
+        draw_boxes(Image.new("RGB", (400, 400), "white"), boxes, show_labels=show_labels)
+    return drawn
+
+
+pair = [Box(100, 100, 300, 300, "stamp"), Box(500, 500, 700, 700)]
+check("text on", captions(pair, True) == ["#1 stamp", "#2"], str(captions(pair, True)))
+check("text off", captions(pair, False) == ["#1", "#2"], str(captions(pair, False)))
 
 print("the sample invoice")
 stamp = describe(Box(661, 673, 919, 798))
