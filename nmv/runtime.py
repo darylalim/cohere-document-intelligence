@@ -43,7 +43,9 @@ _PUT_TIMEOUT = 0.1
 
 
 def _import_mlx() -> None:
-    """First touch of mlx-vlm, on the worker, so import-time MLX work is too."""
+    """First touch of both MLX libraries, on the worker, so any import-time MLX
+    work is too."""
+    import mlx_lm  # noqa: F401
     import mlx_vlm  # noqa: F401
 
 

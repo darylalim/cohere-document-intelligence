@@ -101,6 +101,7 @@ def _budget_control() -> int:
 
 def _sampling_control() -> Sampling:
     st.subheader("Sampling", divider="gray")
+    st.caption("Applies to North Micro Vision")
     greedy = st.toggle(
         "Deterministic",
         value=False,

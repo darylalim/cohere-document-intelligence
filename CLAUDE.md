@@ -120,13 +120,13 @@ worker thread, streaming tokens back over a bounded queue, so nothing pending ev
 changes threads. It also serialises GPU work across browser tabs, which matters because
 MLX generation is not reentrant.
 
-**Invariant: mlx-vlm is imported only inside worker functions, never at module scope.**
-Importing on the worker keeps anything mlx-vlm queues at import time on the thread that
+**Invariant: mlx-vlm and mlx-lm are imported only inside worker functions, never at
+module scope.** Importing on the worker keeps anything they queue at import time on the thread that
 will evaluate it, and a module-scope import in page code is where direct, off-worker
 calls begin. Check it before committing — the same pattern CI and the edit hook use:
 
 ```bash
-grep -rnE --include='*.py' '^(from|import) mlx(_vlm)?\b' nmv/ app_pages/ streamlit_app.py
+grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py
 ```
 
 That must return nothing.
@@ -152,6 +152,8 @@ Consequences:
 |---|---|
 | `nmv/runtime.py` | MLX worker thread. Read first. |
 | `nmv/model.py` | Loading (`st.cache_resource`), `Sampling`, `RunStats`, streaming |
+| `nmv/reader.py` | Command R7B: loading, context budget, streaming answers |
+| `nmv/r7b_format.py` | R7B's template and thinking/response phases. **No MLX import.** |
 | `nmv/imaging.py` | Token budgeting, `encode`/`prepare`, EXIF normalisation. **No MLX import.** |
 | `nmv/grounding.py` | 0–1000 box parsing and PIL overlay rendering |
 | `nmv/ui.py` | Shared sidebar; returns `(budget, sampling, stats_slot)` |
