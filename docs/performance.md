@@ -61,8 +61,9 @@ and Command R7B 4-bit both resident. The GPU working-set limit reads 12.71 GB, s
 
 - **The cache limit decides the result.** Without it, 3.89 GB of cache sits on 9.43 GB of
   live memory at the reader's context limit. The limit cost no measurable time: the two
-  slowest stages took the same with and without it. The run used 1 GB, and the plan's
-  `MLX_CACHE_LIMIT_BYTES` is 1 GiB, about 0.07 GB more.
+  slowest stages took the same with and without it. The table's run set 1 GB by hand.
+  The app's own `MLX_CACHE_LIMIT_BYTES` is 1 GiB, applied when the reader loads, and a
+  run through that path peaked at 11.06 GB, 87.0% of the limit, with swap flat.
 - **Swap grew 2.0 GB on the first run**, 328 MB to 2,361 MB, starting at the reader's load
   with only 7.66 GB active. On the second run, with the limit, it fell to 1,952 MB. That
   second run began with idle pages already paged out, so it shows no sustained paging but
