@@ -23,7 +23,7 @@ from _check import check, finish  # noqa: E402
 from PIL import Image  # noqa: E402
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
-from nmv import trace, transcripts, ui  # noqa: E402
+from nmv import runtime, trace, transcripts, ui  # noqa: E402
 from nmv.r7b_format import Phase, Piece  # noqa: E402
 from nmv.reader import Answer, ContextExceeded  # noqa: E402
 
@@ -124,6 +124,44 @@ for name in ("chat.py", "grounding.py", "documents.py"):
     check("a failed load raises nothing", not uncaught(app), str(app.exception))
     check("it gets show_failure's message", "GPU memory" in app.error[0].value)
     check("it offers Retry", "Retry" in labels(app))
+
+print("System panel")
+SNAPSHOT = {
+    **runtime.snapshot(),
+    "active_gb": 11.0,
+    "cache_gb": 1.0,
+    "limit_gb": 10.7,  # past the limit: st.progress raises above 1.0 unless clamped
+    "models": {"nmv": True, "reader": False},
+}
+with stubbed(
+    nmv__ui__runtime__snapshot=lambda: SNAPSHOT,
+    nmv__ui__runtime__pending=lambda: 3,
+    nmv__ui__system__pressure_level=lambda: 2,
+    nmv__ui__system__swap_used_mb=lambda: None,
+):
+    app = page("chat.py").run()
+panel = next(item for item in app.sidebar.expander if item.label == "System")
+shown = " ".join(item.value for item in panel.caption)
+check("it renders past the limit", not uncaught(app), str(app.exception))
+check("collapsed", not panel.proto.expanded)
+bar = panel.get("progress")[0].proto
+check("the bar is clamped", bar.value == 100, str(bar.value))
+check("its text keeps the real figures", bar.text == "12.0 / 10.7 GB", bar.text)
+check("pressure is named", "Memory pressure: Warning" in shown, shown)
+check("a failed read is Unknown", "Swap used: Unknown" in shown, shown)
+check("models are named", "North Micro Vision" in shown and "R7B" not in shown, shown)
+check("the worker shows its queue", "busy · 2 queued" in shown, shown)
+
+with stubbed(nmv__ui__runtime__pending=lambda: 2):
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+check("a wait is explained", "(2 ahead)" in app.toast[0].value, str(list(app.toast)))
+with stubbed():
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+check("no wait, no toast", not list(app.toast))
+panel = next(item for item in app.sidebar.expander if item.label == "System")
+check("the run reaches the panel", len(panel.dataframe) == 1, str(panel.dataframe))
 
 print("Chat generation failure")
 with stubbed(nmv__model__stream_reply=raises(RuntimeError(OOM))):

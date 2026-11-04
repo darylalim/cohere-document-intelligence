@@ -11,7 +11,7 @@ import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
-from nmv import runtime, trace
+from nmv import runtime, system, trace, transcripts
 from nmv.citations import parse
 from nmv.errors import Failure, classify
 from nmv.grounding import contains_json, is_point_answer
@@ -38,6 +38,10 @@ MAX_PAGES = 10  # about memory and transcription time; the reader's budget is it
 READING_WIDTH = 760  # about 80 characters at the theme's 15 px base size
 PAGE_IMAGE_WIDTH = 880  # above this an A4 page is taller than a 1440p screen
 INSPECT_KEEP = 5  # per page: the content lives in session state, and only this much
+MODEL_NAMES: dict[runtime.ModelName, str] = {
+    "nmv": "North Micro Vision",
+    "reader": "Command R7B",
+}
 
 # Every widget below carries `persist_state="session"`, and a bare `key` is not
 # a substitute. Streamlit folds the active page's script hash into every element
@@ -49,8 +53,26 @@ INSPECT_KEEP = 5  # per page: the content lives in session state, and only this 
 # deterministic mode, which were dropped the same way on each toggle.
 
 
+@dataclass(frozen=True)
+class SidebarSlots:
+    """The parts of the sidebar that a finished run redraws."""
+
+    stats: DeltaGenerator
+    system: DeltaGenerator
+
+
 def begin_run(kind: trace.Kind) -> trace.RunBuilder:
-    """Start the run record, with the first 6 characters of the session id."""
+    """Start the run record, with the first 6 characters of the session id.
+
+    Every job starts here, so this is also where a wait gets explained: with one
+    worker, another tab's job would otherwise look like a hang.
+    """
+    ahead = runtime.pending()
+    if ahead:
+        st.toast(
+            f"Waiting for another tab's job ({ahead} ahead)",
+            icon=":material/hourglass_top:",
+        )
     context = get_script_run_ctx()
     return trace.start(kind, context.session_id[:6] if context else trace.NO_ID)
 
@@ -376,25 +398,75 @@ def _sampling_control() -> Sampling:
     )
 
 
-def render_stats(slot: DeltaGenerator, stats: RunStats | None) -> None:
-    """Fill the reserved sidebar slot with timings from a run.
+def _run_rows() -> list[dict[str, str | int | float | None]]:
+    """The recent runs, newest first. Run records hold numbers only."""
+    return [
+        {
+            "Kind": record.kind,
+            "Queue s": round(record.queue_wait_s, 2),
+            "First token s": (
+                None if record.first_token_s is None else round(record.first_token_s, 2)
+            ),
+            "Prompt tokens": record.prompt_tokens,
+            "Generated": record.generated_tokens,
+            "Thinking": record.thinking_tokens,
+            "Peak GB": round(record.peak_gb, 2),
+        }
+        for record in reversed(trace.recent())
+    ]
 
-    The slot is claimed while the sidebar draws, before generation starts, so
-    a fresh run can write into it afterwards. Without that, the panel would
-    always trail one interaction behind — it would render the *previous* run's
+
+def _render_system(slot: DeltaGenerator) -> None:
+    """Fill the System panel. Nothing here waits for the worker, so a tab stays
+    responsive during another tab's answer."""
+    snapshot = runtime.snapshot()
+    pressure = system.pressure_level()
+    swap = system.swap_used_mb()
+    pending = runtime.pending()
+    count, size = transcripts.usage()
+    models = [MODEL_NAMES[name] for name, loaded in snapshot["models"].items() if loaded]
+    runs = _run_rows()
+
+    with slot.container():
+        limit = snapshot["limit_gb"]
+        if limit:
+            used = snapshot["active_gb"] + snapshot["cache_gb"]
+            # The limit is soft, and going past it is when this bar matters most.
+            # st.progress raises above 1.0, so only the bar is clamped.
+            st.progress(min(used / limit, 1.0), text=f"{used:.1f} / {limit:.1f} GB")
+        else:
+            st.caption("Memory appears once a job has finished.")
+        label = system.PRESSURE_LABELS.get(pressure or 0, "Unknown")
+        st.caption(f"Memory pressure: {label}")
+        st.caption(f"Swap used: {'Unknown' if swap is None else f'{swap:,.0f} MB'}")
+        st.caption(f"Models loaded: {', '.join(models) or 'none'}")
+        st.caption(f"Worker: {f'busy · {pending - 1} queued' if pending else 'idle'}")
+        st.caption(f"Saved transcripts: {count} · {size / 1000:,.1f} KB")
+        if runs:
+            st.dataframe(runs, hide_index=True, alt="The last 10 runs, newest first")
+
+
+def render_stats(slots: SidebarSlots, stats: RunStats | None) -> None:
+    """Fill the reserved sidebar slots with timings from a run.
+
+    The slots are claimed while the sidebar draws, before generation starts, so
+    a fresh run can write into them afterwards. Without that, the panels would
+    always trail one interaction behind — they would render the *previous* run's
     numbers under a "Last run" heading.
 
-    It is an ``st.empty()`` rather than an ``st.container()`` because this runs
+    They are ``st.empty()`` rather than ``st.container()`` because this runs
     twice per interaction: once from ``sidebar()`` carrying the previous run's
     numbers, then again from the page once generation finishes. ``st.empty()``
     replaces on write; a container appends, stacking two "Last run" panels.
     Streamlit's own guidance discourages ``st.empty()`` slots filled after slow
     work because remounting resets stateful widgets — ``st.metric`` holds no
-    such state, so that hazard does not apply here.
+    such state, so that hazard does not apply here. The System slot sits inside
+    its expander for the same reason: the expander keeps its open state.
     """
+    _render_system(slots.system)
     if stats is None:
         return
-    with slot.container():
+    with slots.stats.container():
         st.subheader("Last run", divider="gray")
         if stats.model:
             st.caption(stats.model)
@@ -406,11 +478,11 @@ def render_stats(slot: DeltaGenerator, stats: RunStats | None) -> None:
             st.metric("Peak memory GB", f"{stats.peak_memory:.2f}")
 
 
-def sidebar(*, reader: bool = False) -> tuple[int, Sampling, DeltaGenerator]:
+def sidebar(*, reader: bool = False) -> tuple[int, Sampling, SidebarSlots]:
     """Render every shared control. ``reader`` adds Command R7B's model caption.
 
-    Returns the image budget, the sampling config, and a slot the caller fills
-    with run statistics once generation finishes.
+    Returns the image budget, the sampling config, and the slots the caller hands
+    to ``render_stats`` once generation finishes.
     """
     with st.sidebar:
         st.caption("Model")
@@ -422,6 +494,9 @@ def sidebar(*, reader: bool = False) -> tuple[int, Sampling, DeltaGenerator]:
         budget = _budget_control()
         sampling = _sampling_control()
         stats_slot = st.empty()
+        with st.expander("System"):
+            system_slot = st.empty()
 
-    render_stats(stats_slot, st.session_state.get("last_stats"))
-    return budget, sampling, stats_slot
+    slots = SidebarSlots(stats_slot, system_slot)
+    render_stats(slots, st.session_state.get("last_stats"))
+    return budget, sampling, slots
