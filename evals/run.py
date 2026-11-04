@@ -182,7 +182,8 @@ def main() -> int:
         "repo": config.repo,
         "revision": config.revision,
         "code": git("rev-parse", "HEAD"),
-        "dirty": bool(git("status", "--porcelain")),
+        # Results are excluded: an earlier run's file is not a change to the code.
+        "dirty": bool(git("status", "--porcelain", "--", ".", ":!evals/results")),
         "packages": {package: package_version(package) for package in PACKAGES},
         "settings": {
             "temperature": 0.0,
