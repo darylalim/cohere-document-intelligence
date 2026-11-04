@@ -191,4 +191,27 @@ check(
 )
 check("under its own label", runtime.snapshot()["last_kind"] == runtime.NO_RUN)
 
+print("peak memory")
+
+
+def allocate() -> None:
+    import mlx.core as mx
+
+    mx.eval(mx.zeros((256, 1024, 1024), dtype=mx.float32))  # 1 GiB, freed on return
+
+
+run = trace.start("chat")
+runtime.call(allocate)
+trace.finish(run)
+big = runtime.snapshot()["peak_gb"]
+check("a run's peak includes what it allocated", big >= 1.0, f"{big:.2f} GB")
+runtime.call(lambda: None)
+kept = runtime.snapshot()["peak_gb"]
+check("a job outside a run leaves the peak alone", kept == big, f"{kept:.2f} GB")
+run = trace.start("chat")
+runtime.call(lambda: None)
+trace.finish(run)
+small = runtime.snapshot()["peak_gb"]
+check("the next run starts from a fresh peak", small < big - 0.5, f"{small:.2f} GB")
+
 finish()

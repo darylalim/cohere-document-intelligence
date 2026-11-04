@@ -60,8 +60,8 @@ class Snapshot(TypedDict):
     """What the worker last knew, so a page can show it without queueing behind a job.
 
     Only as fresh as the last job to end: the figures hold still during an answer.
-    ``peak_gb`` is MLX's own high-water mark, and ``updated`` is ``None`` until a job
-    has finished.
+    ``peak_gb`` is the peak since the last run's job began, and ``updated`` is
+    ``None`` until a job has finished.
     """
 
     active_gb: float
@@ -137,6 +137,14 @@ def _memory() -> tuple[float, float, float, float]:
     )
 
 
+def _reset_peak() -> None:
+    """Runs on the worker. MLX's peak otherwise only ever rises, so every run would
+    report the highest figure since the server started."""
+    import mlx.core as mx
+
+    mx.reset_peak_memory()
+
+
 def _publish(kind: str, seconds: float) -> None:
     """Runs on the worker as a job ends. It sits in a ``finally``, so a failure here
     must not replace the job's own result or exception."""
@@ -204,11 +212,15 @@ def submit(fn: Callable[..., T], *args: Any, **kwargs: Any) -> Future[T]:
 
     def job() -> T:
         context.run(trace.job_started, submitted)
+        run = context.run(trace.active)
+        # Only for a run: scripts/memory_check.py and the e2e test read the peak
+        # across several jobs, from a job of its own.
+        if run is not None:
+            _reset_peak()
         began = trace.clock()
         try:
             return context.run(fn, *args, **kwargs)
         finally:
-            run = context.run(trace.active)
             _publish(run.kind if run is not None else NO_RUN, trace.clock() - began)
 
     with _state_lock:
