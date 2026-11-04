@@ -83,6 +83,8 @@ class Transcript:
     derivation: Derivation
     text: str
     finish_reason: str | None
+    width: int  # the resolved size NMV actually saw
+    height: int
 
 
 @dataclass(frozen=True)

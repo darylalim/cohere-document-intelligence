@@ -870,7 +870,8 @@ step 9).
 
   ```sql
   CREATE TABLE IF NOT EXISTS transcripts (
-      key            TEXT PRIMARY KEY,   -- Derivation.key(), see below
+      id             INTEGER PRIMARY KEY, -- explicit: VACUUM may renumber implicit rowids, which FTS refers to
+      key            TEXT NOT NULL UNIQUE, -- Derivation.key(), see below
       page_id        TEXT NOT NULL,      -- domain.page_id(bytes), step 3c
       text           TEXT NOT NULL,
       finish_reason  TEXT,
@@ -885,7 +886,7 @@ step 9).
   );
   CREATE INDEX IF NOT EXISTS transcripts_page ON transcripts(page_id);
   CREATE VIRTUAL TABLE IF NOT EXISTS transcripts_fts USING fts5(
-      text, content='transcripts', content_rowid='rowid'
+      text, content='transcripts', content_rowid='id'
   );
   -- plus AFTER INSERT / AFTER DELETE / AFTER UPDATE triggers that keep
   -- transcripts_fts in sync (the standard external-content pattern from the
@@ -934,7 +935,7 @@ step 9).
        the plan itself tells users to switch tags (step 5j). So an immediate
        prune on start-up would delete the other checkout's valid transcripts
        on every switch, costing minutes of re-transcription.
-     - `prune(model_revision, prompt_version, older_than_days=30) -> int` runs
+     - `prune(model_revision, prompt_version, max_tokens, older_than_days=30) -> int` runs
        `DELETE … WHERE (model_revision != ? OR prompt_version != ? OR max_tokens != ?) AND created < ?`
        and returns the row count, followed by `'optimize'` (see "Deleting
        really deletes").
@@ -958,7 +959,8 @@ step 9).
   - `by_page(page_id) -> list[Transcript]`: every saved transcript of a page,
     at any budget, newest first. Needed by step 5 (best available transcript),
     step 9 (re-upload reconnects) and step 3c's tests.
-  - `put(key, Transcript, filename: str | None)`. **Write it as
+  - `put(Transcript, filename: str | None) -> bool`, keyed by its own
+    `derivation.key()`, and False if the store failed. **Write it as
     `INSERT … ON CONFLICT(key) DO UPDATE SET …`, never `INSERT OR REPLACE`.**
     - `REPLACE` deletes the old row *without* firing the AFTER DELETE trigger
       (unless `recursive_triggers` is on), which leaves stale entries in the
