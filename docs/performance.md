@@ -38,3 +38,35 @@ The absolute hit rate understates grounding, on both checkpoints alike:
   8-bit, including all four receipt targets. `parse_boxes` rejects these as degenerate,
   so they count as "no usable box", although three of the six land inside the truth.
 - **7 of 57 boxes are off target**, for example the whole column for a column heading.
+
+## Memory
+
+### Both models on 16 GB
+
+`scripts/memory_check.py` on an M2 Pro 16 GB, 2026-11-03, with North Micro Vision 8-bit
+and Command R7B 4-bit both resident. The GPU working-set limit reads 12.71 GB, so the bar
+(90%) is 11.44 GB. Figures are peak plus MLX's buffer cache, in GB.
+
+| Stage | No cache limit | 1 GB cache limit |
+|---|---|---|
+| Both models loaded | 7.66 | 7.66 |
+| Grounding at the ceiling (3,762 tokens) | 9.77 | 9.77 |
+| Transcribing at the ceiling | 9.77 | 9.77 |
+| Question over one transcript | 10.76 | 9.75 |
+| Question at the reader's context limit (6,999 tokens) | **13.32** | 10.44 |
+| Chat, one ceiling image | 9.75 | 9.75 |
+| Chat, two ceiling images | 10.42 | 10.42 |
+| Chat, three ceiling images (11,327 tokens) | 11.38 | **10.99** |
+| Result | fails | passes, at 86.5% of the limit |
+
+- **The cache limit decides the result.** Without it, 3.89 GB of cache sits on 9.43 GB of
+  live memory at the reader's context limit. The limit cost no measurable time: the two
+  slowest stages took the same with and without it. The run used 1 GB, and the plan's
+  `MLX_CACHE_LIMIT_BYTES` is 1 GiB, about 0.07 GB more.
+- **Swap grew 2.0 GB on the first run**, 328 MB to 2,361 MB, starting at the reader's load
+  with only 7.66 GB active. On the second run, with the limit, it fell to 1,952 MB. That
+  second run began with idle pages already paged out, so it shows no sustained paging but
+  does not show a first load without swap. Measuring that needs a fresh boot.
+- **Chat has the least headroom.** Each extra ceiling image adds about 0.45 GB, so a
+  fourth would land near the bar and a fifth would pass it (an extrapolation, not
+  measured).

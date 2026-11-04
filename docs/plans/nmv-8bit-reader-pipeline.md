@@ -172,6 +172,10 @@ Verified on 2026-10-18 at those exact commits:
 
 ## Memory budget (estimate — step 8 replaces it with measurements)
 
+**Measured 2026-11-03: the limit is 12.71 GB, and worst-case peak plus cache is
+10.99 GB with the 1 GB cache limit and 13.32 GB without it** (`docs/performance.md`).
+The figures below are the original estimates.
+
 The GPU working-set limit on a 16 GB machine is **assumed** to be about
 10.7 GB.
 - That figure is unverified. Step 8 records the real value from
