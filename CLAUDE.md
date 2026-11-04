@@ -8,9 +8,9 @@ A Streamlit app for running Cohere's North Micro Vision (2.4B native-resolution
 vision-language model) locally on Apple Silicon via MLX. Two pages: multi-turn visual
 chat, and grounding with a bounding-box overlay.
 
-**bf16 only** — `mlx-community/North-Micro-Vision-Instruct-bf16`, ~5 GB, ~6.2 GB peak.
-This is a deliberate choice so results stay comparable to Cohere's published numbers.
-Do not add quantised variants without being asked.
+**8-bit only** — `mlx-community/North-Micro-Vision-Instruct-8bit`, ~3.2 GB, ~4.5 GB peak. Chosen
+so a second model fits alongside it on a 16 GB Mac. Do not add other variants without being
+asked.
 
 **The checkpoint is pinned to a Hub commit** — `MODEL_REVISION` in `nmv/model.py`, which
 `load()`, `load_config()` and `is_cached()` all take. A checkpoint can run code here two
@@ -35,8 +35,8 @@ uv run ruff format .                           # format (line-length 90)
 uv run ty check                                # type check (targets 3.11)
 
 # prefetch the pinned weights (MODEL_REVISION in nmv/model.py)
-uv run hf download mlx-community/North-Micro-Vision-Instruct-bf16 \
-  --revision 614b36574d6ecf1c2a79ff3ea28aa89bbc7fcd13
+uv run hf download mlx-community/North-Micro-Vision-Instruct-8bit \
+  --revision 26e6b3aef507899fbf86057593d99fc12418e26f
 ```
 
 ruff and ty are locked dev dependencies, so use `uv run ruff` / `uv run ty`, not the
@@ -120,13 +120,13 @@ worker thread, streaming tokens back over a bounded queue, so nothing pending ev
 changes threads. It also serialises GPU work across browser tabs, which matters because
 MLX generation is not reentrant.
 
-**Invariant: mlx-vlm is imported only inside worker functions, never at module scope.**
-Importing on the worker keeps anything mlx-vlm queues at import time on the thread that
+**Invariant: mlx-vlm and mlx-lm are imported only inside worker functions, never at
+module scope.** Importing on the worker keeps anything they queue at import time on the thread that
 will evaluate it, and a module-scope import in page code is where direct, off-worker
 calls begin. Check it before committing — the same pattern CI and the edit hook use:
 
 ```bash
-grep -rnE --include='*.py' '^(from|import) mlx(_vlm)?\b' nmv/ app_pages/ streamlit_app.py
+grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py
 ```
 
 That must return nothing.
@@ -152,6 +152,8 @@ Consequences:
 |---|---|
 | `nmv/runtime.py` | MLX worker thread. Read first. |
 | `nmv/model.py` | Loading (`st.cache_resource`), `Sampling`, `RunStats`, streaming |
+| `nmv/reader.py` | Command R7B: loading, context budget, streaming answers |
+| `nmv/r7b_format.py` | R7B's template and thinking/response phases. **No MLX import.** |
 | `nmv/imaging.py` | Token budgeting, `encode`/`prepare`, EXIF normalisation. **No MLX import.** |
 | `nmv/grounding.py` | 0–1000 box parsing and PIL overlay rendering |
 | `nmv/ui.py` | Shared sidebar; returns `(budget, sampling, stats_slot)` |
@@ -265,7 +267,7 @@ theme changes do not hot-reload.
 For any non-trivial Streamlit work, invoke the `developing-with-streamlit` skill — it
 routes to version-matched reference docs bundled inside the installed package.
 
-## Measured baseline (M2 Max, 32 GB)
+## Measured baseline (bf16, M2 Max, 32 GB)
 
 Load 3.4 s · prefill ~590 tok/s · decode 72–88 tok/s · peak 6.17 GB. Use
 `assets/sample-invoice.png` to reproduce; its PAID stamp sits at `(820, 1180, 1140, 1400)`,

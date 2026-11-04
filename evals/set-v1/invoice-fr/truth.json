@@ -1,0 +1,124 @@
+{
+  "id": "invoice-fr",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total à payer: 12 158,55 EUR",
+      "bbox": [
+        619,
+        531,
+        927,
+        548
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the stamp",
+      "bbox": [
+        664,
+        676,
+        852,
+        768
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Atelier Beaumarais",
+      "bbox": [
+        73,
+        50,
+        302,
+        64
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Atelier Beaumarais\n26 Harrow Quay, Port Selwyn\nFACTURE\nFacture n. 4714-57\nDate: 15 mars 2026\nFacturé à:\nMaison Ravenel\nDésignation Qté Prix unitaire Montant\nRouleau d'étiquettes 11 34,85 EUR 383,35 EUR\nForfait déplacement 8 334,42 EUR 2 675,36 EUR\nLivraison express 8 270,90 EUR 2 167,20 EUR\nCâble électrique, 20 m 8 390,60 EUR 3 124,80 EUR\nCaisses en pin 4 278,90 EUR 1 115,60 EUR\nEntretien préventif 2 332,91 EUR 665,82 EUR\nSous-total: 10 132,13 EUR\nTVA: 2 026,42 EUR\nTotal à payer: 12 158,55 EUR\nPAYE",
+      "fields": [
+        "Atelier Beaumarais",
+        "Maison Ravenel",
+        "4714-57",
+        "12 158,55"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "12 158,55",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          619,
+          531,
+          927,
+          548
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 4714-57?",
+      "answer": "Maison Ravenel",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          182,
+          224,
+          193
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "2 026,42",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          777,
+          507,
+          927,
+          517
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "15 mars 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          613,
+          103,
+          771,
+          112
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}

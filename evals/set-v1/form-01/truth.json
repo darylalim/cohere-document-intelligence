@@ -1,0 +1,123 @@
+{
+  "id": "form-01",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "the handwritten signature",
+      "bbox": [
+        185,
+        507,
+        460,
+        546
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the ticked box next to \"Telephone\"",
+      "bbox": [
+        89,
+        315,
+        108,
+        328
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Full name: Caspian Hult",
+      "bbox": [
+        73,
+        129,
+        281,
+        142
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Allotment Membership Application\nHarrowfield Growers Association\nFull name: Caspian Hult\nTown: Tarnwick\nPreferred plot number: 42\nHow should we contact you?\nEmail\nPost\nTelephone\nDo you need a shed?\nYes\nNo\nI agree to keep my plot cultivated and to follow the rules of the Association, a copy of which I have read.\nSignature:",
+      "fields": [
+        "Caspian Hult",
+        "Tarnwick",
+        "42"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the applicant's full name?",
+      "answer": "Caspian Hult",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          129,
+          281,
+          142
+        ]
+      }
+    },
+    {
+      "q": "Which plot number is preferred?",
+      "answer": "42",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          186,
+          301,
+          199
+        ]
+      }
+    },
+    {
+      "q": "Which contact method is ticked?",
+      "answer": "Telephone",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          121,
+          318,
+          211,
+          330
+        ]
+      }
+    },
+    {
+      "q": "Which town does the applicant live in?",
+      "answer": "Tarnwick",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          158,
+          215,
+          168
+        ]
+      }
+    },
+    {
+      "q": "What is the applicant's date of birth?",
+      "answer": null
+    }
+  ]
+}

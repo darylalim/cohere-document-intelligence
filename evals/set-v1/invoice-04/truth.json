@@ -1,0 +1,124 @@
+{
+  "id": "invoice-04",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $15,780.36",
+      "bbox": [
+        73,
+        243,
+        307,
+        259
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the PAID stamp",
+      "bbox": [
+        109,
+        812,
+        287,
+        906
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Osprey Lantern Studio",
+      "bbox": [
+        613,
+        50,
+        891,
+        68
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Osprey Lantern Studio\n49 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 4898-85\nDate: 20 March 2026\nBill to:\nMarrowgate Cycles\nTotal due: $15,780.36\nDescription Qty Unit price Amount\nCalibration certificate 5 $375.96 $1,879.80\nReplacement filter set 4 $140.66 $562.64\nInspection visit 12 $323.19 $3,878.28\nPallet wrap, 500 mm 9 $375.20 $3,376.80\nPacking crates, large 8 $275.26 $2,202.08\nCourier service, zone 3 11 $113.70 $1,250.70\nSubtotal: $13,150.30\nTax: $2,630.06\nPAID",
+      "fields": [
+        "Osprey Lantern Studio",
+        "Marrowgate Cycles",
+        "4898-85",
+        "15,780.36"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "15,780.36",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          243,
+          307,
+          259
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 4898-85?",
+      "answer": "Marrowgate Cycles",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          182,
+          257,
+          196
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "2,630.06",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          808,
+          574,
+          927,
+          586
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "20 March 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          103,
+          243,
+          112
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}

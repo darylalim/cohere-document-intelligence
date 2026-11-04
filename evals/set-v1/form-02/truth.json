@@ -1,0 +1,123 @@
+{
+  "id": "form-02",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "the handwritten signature",
+      "bbox": [
+        185,
+        495,
+        460,
+        546
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the ticked box next to \"Email\"",
+      "bbox": [
+        89,
+        262,
+        108,
+        276
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Full name: Anneke Dorrow",
+      "bbox": [
+        73,
+        129,
+        307,
+        139
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Allotment Membership Application\nHarrowfield Growers Association\nFull name: Anneke Dorrow\nTown: Port Selwyn\nPreferred plot number: 45\nHow should we contact you?\nEmail\nPost\nTelephone\nDo you need a shed?\nYes\nNo\nI agree to keep my plot cultivated and to follow the rules of the Association, a copy of which I have read.\nSignature:",
+      "fields": [
+        "Anneke Dorrow",
+        "Port Selwyn",
+        "45"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the applicant's full name?",
+      "answer": "Anneke Dorrow",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          129,
+          307,
+          139
+        ]
+      }
+    },
+    {
+      "q": "Which plot number is preferred?",
+      "answer": "45",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          186,
+          301,
+          199
+        ]
+      }
+    },
+    {
+      "q": "Which contact method is ticked?",
+      "answer": "Email",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          121,
+          266,
+          166,
+          275
+        ]
+      }
+    },
+    {
+      "q": "Which town does the applicant live in?",
+      "answer": "Port Selwyn",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          158,
+          237,
+          170
+        ]
+      }
+    },
+    {
+      "q": "What is the applicant's date of birth?",
+      "answer": null
+    }
+  ]
+}

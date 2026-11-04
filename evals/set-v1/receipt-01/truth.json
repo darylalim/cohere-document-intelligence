@@ -1,0 +1,113 @@
+{
+  "id": "receipt-01",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "TOTAL $53.82",
+      "bbox": [
+        635,
+        299,
+        931,
+        316
+      ]
+    },
+    {
+      "page": 0,
+      "target": "CARD ENDING 6224",
+      "bbox": [
+        69,
+        334,
+        328,
+        341
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "The Gantry Pantry\n14 Saltmarsh Lane\n12/05/2026 15:31\nCOFFEE BEANS $12.75\nPEARS 1KG $1.14\nBATTERIES AA $6.05\nDISH SOAP $14.49\nTINNED TOMS $1.32\nHONEY 340G $9.94\nSEA SALT $4.12\nOAT MILK 1L $4.01\nTOTAL $53.82\nCARD ENDING 6224\nTHANK YOU, CALL AGAIN",
+      "fields": [
+        "The Gantry Pantry",
+        "$53.82",
+        "6224"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What was the total paid?",
+      "answer": "53.82",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          635,
+          299,
+          931,
+          316
+        ]
+      }
+    },
+    {
+      "q": "Which shop issued this receipt?",
+      "answer": "The Gantry Pantry",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          69,
+          34,
+          469,
+          52
+        ]
+      }
+    },
+    {
+      "q": "What are the last four digits of the card?",
+      "answer": "6224",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          69,
+          334,
+          328,
+          341
+        ]
+      }
+    },
+    {
+      "q": "How much was COFFEE BEANS?",
+      "answer": "12.75",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          837,
+          114,
+          931,
+          125
+        ]
+      }
+    },
+    {
+      "q": "What is the name of the cashier?",
+      "answer": null
+    }
+  ]
+}

@@ -66,10 +66,10 @@ def ensure_studio() -> Studio:
     if not is_cached():
         st.warning(
             f"`{MODEL_REPO}` is not in the Hugging Face cache yet — the first run "
-            "downloads about 5 GB.",
+            "downloads about 3.2 GB.",
             icon=":material/cloud_download:",
         )
-    with st.spinner("Loading North Micro Vision (bf16)…"):
+    with st.spinner("Loading North Micro Vision (8-bit)…"):
         return load_studio()
 
 
@@ -101,6 +101,7 @@ def _budget_control() -> int:
 
 def _sampling_control() -> Sampling:
     st.subheader("Sampling", divider="gray")
+    st.caption("Applies to North Micro Vision")
     greedy = st.toggle(
         "Deterministic",
         value=False,
@@ -209,7 +210,7 @@ def sidebar() -> tuple[int, Sampling, DeltaGenerator]:
     with st.sidebar:
         st.caption("Model")
         st.code(MODEL_REPO, language=None, wrap_lines=True)
-        st.caption("2.4B · bf16 · Apache 2.0 · native resolution")
+        st.caption("2.4B · 8-bit · Apache 2.0 · native resolution")
         budget = _budget_control()
         sampling = _sampling_control()
         stats_slot = st.empty()

@@ -1,0 +1,124 @@
+{
+  "id": "invoice-03",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $14,346.82",
+      "bbox": [
+        73,
+        243,
+        307,
+        259
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the PAID stamp",
+      "bbox": [
+        615,
+        173,
+        789,
+        258
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Tarnwick Marine Supply",
+      "bbox": [
+        73,
+        50,
+        372,
+        68
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Tarnwick Marine Supply\n23 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 1926-21\nDate: 5 June 2026\nBill to:\nLinden & Ashgrove\nTotal due: $14,346.82\nDescription Qty Unit price Amount\nInspection visit 11 $118.79 $1,306.69\nStainless fittings, box 7 $433.42 $3,033.94\nCalibration certificate 7 $348.62 $2,440.34\nCourier service, zone 3 6 $371.63 $2,229.78\nPallet wrap, 500 mm 8 $344.03 $2,752.24\nPacking crates, large 5 $38.54 $192.70\nSubtotal: $11,955.69\nTax: $2,391.13\nPAID",
+      "fields": [
+        "Tarnwick Marine Supply",
+        "Linden & Ashgrove",
+        "1926-21",
+        "14,346.82"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "14,346.82",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          243,
+          307,
+          259
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 1926-21?",
+      "answer": "Linden & Ashgrove",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          182,
+          256,
+          196
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "2,391.13",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          808,
+          574,
+          927,
+          586
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "5 June 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          613,
+          103,
+          760,
+          112
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}

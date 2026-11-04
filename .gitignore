@@ -4,3 +4,4 @@ __pycache__/
 .streamlit/secrets.toml
 .claude/settings.local.json
 .DS_Store
+evals/runs/

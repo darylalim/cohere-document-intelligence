@@ -19,7 +19,7 @@ state from here.
 - [x] **Plan and guards** (PR #1, squash-merged): this plan, the Claude Code
   hooks and `.claude/settings.json`
 - [x] **M0 · Foundations** (PR 2)
-- [ ] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
+- [x] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
 - [ ] **M2 · Working pipeline** (PR 4)
 - [ ] **M3 · Quality and polish** (PR 5)
 - [ ] **M4 · Docs and release** (PR 6) — decision 7 by the user
@@ -30,7 +30,7 @@ state from here.
 | Milestone | Steps, in this order | Read | Done when |
 |---|---|---|---|
 | **M0 · Foundations** | PR setup (below) → **0** upgrade → **3b** test runner (+ grounding parse test, + the CI tier steps and the CI pin check) → **5i.1** localhost binding → **5i.2** `safe_markdown` + `ui.show_reply`, with Chat switched to it → **5i.9 (M0 part)** security test: localhost and `safe_markdown` cases → **5i.6** SHA-pinned actions → **3c** data model | those sections + "Claude Code hooks" | CI green on the upgraded lock; `lsof` shows localhost only; Chat no longer uses `st.write_stream` |
-| **M1 · Feasibility** | **1** NMV 8-bit → **1b** prompts module + vision eval (bf16 vs 8-bit) → **6** add `mlx-lm` → **2** reader (+ the import-guard regex in CI and `CLAUDE.md`) → **3** worker boot → **the M1 memory check** (below) | 1, 1b, 6, 2, 3, the memory budget, 8 (pass bar only) | decisions 1 and 2 recorded in this section and confirmed by the user |
+| **M1 · Feasibility** | **1** NMV 8-bit → **1b** prompts module + vision eval (bf16 vs 8-bit) → **6** add `mlx-lm` → **2** reader (+ the import-guard regex in CI and `CLAUDE.md`) → **3** worker boot → **5g.4** cache limit → **the M1 memory check** (below) | 1, 1b, 6, 2, 3, 5g item 4, the memory budget, 8 (pass bar only) | decisions 1 and 2 recorded in this section and confirmed by the user |
 | **M2 · Working pipeline** | **4** citations → **4b** store (with `.gitignore`, permissions **5i.4**, ruff `S608`) → **5i.3** Pillow formats → **5i.7** static greps → **5i.9** security test (the Pillow cases; the localhost and `safe_markdown` cases landed in M0) → **5e** errors → **5** the page → **5h** e2e (weights) and UI smoke | those sections | Ask documents works on the sample invoice: transcribe → ask → cite → Locate; `tests/run.py all` and `weights` green |
 | **M3 · Quality and polish** | **5l** run record → **5f** logging → **5k** monitoring → **5g** performance → **step 8's performance pass** (items 6–9, including the budget sweep for decision 3) → **5b** theme guard → **5c** layout → **5d** accessibility → **8b** eval part B + baseline | those sections, and 8 items 6–9 | step 8 items 6–9 measured; decision 3 recorded; `evals/baseline.json` committed |
 | **M4 · Docs and release** | **6b** docs structure → **7** docs, guards, CI → **5j** deployment → **8** final memory re-check with every feature on (items 1–5 again) → **5i.5, 5i.8** (offline docs, `SECURITY.md`) → `RELEASING.md` run → **user bumps the version** → **10** repo details | those sections + the verification checklist | the full verification checklist passes; the release is published by the user |
@@ -83,12 +83,12 @@ Record each answer here, with the date, before moving past it.
 
 | # | Decision | When | Input |
 |---|---|---|---|
-| 1 | Is 8-bit's quality cost acceptable, or go back to bf16? | end of M1 | step 1b's report |
-| 2 | Keep R7B, keep R7B with idle unload, or switch to Tiny Aya (which costs a citation redesign in M2)? | end of M1 | the M1 memory check, including its Chat worst case (+ 8b quality later, if Tiny Aya) |
+| 1 | Is 8-bit's quality cost acceptable, or go back to bf16? | end of M1 | step 1b's report. **Decided 2026-11-03: accept 8-bit** (`docs/performance.md`) |
+| 2 | Keep R7B, keep R7B with idle unload, or switch to Tiny Aya (which costs a citation redesign in M2)? | end of M1 | the M1 memory check, including its Chat worst case (+ 8b quality later, if Tiny Aya). **Decided 2026-11-03: keep R7B, no idle unload for now**, with the cache limit moved into M1 |
 | 3 | Cap the transcription budget? | M3 | step 5g.3's CER sweep |
 | 4 | Push branches and open each PR | every milestone | — |
 | 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8 |
-| 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1 |
+| 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1. **2026-11-03: keep them for now**; ask again at the end of M1 |
 | 7 | Release: bump `version` (by hand) | end of M4 | `RELEASING.md` |
 
 ### Cut list, if time runs short
@@ -171,6 +171,10 @@ Verified on 2026-10-18 at those exact commits:
   and the sidebar caption.
 
 ## Memory budget (estimate — step 8 replaces it with measurements)
+
+**Measured 2026-11-03: the limit is 12.71 GB, and worst-case peak plus cache is
+11.06 GB with the 1 GiB cache limit and 13.32 GB without it** (`docs/performance.md`).
+The figures below are the original estimates.
 
 The GPU working-set limit on a 16 GB machine is **assumed** to be about
 10.7 GB.
@@ -358,6 +362,11 @@ live in `evals/`, have their own runner, and are **never in CI** (GitHub's
      - On Pillow 12.3 that is FreeType "Aileron Regular", shipped inside the
        package, so rendering does not depend on the fonts installed on the Mac.
        Repeated renders are byte-identical (checked 2026-10-18).
+     - **It is ASCII-only** (found 2026-11-03: accents and the euro sign render
+       as tofu). So `Sheet.text` draws the ASCII base string and adds accents as
+       drawn marks, and amounts use `EUR`. This keeps rendering independent of
+       installed fonts and avoids vendoring one. All-caps French drops the accent
+       (`PAYE`), so the truth matches the pixels.
    - **The generator writes its own ground truth.** It knows every string it
      drew, and `ImageDraw.textbbox` gives each one's exact pixel box. Convert
      boxes to the 0–1000 grid as `round(v / size * 1000)` per axis; for
@@ -451,6 +460,11 @@ live in `evals/`, have their own runner, and are **never in CI** (GitHub's
    | Grounding | per target: IoU of the best-matching parsed box; **hit = IoU ≥ 0.5**; plus the **parse-failure rate** (no box parsed), reported separately so a format problem is not mistaken for a localisation problem |
    | Transcription | **CER**: Levenshtein distance / reference length, after normalising whitespace and case. Plus **field recall**: the fraction of `fields` present verbatim. Field recall is robust to reading-order ambiguity in tables and columns, where CER is noisy |
 
+   **CER strips Markdown and HTML from the output first** (changed 2026-11-03).
+   Scored as written above, table rows like `|-----|` put a perfect read of a
+   French invoice at 0.72, so the 1-point flag in item 4 would follow the dashes.
+   The literal version is kept alongside it as `cer_raw`.
+
    **Tests:** `tests/test_eval_metrics.py` (`fast` tier) covers identical,
    disjoint and nested boxes, CER on known edit distances, and whitespace and
    case normalisation. Metric bugs mislead silently, so they need tests like
@@ -506,6 +520,8 @@ body that runs on the worker.**
     sidebar's "Deterministic" toggle is on, use temperature 0, so the evals (temperature 0)
     and the app agree.
   - Caption the sidebar's sampling section "Applies to North Micro Vision".
+    Transcribe and Locate are NMV too but ignore it (step 5), and carry their
+    own captions saying so.
   - A repetition penalty is applied in mlx-lm through
     `logits_processors=make_logits_processors(repetition_penalty=...)`
     (`sample_utils.py`), **not** through `make_sampler`, which has no such
@@ -1157,6 +1173,18 @@ same shape as the two existing pages.
      Record which text was sent in Inspect.
    - Prompt: `LOCATE_PROMPT` from `nmv/prompts.py` (step 1b), filled with that
      text. It is the same template 1b and 5h use.
+   - **Greedy, always: ignore the sidebar's sampling and max tokens**, as
+     Transcribe does. Run at temperature 0 with no repetition penalty and
+     `LOCATE_MAX_TOKENS`, whatever the sliders and the "Deterministic" toggle
+     say, and say so in a caption.
+     - **Why:** one Grounding run at the default temperature of 0.7 gave an
+       undersized box (PR #2). A box is a measurement the user checks an
+       answer against, so it should not vary from click to click.
+     - The Locate cache key (step 5g) has no sampling field, so a sampled box
+       would be cached as if it were the result. 1b, 5h and 8b all measure
+       Locate at temperature 0, so sampling here would also ship a different
+       system from the one measured.
+     - Grounding keeps its sliders. This rule covers Locate only.
    - Parse with `grounding.parse_boxes`.
    - Draw with `grounding.draw_boxes` on the full-resolution `normalize()`d page.
    - Labels are optional; do not assume them.
@@ -1661,6 +1689,8 @@ Keep each item below as its own commit.
      `(Derivation(page_id, resolved_px, MODEL_REVISION, LOCATE_PROMPT_VERSION, LOCATE_MAX_TOKENS).key(), grounded text)`
      (step 3c) and holding a `Grounding`. A second click on the same
      citation is instant. Bound it to 64 entries, dropping the oldest first.
+     Sampling is not in the key because Locate is always greedy (step 5); if
+     that ever changes, the key has to change with it.
    - **Resized pages:** `st.cache_data(max_entries=MAX_PAGES)`, keyed on page
      hash and budget, following Grounding's `_encode_upload`.
      - The `max_entries` cap is required: each entry holds the full-resolution
@@ -1698,7 +1728,8 @@ Keep each item below as its own commit.
      The store key already uses the resolved size, so this needs no migration.
    - **Grounding keeps the full slider.** Box accuracy is a separate question.
    - If no budget below 3.87 MP holds up, change nothing and record the result.
-4. **Cap MLX's buffer cache.**
+4. **Cap MLX's buffer cache.** Moved to M1 on 2026-11-03 and done: without it the
+   memory check fails, and M2 would ship that configuration.
    - MLX keeps freed buffers for reuse, and with two models loaded that cache
      can grow by gigabytes and push a 16 GB machine into swap.
    - After the reader loads, call `mx.set_cache_limit(...)` on the worker,

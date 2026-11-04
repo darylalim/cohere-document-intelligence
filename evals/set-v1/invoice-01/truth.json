@@ -1,0 +1,124 @@
+{
+  "id": "invoice-01",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $6,877.71",
+      "bbox": [
+        706,
+        507,
+        927,
+        523
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the PAID stamp",
+      "bbox": [
+        665,
+        675,
+        842,
+        766
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Brackenfold Freight Ltd",
+      "bbox": [
+        73,
+        49,
+        365,
+        68
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Brackenfold Freight Ltd\n67 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 7311-63\nDate: 4 June 2026\nBill to:\nCorvane Holdings\nDescription Qty Unit price Amount\nPacking crates, large 10 $158.15 $1,581.50\nCalibration certificate 9 $106.27 $956.43\nStainless fittings, box 5 $106.58 $532.90\nLabel roll, thermal 2 $420.25 $840.50\nReplacement filter set 5 $364.02 $1,820.10\nSubtotal: $5,731.43\nTax: $1,146.28\nTotal due: $6,877.71\nPAID",
+      "fields": [
+        "Brackenfold Freight Ltd",
+        "Corvane Holdings",
+        "7311-63",
+        "6,877.71"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "6,877.71",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          706,
+          507,
+          927,
+          523
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 7311-63?",
+      "answer": "Corvane Holdings",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          182,
+          244,
+          196
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "1,146.28",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          808,
+          481,
+          927,
+          493
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "4 June 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          613,
+          103,
+          760,
+          112
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}

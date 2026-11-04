@@ -1,0 +1,124 @@
+{
+  "id": "invoice-02",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $6,679.74",
+      "bbox": [
+        706,
+        506,
+        927,
+        522
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the PAID stamp",
+      "bbox": [
+        99,
+        709,
+        274,
+        796
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Quillmere Print Works",
+      "bbox": [
+        613,
+        50,
+        881,
+        66
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Quillmere Print Works\n34 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 3201-82\nDate: 27 January 2026\nBill to:\nPellworth Bakery\nDescription Qty Unit price Amount\nCalibration certificate 11 $263.78 $2,901.58\nPacking crates, large 4 $76.51 $306.04\nLabel roll, thermal 8 $33.57 $268.56\nReplacement filter set 7 $298.61 $2,090.27\nSubtotal: $5,566.45\nTax: $1,113.29\nTotal due: $6,679.74\nPAID",
+      "fields": [
+        "Quillmere Print Works",
+        "Pellworth Bakery",
+        "3201-82",
+        "6,679.74"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "6,679.74",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          706,
+          506,
+          927,
+          522
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 3201-82?",
+      "answer": "Pellworth Bakery",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          182,
+          235,
+          196
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "1,113.29",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          808,
+          480,
+          927,
+          492
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "27 January 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          103,
+          256,
+          114
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "id": "invoice-es",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total a pagar: 9.638,16 EUR",
+      "bbox": [
+        631,
+        508,
+        927,
+        523
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the stamp",
+      "bbox": [
+        100,
+        709,
+        367,
+        806
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Talleres Montecalvo",
+      "bbox": [
+        613,
+        50,
+        862,
+        64
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Talleres Montecalvo\n19 Harrow Quay, Port Selwyn\nFACTURA\nFactura n. 8585-88\nFecha: 14 junio 2026\nFacturar a:\nHostal Peñaverde\nDescripción Cant. Precio unitario Importe\nMano de obra, jornada 8 411,29 EUR 3.290,32 EUR\nRollo de etiquetas 2 233,90 EUR 467,80 EUR\nCajas de cartón 9 419,12 EUR 3.772,08 EUR\nRevisión técnica 12 41,80 EUR 501,60 EUR\nSubtotal: 8.031,80 EUR\nIVA: 1.606,36 EUR\nTotal a pagar: 9.638,16 EUR\nPAGADO",
+      "fields": [
+        "Talleres Montecalvo",
+        "Hostal Peñaverde",
+        "8585-88",
+        "9.638,16"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "9.638,16",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          631,
+          508,
+          927,
+          523
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 8585-88?",
+      "answer": "Hostal Peñaverde",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          181,
+          243,
+          193
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "1.606,36",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          783,
+          482,
+          927,
+          492
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "14 junio 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          103,
+          244,
+          114
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}

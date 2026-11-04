@@ -1,0 +1,114 @@
+{
+  "id": "statement-01",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Closing balance: $11,586.12",
+      "bbox": [
+        658,
+        656,
+        927,
+        671
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Sundial Row Clinic",
+      "bbox": [
+        185,
+        462,
+        319,
+        471
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Wrenfield Mutual Savings\nCurrent account statement, April 2026\nAccount holder: Tobin Vreeland\nAccount number: 31-7848-806\nOpening balance: $16,383.36\nDate Details Paid out Paid in Balance\n01 Apr Ferncombe Energy $249.48  $16,133.88\n02 Apr Salary, Corvane Holdings  $3,148.67 $19,282.55\n03 Apr Marrowgate Cycles $620.46  $18,662.09\n04 Apr Rent, Flat 4 Moorgate $312.34  $18,349.75\n06 Apr Port Selwyn Transit $102.31  $18,247.44\n07 Apr Linden Grocers $263.20  $17,984.24\n08 Apr Thistlebank Farm Shop $277.86  $17,706.38\n10 Apr Ferncombe Energy $887.65  $16,818.73\n12 Apr Rent, Flat 4 Moorgate $866.94  $15,951.79\n13 Apr Marrowgate Cycles $765.72  $15,186.07\n14 Apr Sundial Row Clinic $97.46  $15,088.61\n16 Apr Tarnwick Water Board $165.03  $14,923.58\n17 Apr Pellworth Bakery $738.66  $14,184.92\n19 Apr Port Selwyn Transit $628.82  $13,556.10\n21 Apr Ferncombe Energy $737.11  $12,818.99\n22 Apr Rent, Flat 4 Moorgate $513.07  $12,305.92\n24 Apr Rent, Flat 4 Moorgate $268.05  $12,037.87\n27 Apr Ferncombe Energy $451.75  $11,586.12\nClosing balance: $11,586.12",
+      "fields": [
+        "Tobin Vreeland",
+        "31-7848-806",
+        "$16,383.36",
+        "$11,586.12"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the closing balance?",
+      "answer": "11,586.12",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          658,
+          656,
+          927,
+          671
+        ]
+      }
+    },
+    {
+      "q": "What is the opening balance?",
+      "answer": "16,383.36",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          168,
+          315,
+          180
+        ]
+      }
+    },
+    {
+      "q": "How much was paid to Sundial Row Clinic the first time it appears?",
+      "answer": "97.46",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          617,
+          462,
+          669,
+          472
+        ]
+      }
+    },
+    {
+      "q": "Who holds this account?",
+      "answer": "Tobin Vreeland",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          117,
+          337,
+          127
+        ]
+      }
+    },
+    {
+      "q": "What is the overdraft limit on this account?",
+      "answer": null
+    }
+  ]
+}

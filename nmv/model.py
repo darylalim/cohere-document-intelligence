@@ -1,10 +1,7 @@
-"""Loading and streaming for the North Micro Vision bf16 checkpoint.
+"""Loading and streaming for the North Micro Vision 8-bit checkpoint.
 
-Only bf16 is used here — the full-precision MLX conversion, ~5 GB resident.
-On a 32 GB Apple Silicon machine that leaves ample headroom for the KV cache,
-and it keeps results comparable to the published numbers, which is what a
-research app wants. Quantised conversions exist upstream if the footprint
-ever needs to come down.
+8-bit is ~3.2 GB resident against ~5 GB for bf16, chosen so that a second model,
+the document reader, fits alongside it on a 16 GB Mac.
 
 Every mlx-vlm import in this module is deliberately function-local and runs on
 the worker thread from ``nmv.runtime``. MLX evaluates an array only on the
@@ -25,7 +22,7 @@ from PIL import Image
 
 from nmv import runtime
 
-MODEL_REPO = "mlx-community/North-Micro-Vision-Instruct-bf16"
+MODEL_REPO = "mlx-community/North-Micro-Vision-Instruct-8bit"
 # A commit on that repo, not a branch, because a checkpoint can run code here.
 # mlx-vlm executes the file config.json names under `model_file`
 # (get_model_and_args in mlx_vlm/utils.py), and loads the cohere_compass tokenizer
@@ -34,7 +31,7 @@ MODEL_REPO = "mlx-community/North-Micro-Vision-Instruct-bf16"
 # the weights, so following `main` would run what the repo publishes next. This
 # commit has no .py files, no `model_file` and no `auto_map`; check all three
 # before moving it.
-MODEL_REVISION = "614b36574d6ecf1c2a79ff3ea28aa89bbc7fcd13"
+MODEL_REVISION = "26e6b3aef507899fbf86057593d99fc12418e26f"
 
 # The checkpoint's own generation_config.json. Cohere also notes the model was
 # not trained to follow system prompts, so the app never sends one — task
@@ -129,13 +126,13 @@ def load_studio(repo_id: str = MODEL_REPO, revision: str = MODEL_REVISION) -> St
 
     ``st.cache_resource`` rather than ``cache_data``: the model is a live,
     unserialisable object graph, and every session should share the one copy
-    instead of paying 5 GB again.
+    instead of paying 3.2 GB again.
     """
     return runtime.call(_load, repo_id, revision)
 
 
 def is_cached(repo_id: str = MODEL_REPO, revision: str = MODEL_REVISION) -> bool:
-    """True when weights are already on disk, so the UI can warn before a 5 GB pull."""
+    """True when weights are already on disk, so the UI can warn before a 3.2 GB pull."""
     from huggingface_hub import try_to_load_from_cache
 
     cached = try_to_load_from_cache(repo_id, "config.json", revision=revision)

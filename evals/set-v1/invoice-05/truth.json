@@ -1,0 +1,124 @@
+{
+  "id": "invoice-05",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $7,776.61",
+      "bbox": [
+        706,
+        455,
+        927,
+        471
+      ]
+    },
+    {
+      "page": 0,
+      "target": "the PAID stamp",
+      "bbox": [
+        406,
+        835,
+        577,
+        915
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Vellacott Tool & Die",
+      "bbox": [
+        73,
+        50,
+        311,
+        64
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Vellacott Tool & Die\n63 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 4867-48\nDate: 6 September 2026\nBill to:\nSundial Row Clinic\nDescription Qty Unit price Amount\nCourier service, zone 3 9 $204.64 $1,841.76\nPallet wrap, 500 mm 1 $160.44 $160.44\nPacking crates, large 9 $366.71 $3,300.39\nLabel roll, thermal 6 $196.32 $1,177.92\nSubtotal: $6,480.51\nTax: $1,296.10\nTotal due: $7,776.61\nPAID",
+      "fields": [
+        "Vellacott Tool & Die",
+        "Sundial Row Clinic",
+        "4867-48",
+        "7,776.61"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the total due?",
+      "answer": "7,776.61",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          706,
+          455,
+          927,
+          471
+        ]
+      }
+    },
+    {
+      "q": "Which company was billed on invoice 4867-48?",
+      "answer": "Sundial Row Clinic",
+      "kind": "text",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          182,
+          250,
+          193
+        ]
+      }
+    },
+    {
+      "q": "How much tax was charged?",
+      "answer": "1,296.10",
+      "kind": "number",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          808,
+          429,
+          927,
+          441
+        ]
+      }
+    },
+    {
+      "q": "What is the date of the invoice?",
+      "answer": "6 September 2026",
+      "kind": "date",
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          613,
+          103,
+          811,
+          114
+        ]
+      }
+    },
+    {
+      "q": "What is the purchase order number?",
+      "answer": null
+    }
+  ]
+}
