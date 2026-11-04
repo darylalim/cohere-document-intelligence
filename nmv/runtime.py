@@ -41,12 +41,24 @@ _booted = False
 # How long a stalled producer waits between checks that the consumer is gone.
 _PUT_TIMEOUT = 0.1
 
+# MLX keeps freed buffers for reuse. With both models loaded on 16 GB that cache
+# reached 3.89 GB on top of 9.43 GB live, past the working-set limit; at this size
+# the worst case is about 11 GB, at no measurable cost in speed (docs/performance.md).
+MLX_CACHE_LIMIT_BYTES = 1024**3
+
 
 def _import_mlx() -> None:
     """First touch of both MLX libraries, on the worker, so any import-time MLX
     work is too."""
     import mlx_lm  # noqa: F401
     import mlx_vlm  # noqa: F401
+
+
+def limit_cache() -> None:
+    """Cap MLX's buffer cache. Call it on the worker, like all MLX work."""
+    import mlx.core as mx
+
+    mx.set_cache_limit(MLX_CACHE_LIMIT_BYTES)
 
 
 def _ensure_booted() -> None:

@@ -19,7 +19,7 @@ state from here.
 - [x] **Plan and guards** (PR #1, squash-merged): this plan, the Claude Code
   hooks and `.claude/settings.json`
 - [x] **M0 · Foundations** (PR 2)
-- [ ] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
+- [x] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
 - [ ] **M2 · Working pipeline** (PR 4)
 - [ ] **M3 · Quality and polish** (PR 5)
 - [ ] **M4 · Docs and release** (PR 6) — decision 7 by the user
@@ -30,7 +30,7 @@ state from here.
 | Milestone | Steps, in this order | Read | Done when |
 |---|---|---|---|
 | **M0 · Foundations** | PR setup (below) → **0** upgrade → **3b** test runner (+ grounding parse test, + the CI tier steps and the CI pin check) → **5i.1** localhost binding → **5i.2** `safe_markdown` + `ui.show_reply`, with Chat switched to it → **5i.9 (M0 part)** security test: localhost and `safe_markdown` cases → **5i.6** SHA-pinned actions → **3c** data model | those sections + "Claude Code hooks" | CI green on the upgraded lock; `lsof` shows localhost only; Chat no longer uses `st.write_stream` |
-| **M1 · Feasibility** | **1** NMV 8-bit → **1b** prompts module + vision eval (bf16 vs 8-bit) → **6** add `mlx-lm` → **2** reader (+ the import-guard regex in CI and `CLAUDE.md`) → **3** worker boot → **the M1 memory check** (below) | 1, 1b, 6, 2, 3, the memory budget, 8 (pass bar only) | decisions 1 and 2 recorded in this section and confirmed by the user |
+| **M1 · Feasibility** | **1** NMV 8-bit → **1b** prompts module + vision eval (bf16 vs 8-bit) → **6** add `mlx-lm` → **2** reader (+ the import-guard regex in CI and `CLAUDE.md`) → **3** worker boot → **5g.4** cache limit → **the M1 memory check** (below) | 1, 1b, 6, 2, 3, 5g item 4, the memory budget, 8 (pass bar only) | decisions 1 and 2 recorded in this section and confirmed by the user |
 | **M2 · Working pipeline** | **4** citations → **4b** store (with `.gitignore`, permissions **5i.4**, ruff `S608`) → **5i.3** Pillow formats → **5i.7** static greps → **5i.9** security test (the Pillow cases; the localhost and `safe_markdown` cases landed in M0) → **5e** errors → **5** the page → **5h** e2e (weights) and UI smoke | those sections | Ask documents works on the sample invoice: transcribe → ask → cite → Locate; `tests/run.py all` and `weights` green |
 | **M3 · Quality and polish** | **5l** run record → **5f** logging → **5k** monitoring → **5g** performance → **step 8's performance pass** (items 6–9, including the budget sweep for decision 3) → **5b** theme guard → **5c** layout → **5d** accessibility → **8b** eval part B + baseline | those sections, and 8 items 6–9 | step 8 items 6–9 measured; decision 3 recorded; `evals/baseline.json` committed |
 | **M4 · Docs and release** | **6b** docs structure → **7** docs, guards, CI → **5j** deployment → **8** final memory re-check with every feature on (items 1–5 again) → **5i.5, 5i.8** (offline docs, `SECURITY.md`) → `RELEASING.md` run → **user bumps the version** → **10** repo details | those sections + the verification checklist | the full verification checklist passes; the release is published by the user |
@@ -84,7 +84,7 @@ Record each answer here, with the date, before moving past it.
 | # | Decision | When | Input |
 |---|---|---|---|
 | 1 | Is 8-bit's quality cost acceptable, or go back to bf16? | end of M1 | step 1b's report. **Decided 2026-11-03: accept 8-bit** (`docs/performance.md`) |
-| 2 | Keep R7B, keep R7B with idle unload, or switch to Tiny Aya (which costs a citation redesign in M2)? | end of M1 | the M1 memory check, including its Chat worst case (+ 8b quality later, if Tiny Aya) |
+| 2 | Keep R7B, keep R7B with idle unload, or switch to Tiny Aya (which costs a citation redesign in M2)? | end of M1 | the M1 memory check, including its Chat worst case (+ 8b quality later, if Tiny Aya). **Decided 2026-11-03: keep R7B, no idle unload for now**, with the cache limit moved into M1 |
 | 3 | Cap the transcription budget? | M3 | step 5g.3's CER sweep |
 | 4 | Push branches and open each PR | every milestone | — |
 | 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8 |
@@ -1728,7 +1728,8 @@ Keep each item below as its own commit.
      The store key already uses the resolved size, so this needs no migration.
    - **Grounding keeps the full slider.** Box accuracy is a separate question.
    - If no budget below 3.87 MP holds up, change nothing and record the result.
-4. **Cap MLX's buffer cache.**
+4. **Cap MLX's buffer cache.** Moved to M1 on 2026-11-03 and done: without it the
+   memory check fails, and M2 would ship that configuration.
    - MLX keeps freed buffers for reuse, and with two models loaded that cache
      can grow by gigabytes and push a 16 GB machine into swap.
    - After the reader loads, call `mx.set_cache_limit(...)` on the worker,

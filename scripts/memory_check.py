@@ -1,6 +1,6 @@
 """Measure whether both models fit on this Mac: the memory half of decision 2.
 
-    uv run python scripts/memory_check.py [--cache-limit-gb 1]
+    uv run python scripts/memory_check.py
 
 Runs through ``nmv.runtime`` like everything else, so every MLX call is on the
 worker. Pass means peak plus cache at or below 90% of the working-set limit, with
@@ -9,7 +9,6 @@ no swap growth. Step 8 repeats this with the full feature set.
 
 from __future__ import annotations
 
-import argparse
 import json
 import subprocess
 import sys
@@ -53,12 +52,6 @@ def _limit() -> float:
     import mlx.core as mx
 
     return int(mx.device_info()["max_recommended_working_set_size"]) / GB
-
-
-def _set_cache_limit(gb: float) -> None:
-    import mlx.core as mx
-
-    mx.set_cache_limit(int(gb * GB))
 
 
 def swap_used_mb() -> float:
@@ -115,16 +108,9 @@ def long_documents() -> list[tuple]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cache-limit-gb", type=float)
-    args = parser.parse_args()
-
     limit = runtime.call(_limit)
     swap_before = swap_used_mb()
     print(f"working-set limit {limit:.2f} GB, swap before {swap_before:.0f} MB")
-    if args.cache_limit_gb is not None:
-        runtime.call(_set_cache_limit, args.cache_limit_gb)
-        print(f"MLX cache limited to {args.cache_limit_gb} GB")
     log = Log(limit)
 
     started = time.monotonic()

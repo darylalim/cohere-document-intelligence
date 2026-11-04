@@ -76,6 +76,9 @@ def _load(local_path: str) -> Reader:
     from mlx_lm import load
 
     loaded = load(local_path)
+    # Here and not at boot: only with both models resident does the cache matter.
+    # This already runs on the worker, so it calls limit_cache directly.
+    runtime.limit_cache()
     return Reader(model=loaded[0], tokenizer=loaded[1])
 
 
