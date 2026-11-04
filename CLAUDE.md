@@ -49,12 +49,10 @@ annotations are narrower than its runtime behaviour (`apply_chat_template` retur
 `prepare_inputs` routes them through `process_image`). Keep the casts and their
 comments rather than replacing them with blanket ignores.
 
-`streamlit_app.py` carries the one suppression: a targeted
-`# ty: ignore[call-non-callable]` on `st.navigation`, a ty 0.0.82+ false positive that
-the comment above it explains. ty reports an unused `ty: ignore` as a warning and exits
-1 on warnings, which is why the dev floor is `ty>=0.0.82` and why `ty check` will go red
-the day ty or Streamlit stops producing the error. Delete the ignore and its comment
-then, rather than silencing the warning.
+There are no `ty: ignore` suppressions. ty reports an unused one as a warning and exits
+1 on warnings, so if a false positive ever needs one, keep it targeted, explain it in a
+comment, and delete both the day ty stops producing the error rather than silencing the
+warning.
 
 **Restart the server after editing anything under `nmv/`.** Streamlit hot-reloads
 `streamlit_app.py` and `app_pages/*`, but `nmv/*` are ordinary imported modules cached
@@ -195,7 +193,7 @@ conversations with images break.
 
 ## Streamlit conventions in use
 
-Targeting Streamlit 1.64 (floor 1.62, the first release with `streamlit.typing`).
+Targeting Streamlit 1.66 (floor 1.62, the first release with `streamlit.typing`).
 `use_container_width` is deprecated — use `width="stretch"` or `width="content"`.
 Sidebar stats use a reserved `st.empty()` slot filled *after*
 generation, otherwise the panel trails one interaction behind. Prefer native elements

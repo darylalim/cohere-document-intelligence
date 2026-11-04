@@ -25,18 +25,18 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v7
+      # Every action is pinned to a full commit SHA, with its version beside it.
+      # Tags can be moved, and the release job below holds contents: write.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # Pinned to an exact release on purpose: setup-uv stopped publishing
-      # floating major tags after v7, so `@v10` is not a resolvable ref.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
 
       # --locked fails if uv.lock has drifted from pyproject.toml instead of
       # quietly re-resolving on the runner. Python comes from .python-version;
-      # uv downloads it. No model weights are fetched -- neither test loads the
-      # checkpoint, so CI never pulls the 5 GB from Hugging Face.
+      # uv downloads it. No model weights are fetched -- no test in the tiers below
+      # loads the checkpoint, so CI never pulls the 5 GB from Hugging Face.
       - name: Install dependencies
         run: uv sync --locked
 
@@ -65,16 +65,37 @@ jobs:
             exit 1
           fi
 
-      - name: Resize and token parity with mlx-vlm
-        run: uv run python tests/test_resize_parity.py
+      # A checkpoint can run code here (CLAUDE.md), so every *_REVISION must be a
+      # 40-hex commit and no download may fetch *.py. Same script as the edit hook.
+      - name: Checkpoint pins
+        run: |
+          rc=0   # not `status`: read-only in zsh, so a local paste would break
+          for f in nmv/*.py; do
+            jq -n --arg f "$PWD/$f" '{tool_input: {file_path: $f}}' \
+              | .claude/hooks/pin-guard.sh || rc=1
+          done
+          exit $rc
 
-      - name: MLX worker survives abandoned streams
-        run: uv run python tests/test_runtime_abandon.py
+      # tests/run.py finds tests by their tier header, so adding a test never
+      # adds a step here. Deliberately not in CI:
+      # - The weights tier and the PAID-stamp grounding check. They need the model
+      #   weights, and the standard macos-latest runner has 7 GB of RAM. They stay
+      #   manual on an Apple Silicon Mac.
+      # - Browser checks: page-switch persistence and both themes. CLAUDE.md
+      #   explains why AppTest cannot stand in for a real browser.
+      - name: Tests (fast)
+        run: uv run python tests/run.py fast
+
+      - name: Tests (mlx)
+        run: uv run python tests/run.py mlx
+
+      - name: Tests (ui)
+        run: uv run python tests/run.py ui
 
   # Version bumps release themselves. When pyproject.toml names a version that
   # has neither a tag nor a release, this publishes it outright -- tag, release
   # and notes, no clicks. `needs: check` means that can only ever happen on a
-  # commit where lint, types and both tests passed.
+  # commit where lint, types and every CI test tier passed.
   #
   # Publishing straight through instead of staging a draft removes the human who
   # used to read that draft, so the things they were implicitly checking are now
@@ -96,11 +117,11 @@ jobs:
     steps:
       # fetch-depth: 0 for the tags: both the version check and the notes below
       # read them, and the default shallow clone fetches none.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
 

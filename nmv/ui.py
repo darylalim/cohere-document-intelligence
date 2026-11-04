@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
@@ -17,6 +19,7 @@ from nmv.model import (
     is_cached,
     load_studio,
 )
+from nmv.render import safe_markdown
 
 MAX_MEGAPIXELS = MAX_PIXELS / MEGAPIXEL
 
@@ -28,6 +31,23 @@ MAX_MEGAPIXELS = MAX_PIXELS / MEGAPIXEL
 # silently reset the budget to the ceiling and every sampling control to its
 # default. Session scope also covers the sliders `_sampling_control` hides in
 # deterministic mode, which were dropped the same way on each toggle.
+
+
+def show_reply(chunks: Iterable[str]) -> str:
+    """Stream model output onto the page and return the raw, unfiltered text.
+
+    Not ``st.write_stream``: that renders raw chunks with
+    ``unterminated_parsing=True``, so an injected Markdown image could load while
+    it is still arriving. Everything shown here has been through ``safe_markdown``
+    first. The return value has not, because the conversation history must keep
+    what the model actually said; run it through ``safe_markdown`` to redraw it.
+    """
+    slot = st.empty()
+    reply = ""
+    for chunk in chunks:
+        reply += chunk
+        slot.markdown(safe_markdown(reply))
+    return reply
 
 
 def ensure_studio() -> Studio:

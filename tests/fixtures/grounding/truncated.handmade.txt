@@ -1,0 +1,1 @@
+[{"label": "PAID", "bbox_2d": [659, 671, 921, 798]}, {"label": "ACME", "bbox_2d": [65, 60

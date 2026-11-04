@@ -1,3 +1,4 @@
+# tier: mlx
 """Guard the one piece of mlx-vlm logic we mirror instead of import.
 
 ``nmv.imaging.smart_resize`` is a copy, kept so that no Streamlit page thread
@@ -12,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from _check import check, finish
 from mlx_vlm.models.cohere_compass.processing_cohere_compass import (
     CohereCompassImageProcessor,
 )
@@ -42,7 +44,7 @@ SIZES = [
 ]
 BUDGETS = [MIN_PIXELS, 100_000, 1_000_000, 2_000_000, MAX_PIXELS]
 
-failures = 0
+mismatched = 0
 checked = 0
 for height, width in SIZES:
     for budget in BUDGETS:
@@ -58,10 +60,14 @@ for height, width in SIZES:
             actual = ("raises", "ValueError")
         checked += 1
         if expected != actual:
-            failures += 1
+            mismatched += 1
             print(f"MISMATCH {height}x{width} budget={budget}: {expected} != {actual}")
 
-print(f"{checked - failures}/{checked} size/budget combinations match upstream")
+check(
+    "size/budget combinations match upstream",
+    mismatched == 0,
+    f"{checked - mismatched}/{checked}",
+)
 
 
 # --- plan() targets must be fixed points of mlx-vlm's own pass -------------
@@ -70,6 +76,7 @@ print(f"{checked - failures}/{checked} size/budget combinations match upstream")
 # not our budget -- leaves the result alone. Otherwise the encoder silently
 # works at a different resolution than the one the UI reported.
 stable = 0
+moved = 0
 for height, width in SIZES:
     for budget in BUDGETS:
         try:
@@ -86,13 +93,17 @@ for height, width in SIZES:
         )
         stable += 1
         if (again_w, again_h) != (target_w, target_h):
-            failures += 1
+            moved += 1
             print(
                 f"NOT A FIXED POINT {width}x{height} budget={budget}: "
                 f"we hand over {target_w}x{target_h}, "
                 f"mlx-vlm makes it {again_w}x{again_h}"
             )
-print(f"{stable} plan targets survive mlx-vlm's own resize untouched")
+check(
+    "plan targets survive mlx-vlm's own resize untouched",
+    moved == 0,
+    f"{stable - moved}/{stable}",
+)
 
 
 # --- the real end-to-end guarantee -----------------------------------------
@@ -102,6 +113,7 @@ print(f"{stable} plan targets survive mlx-vlm's own resize untouched")
 processor = CohereCompassImageProcessor()
 merge = processor.merge_size**2
 agreed = 0
+disagreed = 0
 for height, width in SIZES:
     for budget in BUDGETS:
         try:
@@ -114,12 +126,16 @@ for height, width in SIZES:
         )
         agreed += 1
         if upstream_tokens != resolved.tokens:
-            failures += 1
+            disagreed += 1
             print(
                 f"TOKEN MISMATCH {width}x{height} budget={budget}: "
                 f"we say {resolved.tokens}, mlx-vlm says {upstream_tokens}"
             )
-print(f"{agreed} plans agree with mlx-vlm's own patch count")
+check(
+    "plans agree with mlx-vlm's own patch count",
+    disagreed == 0,
+    f"{agreed - disagreed}/{agreed}",
+)
 
 
 # --- deliberate divergence in the no-kwargs defaults ------------------------
@@ -134,4 +150,4 @@ print(
     f"{'expected' if ours != theirs else 'NOTE: now identical'}"
 )
 
-sys.exit(1 if failures else 0)
+finish()
