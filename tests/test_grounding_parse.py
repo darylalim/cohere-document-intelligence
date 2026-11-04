@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 
 from _check import check, finish  # noqa: E402
 
-from nmv.grounding import Box, parse_boxes  # noqa: E402
+from nmv.grounding import Box, is_point_answer, parse_boxes  # noqa: E402
 
 FIXTURES = ROOT / "tests/fixtures/grounding"
 
@@ -38,6 +38,13 @@ check(
     str(boxes_in("truncated.handmade.txt")),
 )
 check("swapped corners are put in order", boxes_in("swapped.handmade.txt") == [stamp])
+
+check("a point is not a box", parse_boxes("[[852, 301, 852, 301]]") == [])
+check("a point is recognised", is_point_answer("[[852, 301, 852, 301]]"))
+check("a real box is not a point", not is_point_answer("[[660, 672, 920, 798]]"))
+check("a zero-width line is not a point", not is_point_answer("[[10, 10, 10, 900]]"))
+check("prose is not a point", not is_point_answer("I see [nothing] here"))
+check("no reply is not a point", not is_point_answer(""))
 
 pixels = stamp.to_pixels(1240, 1754)
 check(

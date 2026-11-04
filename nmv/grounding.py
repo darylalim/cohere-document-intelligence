@@ -235,6 +235,19 @@ def contains_json(text: str) -> bool:
     return any(True for _ in _json_candidates(text))
 
 
+def is_point_answer(text: str) -> bool:
+    """True when the reply holds a point, such as ``[852, 301, 852, 301]``.
+
+    :func:`parse_boxes` rejects these as degenerate. Only about half land on their
+    target, so nothing is drawn for one; this lets the page say why.
+    """
+    for match in _QUAD.finditer(text or ""):
+        x1, y1, x2, y2 = (float(value) for value in match.groups())
+        if abs(x2 - x1) < 1.0 and abs(y2 - y1) < 1.0:
+            return True
+    return False
+
+
 def _font(size: int) -> ImageFont.BaseImageFont:
     """Pick a legible font, degrading to whatever Pillow can supply.
 

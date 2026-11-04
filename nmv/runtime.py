@@ -61,6 +61,17 @@ def limit_cache() -> None:
     mx.set_cache_limit(MLX_CACHE_LIMIT_BYTES)
 
 
+def clear_cache() -> None:
+    """Free MLX's cached buffers, not the models. Call it from page code."""
+
+    def clear() -> None:
+        import mlx.core as mx
+
+        mx.clear_cache()
+
+    call(clear)
+
+
 def _ensure_booted() -> None:
     global _booted
     if _booted:

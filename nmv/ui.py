@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import logging
+from collections.abc import Callable, Iterable
+from contextlib import suppress
 
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
+from nmv import runtime
+from nmv.errors import Failure, classify
+from nmv.grounding import contains_json, is_point_answer
 from nmv.imaging import MAX_PIXELS, MEGAPIXEL, PIXELS_PER_TOKEN
 from nmv.model import (
     DEFAULT_TEMPERATURE,
@@ -20,6 +25,8 @@ from nmv.model import (
     load_studio,
 )
 from nmv.render import safe_markdown
+
+logger = logging.getLogger("nmv")
 
 MAX_MEGAPIXELS = MAX_PIXELS / MEGAPIXEL
 
@@ -50,6 +57,77 @@ def show_reply(chunks: Iterable[str]) -> str:
     return reply
 
 
+def show_failure(
+    exc: Exception,
+    retry: Callable[[], None] | None = None,
+    *,
+    retry_key: str = "retry",
+    first_report: bool = True,
+) -> Failure:
+    """The one way a page reports a load or generation failure.
+
+    Wrap the call in ``except Exception`` and nothing broader: ``st.stop()`` and
+    ``st.rerun()`` raise a ``BaseException``. ``retry`` runs when the user presses
+    Retry, before the rerun, so it can put back what the run was doing. Pass
+    ``first_report=False`` to redraw a failure that was already logged.
+    """
+    failure = classify(exc)
+    if first_report:
+        logger.error("%s: %s", failure.kind, type(exc).__name__, exc_info=exc)
+        if failure.kind == "out_of_memory":
+            with suppress(Exception):  # the page must still report the first failure
+                runtime.clear_cache()
+    st.error(f"**{failure.title}.** {failure.remedy}", icon=":material/error:")
+    with st.expander("Details"):
+        st.exception(exc)
+    if retry is not None:
+        st.button("Retry", icon=":material/refresh:", on_click=retry, key=retry_key)
+    return failure
+
+
+def explain_no_boxes(raw: str, truncated: bool, *, fixed_limit: bool = False) -> None:
+    """Say why a reply drew no boxes. Their remedies point in different directions.
+
+    Truncation comes first: a reply cut off at max tokens leaves a half-written
+    array that decodes as nothing, and would otherwise be misread as prose. A point
+    comes before the JSON test, because it decodes as JSON. ``fixed_limit`` is for
+    callers that ignore the sidebar's max tokens, so the slider is no remedy.
+    """
+    if truncated:
+        remedy = (
+            "Try another citation."
+            if fixed_limit
+            else "Raise **Max new tokens** in the sidebar."
+        )
+        st.warning(
+            f"The response stopped at the max-tokens limit, so the box list was cut "
+            f"off mid-array. {remedy}",
+            icon=":material/content_cut:",
+        )
+    elif is_point_answer(raw):
+        st.info(
+            "The model could not locate this precisely: it gave a single point, not "
+            "a box, so nothing is drawn. Raising the image budget can help.",
+            icon=":material/my_location:",
+        )
+    elif contains_json(raw):
+        # The model answered, and the answer is "nothing here matches": a correct
+        # result, not a failure, so this says nothing about sampling.
+        st.info(
+            "The model returned an empty result — it found nothing matching this "
+            "instruction. Try different wording or another task preset, or raise "
+            "the image budget if the target is small.",
+            icon=":material/search_off:",
+        )
+    else:
+        remedy = "" if fixed_limit else " Try the deterministic toggle, or ask for JSON."
+        st.warning(
+            f"No boxes parsed from the response. The model sometimes answers in "
+            f"prose.{remedy}",
+            icon=":material/format_quote:",
+        )
+
+
 def ensure_studio() -> Studio:
     """Load the checkpoint, warning first if it still has to be downloaded.
 
@@ -69,8 +147,14 @@ def ensure_studio() -> Studio:
             "downloads about 3.2 GB.",
             icon=":material/cloud_download:",
         )
-    with st.spinner("Loading North Micro Vision (8-bit)…"):
-        return load_studio()
+    try:
+        with st.spinner("Loading North Micro Vision (8-bit)…"):
+            return load_studio()
+    except Exception as exc:
+        # cache_resource does not cache a function that raised, so the rerun that
+        # Retry causes genuinely tries the load again.
+        show_failure(exc, retry=lambda: None)
+        st.stop()
 
 
 def _budget_control() -> int:
