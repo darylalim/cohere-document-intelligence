@@ -125,6 +125,10 @@ during questions. The worst peak plus cache was 10.5 GB, about 83% of the 12.71 
 so `MLX_CACHE_LIMIT_BYTES` stays at 1 GiB. Swap went from 0 to 529 MB during the load, then
 fell to 451 MB with no growth during any run, which matches the one-off above.
 
+In the app, the reader's first load took swap from 427 MB to 947 MB with pressure Normal,
+and it stayed flat on the follow-up. That used to raise "Memory is running short" on the
+first question, so swap growth across a model load no longer warns. Pressure still does.
+
 ## Saving run records
 
 Set `NMV_TRACE_FILE=<path>` and every action appends its run record to that file as one

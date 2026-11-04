@@ -433,13 +433,18 @@ def _check_memory(pressure: int | None, swap: float | None) -> None:
     state = st.session_state
     recent = trace.recent()
     latest = recent[-1].run_id if recent else None
+    loads = runtime.snapshot()["loads"]
     if "memory_run" not in state:
-        state.memory_run, state.swap_seen = latest, swap
+        state.memory_run, state.swap_seen, state.memory_loads = latest, swap, loads
         return
     if latest == state.memory_run:
         return
-    level = system.assess(pressure, swap, state.swap_seen)
+    # A load pages idle memory out once, about 0.5 GB on 16 GB with pressure Normal,
+    # so swap growth across one says nothing. Pressure still counts.
+    previous = state.swap_seen if loads == state.memory_loads else None
+    level = system.assess(pressure, swap, previous)
     state.memory_run, state.swap_seen, state.memory_level = latest, swap, level
+    state.memory_loads = loads
     if level == system.CRITICAL:
         logger.warning("memory pressure critical after run %s", latest)
 

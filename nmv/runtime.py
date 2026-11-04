@@ -69,6 +69,7 @@ class Snapshot(TypedDict):
     peak_gb: float
     limit_gb: float
     models: dict[ModelName, bool]
+    loads: int  # model loads since the server started, reloads included
     last_kind: str | None
     last_seconds: float
     updated: float | None
@@ -81,6 +82,7 @@ _snapshot: Snapshot = {
     "peak_gb": 0.0,
     "limit_gb": 0.0,
     "models": {"nmv": False, "reader": False},
+    "loads": 0,
     "last_kind": None,
     "last_seconds": 0.0,
     "updated": None,
@@ -169,6 +171,8 @@ def mark_loaded(name: ModelName, loaded: bool = True) -> None:
     """Record that a model is resident. The job's end publishes the memory it took."""
     with _state_lock:
         _snapshot["models"][name] = loaded
+        if loaded:
+            _snapshot["loads"] += 1
 
 
 def snapshot() -> Snapshot:
