@@ -13,6 +13,7 @@ from nmv.domain import Derivation, Transcript
 
 MATCH_THRESHOLD = 0.5
 _DECORATION = " \t|#*>-"
+_SPAN_EDGES = " \t\n.,;:!?"
 
 
 def natural_key(name: str) -> list[tuple[int, int, str]]:
@@ -25,13 +26,20 @@ def natural_key(name: str) -> list[tuple[int, int, str]]:
 
 
 def match_line(span: str, transcript: str) -> str:
-    """The transcript line closest to a cited span, or the span itself.
+    """The document's own text for a cited span.
 
     A citation wraps the *answer's* wording, which is often not on the page, so
-    grounding it directly asks the model to find text that is not there.
+    grounding it directly can ask the model to find text that is not there. A span
+    that is on the page is sent as it stands, though, and never widened to its line:
+    on the sample invoice ``$4,182.55`` gets a box, while ``Total due: $4,182.55``
+    gets a meaningless point. Otherwise this is the closest line, or the span itself.
     """
+    wanted = span.strip(_SPAN_EDGES).lower()
+    at = transcript.lower().find(wanted) if wanted else -1
+    if at != -1:
+        return transcript[at : at + len(wanted)]
+
     best, best_ratio = span, MATCH_THRESHOLD
-    wanted = span.lower()
     for raw_line in transcript.splitlines():
         line = raw_line.strip(_DECORATION)
         if not line:

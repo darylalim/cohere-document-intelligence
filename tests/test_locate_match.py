@@ -27,9 +27,15 @@ check(
 check("no transcript falls back", match_line("anything", "") == "anything")
 check(
     "Markdown decoration is not sent",
-    match_line("Total cost", "| Total cost |\n") == "Total cost",
+    match_line("The total cost", "| Total cost |\n") == "Total cost",
 )
-check("a heading loses its marks", match_line("Invoice", PAGE) == "Invoice")
+check("a heading loses its marks", match_line("The Invoice", PAGE) == "Invoice")
+
+print("match_line: a span already on the page")
+check("it is sent as it stands", match_line("$4,182.55", PAGE) == "$4,182.55")
+check("R7B's trailing full stop goes", match_line("$4,182.55.", PAGE) == "$4,182.55")
+check("the page's casing wins", match_line("total DUE", PAGE) == "Total due")
+check("a span of punctuation is not on the page", match_line("...", PAGE) == "...")
 
 print("natural_key")
 names = ["page-10.png", "page-2.png", "Page-1.png", "cover.png"]

@@ -1169,7 +1169,11 @@ same shape as the two existing pages.
    - **Why:** in Command R's format, `<co>…</co: 0:[i]>` wraps a span of the
      *answer* ("The total amount due is…"), and the closing tag only names the
      documents. That phrasing is often not on the page.
-   - **Before grounding**, fuzzy-match the span against the cited page's
+   - **A span already on the page is sent as it stands**, less trailing
+     punctuation, and never widened to its line. Measured on the sample invoice
+     (2026-11-04): `$4,182.55` gets a box on target, `Total due: $4,182.55` gets
+     the meaningless point `[500, 0, 500, 0]`.
+   - **Otherwise, before grounding**, fuzzy-match the span against the cited page's
      transcript and send the best-matching verbatim line or value. Use
      `difflib.SequenceMatcher` over the transcript's lines and keep the best
      ratio; above 0.5, use that line, otherwise fall back to the span itself.
