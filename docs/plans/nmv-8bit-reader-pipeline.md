@@ -506,6 +506,8 @@ body that runs on the worker.**
     sidebar's "Deterministic" toggle is on, use temperature 0, so the evals (temperature 0)
     and the app agree.
   - Caption the sidebar's sampling section "Applies to North Micro Vision".
+    Transcribe and Locate are NMV too but ignore it (step 5), and carry their
+    own captions saying so.
   - A repetition penalty is applied in mlx-lm through
     `logits_processors=make_logits_processors(repetition_penalty=...)`
     (`sample_utils.py`), **not** through `make_sampler`, which has no such
@@ -1157,6 +1159,18 @@ same shape as the two existing pages.
      Record which text was sent in Inspect.
    - Prompt: `LOCATE_PROMPT` from `nmv/prompts.py` (step 1b), filled with that
      text. It is the same template 1b and 5h use.
+   - **Greedy, always: ignore the sidebar's sampling and max tokens**, as
+     Transcribe does. Run at temperature 0 with no repetition penalty and
+     `LOCATE_MAX_TOKENS`, whatever the sliders and the "Deterministic" toggle
+     say, and say so in a caption.
+     - **Why:** one Grounding run at the default temperature of 0.7 gave an
+       undersized box (PR #2). A box is a measurement the user checks an
+       answer against, so it should not vary from click to click.
+     - The Locate cache key (step 5g) has no sampling field, so a sampled box
+       would be cached as if it were the result. 1b, 5h and 8b all measure
+       Locate at temperature 0, so sampling here would also ship a different
+       system from the one measured.
+     - Grounding keeps its sliders. This rule covers Locate only.
    - Parse with `grounding.parse_boxes`.
    - Draw with `grounding.draw_boxes` on the full-resolution `normalize()`d page.
    - Labels are optional; do not assume them.
@@ -1661,6 +1675,8 @@ Keep each item below as its own commit.
      `(Derivation(page_id, resolved_px, MODEL_REVISION, LOCATE_PROMPT_VERSION, LOCATE_MAX_TOKENS).key(), grounded text)`
      (step 3c) and holding a `Grounding`. A second click on the same
      citation is instant. Bound it to 64 entries, dropping the oldest first.
+     Sampling is not in the key because Locate is always greedy (step 5); if
+     that ever changes, the key has to change with it.
    - **Resized pages:** `st.cache_data(max_entries=MAX_PAGES)`, keyed on page
      hash and budget, following Grounding's `_encode_upload`.
      - The `max_entries` cap is required: each entry holds the full-resolution
