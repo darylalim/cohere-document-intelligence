@@ -139,8 +139,12 @@ def show_inspect(scope: str, run_id: str) -> None:
         st.table(_record_rows(inspection.record))
 
 
-def show_reply(chunks: Iterable[str]) -> str:
-    """Stream model output onto the page and return the raw, unfiltered text.
+def show_reply(chunks: Iterable[str], streaming: bool = True) -> str:
+    """Show model output on the page and return the raw, unfiltered text.
+
+    With ``streaming`` off it collects under a spinner and renders once, for
+    screen readers and anyone distracted by moving text. The chunks are consumed
+    fully either way, so stats and leaving mid-answer behave the same.
 
     Not ``st.write_stream``: that renders raw chunks with
     ``unterminated_parsing=True``, so an injected Markdown image could load while
@@ -148,6 +152,11 @@ def show_reply(chunks: Iterable[str]) -> str:
     first. The return value has not, because the conversation history must keep
     what the model actually said; run it through ``safe_markdown`` to redraw it.
     """
+    if not streaming:
+        with st.spinner("Answering…"):
+            reply = "".join(chunks)
+        st.markdown(safe_markdown(reply))
+        return reply
     slot = st.empty()
     reply = ""
     for chunk in chunks:
@@ -156,12 +165,18 @@ def show_reply(chunks: Iterable[str]) -> str:
     return reply
 
 
-def show_answer(pieces: Iterable[Piece]) -> None:
-    """Stream the reader's response, without its plan and its citation tags.
+def show_answer(pieces: Iterable[Piece], streaming: bool = True) -> None:
+    """Show the reader's response, without its plan and its citation tags.
 
     ``parse`` tolerates a tag cut off mid-stream, so no half-written ``<co>`` flashes
-    past. The reader's ``Answer`` keeps the raw response for the history.
+    past. The reader's ``Answer`` keeps the raw response for the history. ``streaming``
+    works as in ``show_reply``.
     """
+    if not streaming:
+        with st.spinner("Answering…"):
+            reply = "".join(p.text for p in pieces if p.phase is Phase.RESPONSE)
+        st.markdown(safe_markdown(parse(reply)[0]))
+        return
     slot = st.empty()
     slot.caption("Planning the answer…")
     reply = ""
@@ -405,6 +420,18 @@ def _sampling_control() -> Sampling:
     )
 
 
+def _display_control() -> None:
+    """The pages read this from session state, where its key puts it."""
+    st.subheader("Display", divider="gray")
+    st.toggle(
+        "Stream responses",
+        value=True,
+        key="stream_responses",
+        persist_state="session",
+        help="Off shows each reply once it is complete, with no moving text.",
+    )
+
+
 def _run_rows() -> list[dict[str, str | int | float | None]]:
     """The recent runs, newest first. Run records hold numbers only."""
     return [
@@ -563,6 +590,7 @@ def sidebar(*, reader: bool = False) -> tuple[int, Sampling, SidebarSlots]:
             st.caption("8B · 4-bit · CC-BY-NC-4.0 · non-commercial")
         budget = _budget_control()
         sampling = _sampling_control()
+        _display_control()
         stats_slot = st.empty()
         with st.expander("System"):
             system_slot = st.empty()

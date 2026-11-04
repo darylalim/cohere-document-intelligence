@@ -179,6 +179,28 @@ with stubbed():
 check("other text still sends", len(app.session_state["chat"]) == 2)
 check("and clears the pills", not app.get("button_group"))
 
+print("Stream responses")
+with patch("nmv.ui.st") as fake_st:
+    slot = fake_st.empty.return_value
+    check("on returns the text", ui.show_reply(iter(["a", "b"])) == "ab")
+    check("on redraws per chunk", slot.markdown.call_count == 2)
+    fake_st.reset_mock()
+    check("off returns the text", ui.show_reply(iter(["a", "b"]), False) == "ab")
+    check("off draws once", fake_st.markdown.call_count == 1)
+    check("off never streams", slot.markdown.call_count == 0)
+    fake_st.reset_mock()
+    pieces = [Piece(Phase.THINKING, "plan"), Piece(Phase.RESPONSE, "<co>Yes</co: 0:[0]>")]
+    ui.show_answer(iter(pieces), False)
+    drawn = str(fake_st.markdown.call_args)
+    check("an answer draws once, without its tags", "Yes" in drawn and "<co" not in drawn)
+    check("and without its plan", "plan" not in drawn, drawn)
+with stubbed():
+    app = page("chat.py").run()
+    app.sidebar.toggle(key="stream_responses").set_value(False).run()
+    app.chat_input[0].set_value("hello").run()
+check("a reply lands with it off", len(app.session_state["chat"]) == 2)
+check("and shows", "Total due" in text_of(app), text_of(app))
+
 print("Memory warnings")
 
 

@@ -681,7 +681,8 @@ if question:
                         reader_sampling(deterministic),
                         stats,
                         answer,
-                    )
+                    ),
+                    st.session_state.stream_responses,
                 )
             except ContextExceeded as error:
                 trace.finish(action, "context_exceeded", stats)

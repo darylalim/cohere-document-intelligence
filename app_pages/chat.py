@@ -221,7 +221,8 @@ if text or uploads:
                 reply = show_reply(
                     stream_reply(
                         studio, messages, ordered_images, sampling, stats, rendered
-                    )
+                    ),
+                    st.session_state.stream_responses,
                 )
             except Exception as exc:
                 # The pending turn is simply never committed. Only a text turn can
