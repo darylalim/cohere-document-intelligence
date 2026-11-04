@@ -42,7 +42,7 @@ class Page:
     which is exactly what decides whether Locate is available."""
 
     id: PageId
-    display_name: str  # session only: never stored, never logged
+    display_name: str  # never part of a key, never logged
     source_size: tuple[int, int]
     image: Image.Image | None = field(default=None, compare=False)
 
@@ -85,6 +85,15 @@ class Transcript:
     finish_reason: str | None
     width: int  # the resolved size NMV actually saw
     height: int
+
+    @property
+    def truncated(self) -> bool:
+        return self.finish_reason == "length"
+
+    @property
+    def empty(self) -> bool:
+        """An empty transcript is kept but never sent to the reader."""
+        return not self.text.strip()
 
 
 @dataclass(frozen=True)

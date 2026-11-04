@@ -10,6 +10,7 @@ import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
 from nmv import runtime
+from nmv.citations import parse
 from nmv.errors import Failure, classify
 from nmv.grounding import contains_json, is_point_answer
 from nmv.imaging import MAX_PIXELS, MEGAPIXEL, PIXELS_PER_TOKEN
@@ -24,11 +25,16 @@ from nmv.model import (
     is_cached,
     load_studio,
 )
+from nmv.r7b_format import Phase, Piece
+from nmv.reader import READER_REPO, Reader, is_reader_cached, load_reader
 from nmv.render import safe_markdown
 
 logger = logging.getLogger("nmv")
 
 MAX_MEGAPIXELS = MAX_PIXELS / MEGAPIXEL
+MAX_PAGES = 10  # about memory and transcription time; the reader's budget is its own
+READING_WIDTH = 760  # about 80 characters at the theme's 15 px base size
+PAGE_IMAGE_WIDTH = 880  # above this an A4 page is taller than a 1440p screen
 
 # Every widget below carries `persist_state="session"`, and a bare `key` is not
 # a substitute. Streamlit folds the active page's script hash into every element
@@ -55,6 +61,21 @@ def show_reply(chunks: Iterable[str]) -> str:
         reply += chunk
         slot.markdown(safe_markdown(reply))
     return reply
+
+
+def show_answer(pieces: Iterable[Piece]) -> None:
+    """Stream the reader's response, without its plan and its citation tags.
+
+    ``parse`` tolerates a tag cut off mid-stream, so no half-written ``<co>`` flashes
+    past. The reader's ``Answer`` keeps the raw response for the history.
+    """
+    slot = st.empty()
+    slot.caption("Planning the answer…")
+    reply = ""
+    for piece in pieces:
+        if piece.phase is Phase.RESPONSE:
+            reply += piece.text
+            slot.markdown(safe_markdown(parse(reply)[0]))
 
 
 def show_failure(
@@ -155,6 +176,31 @@ def ensure_studio() -> Studio:
         # Retry causes genuinely tries the load again.
         show_failure(exc, retry=lambda: None)
         st.stop()
+
+
+def ensure_reader() -> Reader:
+    """Load the reader, on the first question and never at page render.
+
+    Raises what the load raises, so the page keeps the question it was answering.
+    """
+    if not is_reader_cached():
+        st.warning(
+            f"`{READER_REPO}` is not in the Hugging Face cache yet — the first "
+            "question downloads about 4.5 GB.",
+            icon=":material/cloud_download:",
+        )
+        show_reader_licence()
+    with st.spinner("Loading Command R7B…"):
+        return load_reader()
+
+
+def show_reader_licence() -> None:
+    st.info(
+        "Command R7B is licensed CC-BY-NC-4.0 under [Cohere's C4AI licence "
+        "agreement](https://cohere.com/c4ai-cc-by-nc-license) — non-commercial use "
+        "only.",
+        icon=":material/gavel:",
+    )
 
 
 def _budget_control() -> int:
@@ -277,6 +323,8 @@ def render_stats(slot: DeltaGenerator, stats: RunStats | None) -> None:
         return
     with slot.container():
         st.subheader("Last run", divider="gray")
+        if stats.model:
+            st.caption(stats.model)
         with st.container(horizontal=True):
             st.metric("Prefill tokens", f"{stats.prompt_tokens:,}")
             st.metric("Decode tok/s", f"{stats.generation_tps:.0f}")
@@ -285,8 +333,8 @@ def render_stats(slot: DeltaGenerator, stats: RunStats | None) -> None:
             st.metric("Peak memory GB", f"{stats.peak_memory:.2f}")
 
 
-def sidebar() -> tuple[int, Sampling, DeltaGenerator]:
-    """Render every shared control.
+def sidebar(*, reader: bool = False) -> tuple[int, Sampling, DeltaGenerator]:
+    """Render every shared control. ``reader`` adds Command R7B's model caption.
 
     Returns the image budget, the sampling config, and a slot the caller fills
     with run statistics once generation finishes.
@@ -295,6 +343,9 @@ def sidebar() -> tuple[int, Sampling, DeltaGenerator]:
         st.caption("Model")
         st.code(MODEL_REPO, language=None, wrap_lines=True)
         st.caption("2.4B · 8-bit · Apache 2.0 · native resolution")
+        if reader:
+            st.code(READER_REPO, language=None, wrap_lines=True)
+            st.caption("8B · 4-bit · CC-BY-NC-4.0 · non-commercial")
         budget = _budget_control()
         sampling = _sampling_control()
         stats_slot = st.empty()

@@ -19,5 +19,10 @@ st.navigation(
             title="Grounding",
             icon=":material/frame_inspect:",
         ),
+        st.Page(
+            "app_pages/documents.py",
+            title="Ask documents",
+            icon=":material/description:",
+        ),
     ]
 ).run()

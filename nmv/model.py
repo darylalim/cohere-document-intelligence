@@ -86,6 +86,7 @@ class RunStats:
     generation_tps: float = 0.0
     peak_memory: float = 0.0
     finish_reason: str | None = None
+    model: str = ""  # set where it is not obvious which model ran
 
     @property
     def truncated(self) -> bool:
