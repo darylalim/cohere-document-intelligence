@@ -24,7 +24,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from evals.metrics import IOU_HIT, best_iou, cer, field_recall  # noqa: E402
+from evals.metrics import IOU_HIT, best_iou, cer, cer_raw, field_recall  # noqa: E402
 from nmv import model, prompts  # noqa: E402
 from nmv.grounding import parse_boxes  # noqa: E402
 from nmv.imaging import MAX_PIXELS, encode, normalize  # noqa: E402
@@ -97,6 +97,7 @@ def transcribe(studio, image, truth: dict, doc: str) -> tuple[dict, str]:
         "doc": doc,
         "page": truth["page"],
         "cer": cer(truth["reference"], text),
+        "cer_raw": cer_raw(truth["reference"], text),
         "field_recall": field_recall(truth["fields"], text),
         "truncated": stats.truncated,
         "generated_tokens": stats.generation_tokens,
@@ -121,6 +122,7 @@ def summarise(grounding: list[dict], transcription: list[dict]) -> dict:
         "grounding_mean_iou": mean(scored),
         "pages": len(transcription),
         "cer_mean": mean([c["cer"] for c in transcription]),
+        "cer_raw_mean": mean([c["cer_raw"] for c in transcription]),
         "field_recall_mean": mean([c["field_recall"] for c in transcription]),
         "truncated": sum(c["truncated"] for c in every),
         "peak_gb": max((c["peak_gb"] for c in every), default=0.0),

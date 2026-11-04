@@ -456,6 +456,11 @@ live in `evals/`, have their own runner, and are **never in CI** (GitHub's
    | Grounding | per target: IoU of the best-matching parsed box; **hit = IoU ≥ 0.5**; plus the **parse-failure rate** (no box parsed), reported separately so a format problem is not mistaken for a localisation problem |
    | Transcription | **CER**: Levenshtein distance / reference length, after normalising whitespace and case. Plus **field recall**: the fraction of `fields` present verbatim. Field recall is robust to reading-order ambiguity in tables and columns, where CER is noisy |
 
+   **CER strips Markdown and HTML from the output first** (changed 2026-11-03).
+   Scored as written above, table rows like `|-----|` put a perfect read of a
+   French invoice at 0.72, so the 1-point flag in item 4 would follow the dashes.
+   The literal version is kept alongside it as `cer_raw`.
+
    **Tests:** `tests/test_eval_metrics.py` (`fast` tier) covers identical,
    disjoint and nested boxes, CER on known edit distances, and whitespace and
    case normalisation. Metric bugs mislead silently, so they need tests like

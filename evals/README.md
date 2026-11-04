@@ -36,10 +36,10 @@ Raw output goes to `evals/runs/`, which is git-ignored. A numbers-only summary g
 
 - **Grounding:** the IoU of the best-matching parsed box, with a hit at 0.5 or above.
   Parse failures are counted apart, so a format problem is not read as a miss.
-- **Transcription:** CER after normalising whitespace and case, plus field recall, the
-  fraction of key strings present. Markdown syntax counts against CER and reading order
-  in tables moves it too, so read field recall alongside it, and compare CER between
-  runs rather than as an absolute.
+- **Transcription:** CER after removing Markdown and HTML and normalising whitespace and
+  case, plus field recall, the fraction of key strings present. `cer_raw` keeps the
+  markup, and is mostly a count of table dashes. Reading order in tables and columns
+  still moves CER, so read field recall alongside it.
 
 ## Adding a set
 

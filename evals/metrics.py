@@ -6,9 +6,15 @@ like any other code.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 
 IOU_HIT = 0.5
+
+_HTML_TAG = re.compile(r"<[^>]+>")
+_RULE_ROW = re.compile(r"^[ \t|:-]*-[ \t|:-]*$", re.MULTILINE)
+_HEADING = re.compile(r"^[ \t]*#{1,6}[ \t]*", re.MULTILINE)
+_EMPHASIS = re.compile(r"\*\*|__|`")
 
 BBox = Sequence[float]
 
@@ -40,6 +46,19 @@ def normalise(text: str) -> str:
     return " ".join(text.casefold().split())
 
 
+def strip_markup(text: str) -> str:
+    """Remove the Markdown and HTML the transcription prompt invites.
+
+    The references are plain text. Left in, a table's ``|-----|`` rows alone
+    scored a perfect read of a French invoice at CER 0.72, so the metric would
+    move with the number of dashes rather than with what was read.
+    """
+    text = _HTML_TAG.sub(" ", text)
+    text = _RULE_ROW.sub(" ", text)
+    text = _HEADING.sub("", text)
+    return _EMPHASIS.sub("", text).replace("|", " ")
+
+
 def levenshtein(a: str, b: str) -> int:
     """Edit distance, two rows at a time."""
     if len(a) < len(b):
@@ -59,7 +78,7 @@ def levenshtein(a: str, b: str) -> int:
     return previous[-1]
 
 
-def cer(reference: str, hypothesis: str) -> float:
+def cer_raw(reference: str, hypothesis: str) -> float:
     """Character error rate after ``normalise``. Can exceed 1 on runaway output."""
     ref, hyp = normalise(reference), normalise(hypothesis)
     if not ref:
@@ -67,9 +86,14 @@ def cer(reference: str, hypothesis: str) -> float:
     return levenshtein(ref, hyp) / len(ref)
 
 
+def cer(reference: str, hypothesis: str) -> float:
+    """``cer_raw`` of the text the model read, with its markup removed."""
+    return cer_raw(reference, strip_markup(hypothesis))
+
+
 def field_recall(fields: Sequence[str], text: str) -> float:
     """The fraction of ``fields`` present verbatim, whitespace and case aside."""
     if not fields:
         return 1.0
-    haystack = normalise(text)
+    haystack = normalise(strip_markup(text))
     return sum(normalise(field) in haystack for field in fields) / len(fields)

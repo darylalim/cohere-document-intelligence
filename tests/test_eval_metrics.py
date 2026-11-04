@@ -13,10 +13,12 @@ from _check import check, finish  # noqa: E402
 from evals.metrics import (  # noqa: E402
     best_iou,
     cer,
+    cer_raw,
     field_recall,
     iou,
     levenshtein,
     normalise,
+    strip_markup,
 )
 from evals.report import compare  # noqa: E402
 
@@ -43,11 +45,33 @@ check("empty reference, empty output", cer("", " ") == 0.0)
 check("empty reference, some output", cer("", "x") == 1.0)
 check("runaway output exceeds 1", cer("ab", "abcdefgh") == 3.0)
 
+print("strip_markup")
+table = "# Bill\n\n| Item | Qty |\n|------|:---:|\n| **Pens** | 2 |\n"
+check(
+    "a table reads as its cells", normalise(strip_markup(table)) == "bill item qty pens 2"
+)
+check("html tags go, their text stays", normalise(strip_markup("<p>PAID</p>")) == "paid")
+check("a hyphen in text survives", strip_markup("co-operation") == "co-operation")
+check("a negative number survives", normalise(strip_markup("-4.50")) == "-4.50")
+check("a line of only dashes goes", normalise(strip_markup("a\n---\nb")) == "a b")
+check(
+    "markup does not count in cer",
+    cer("Item Qty Pens 2", "| Item | Qty |\n|--|--|\n| Pens | 2 |") == 0.0,
+)
+check(
+    "but it does in cer_raw",
+    cer_raw("Item Qty Pens 2", "| Item | Qty |\n|--|--|\n| Pens | 2 |") > 0.3,
+)
+check("a real misread still counts", cer("Pens 2", "| Pans | 2 |") > 0)
+
 print("field_recall")
 check("all present", field_recall(["ACME", "4,182.55"], "acme due 4,182.55") == 1.0)
 check("half present", field_recall(["ACME", "9.99"], "ACME") == 0.5)
 check("whitespace inside a field", field_recall(["Total due"], "total\n due") == 1.0)
 check("no fields is vacuous", field_recall([], "x") == 1.0)
+check(
+    "bold does not hide a field", field_recall(["Total due"], "**Total** **due**") == 1.0
+)
 
 print("compare")
 
