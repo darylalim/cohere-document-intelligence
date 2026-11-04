@@ -405,7 +405,8 @@ with stubbed():
         app.button_group(key="ask_cite_3").set_value(0).run()
         check("no exception on a hit", not uncaught(app), str(app.exception))
         check("no full run on a hit", not full_runs, str(len(full_runs)))
-        check("the panel kept its box", "Located" in text_of(app), text_of(app))
+        where = "Page 1 · “$4,182.55” · upper left · about 30%"
+        check("the panel kept its box", where in text_of(app), text_of(app))
     check("the other turn was cleared", app.session_state["ask_cite_1"] is None)
 
     # AppTest delivers a click as a full run, which is what a click that lands during

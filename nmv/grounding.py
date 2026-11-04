@@ -44,6 +44,10 @@ PALETTE = [
 ]
 
 
+LOW_THIRD, HIGH_THIRD = 333, 667  # the 3×3 grid ``describe`` places a box on
+MOST_OF_PAGE = 90  # percent of both axes
+
+
 @dataclass(frozen=True)
 class Box:
     """A detection in the model's 0-1000 coordinate space."""
@@ -65,6 +69,33 @@ class Box:
     @property
     def area(self) -> float:
         return (self.x2 - self.x1) * (self.y2 - self.y1)
+
+
+def _rounded_percent(percent: float) -> str:
+    """To the nearest 5, halves up: ``round`` would turn 12.5% into 10%."""
+    return "under 5%" if percent < 5 else f"{int(percent / 5 + 0.5) * 5}%"
+
+
+def describe(box: Box) -> str:
+    """Where a box sits and how big it is, for anyone who cannot see the overlay.
+
+    Never reads the label, because labels are optional.
+    """
+    x1, x2 = min(box.x1, box.x2), max(box.x1, box.x2)
+    y1, y2 = min(box.y1, box.y2), max(box.y1, box.y2)
+    wide, tall = (x2 - x1) / GRID * 100, (y2 - y1) / GRID * 100
+    if wide >= MOST_OF_PAGE and tall >= MOST_OF_PAGE:
+        return "most of the page"
+
+    def third(centre: float, low: str, middle: str, high: str) -> str:
+        return low if centre < LOW_THIRD else high if centre > HIGH_THIRD else middle
+
+    row = third((y1 + y2) / 2, "upper", "middle", "lower")
+    column = third((x1 + x2) / 2, "left", "centre", "right")
+    place = "centre" if (row, column) == ("middle", "centre") else f"{row} {column}"
+    width = _rounded_percent(wide)
+    width = width if wide < 5 else f"about {width}"
+    return f"{place} · {width} of the page wide, {_rounded_percent(tall)} tall"
 
 
 def _make_box(values, label: str) -> Box | None:

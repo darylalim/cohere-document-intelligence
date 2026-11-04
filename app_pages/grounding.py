@@ -13,7 +13,7 @@ from PIL import Image
 from streamlit.typing import UploadedFile
 
 from nmv import trace
-from nmv.grounding import Box, draw_boxes, parse_boxes
+from nmv.grounding import Box, describe, draw_boxes, parse_boxes
 from nmv.imaging import (
     IMAGE_ERRORS,
     IMAGE_TYPES,
@@ -244,6 +244,7 @@ with details:
                 {
                     "#": index + 1,
                     "label": box.label or "—",
+                    "where": describe(box),
                     "grid": f"{box.x1:.0f}, {box.y1:.0f}, {box.x2:.0f}, {box.y2:.0f}",
                     "pixels": "{}, {}, {}, {}".format(
                         *box.to_pixels(original.width, original.height)

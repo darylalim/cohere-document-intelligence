@@ -20,7 +20,7 @@ from nmv import trace, transcripts
 from nmv.citations import parse
 from nmv.documents import best_transcript, match_line, natural_key
 from nmv.domain import Derivation, Grounding, Page, PageId, Transcript, Turn, page_id
-from nmv.grounding import draw_boxes, parse_boxes
+from nmv.grounding import describe, draw_boxes, parse_boxes
 from nmv.imaging import (
     IMAGE_ERRORS,
     IMAGE_TYPES,
@@ -422,8 +422,12 @@ def _page_panel(
     st.image(image, width=PAGE_IMAGE_WIDTH)
     if located is not None:
         result, raw, located_run = located
+        found_at = [describe(box) for box in result.boxes]
+        if len(found_at) > 1:
+            found_at = [f"#{n} {place}" for n, place in enumerate(found_at, 1)]
+        where = "; ".join(found_at) or "no box"
         st.caption(
-            safe_markdown(f"Located “{result.instruction}”.")
+            safe_markdown(f"Page {numbers[shown]} · “{result.instruction}” · {where}.")
             + " Greedy, whatever the sidebar says."
         )
         if not result.boxes:
