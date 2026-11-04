@@ -51,6 +51,17 @@ def _clear_conversation() -> None:
     forget_inspections("chat")
 
 
+def _use_suggestion() -> None:
+    """Fill the input and leave the send to the user, who still has to attach an image.
+
+    A callback, because the input is already drawn by the time the pills are.
+    """
+    picked = st.session_state.chat_suggestion
+    if picked:
+        st.session_state.chat_box = SUGGESTIONS[picked]
+    st.session_state.chat_suggestion = None
+
+
 st.title("Chat")
 st.caption(
     "Document Q&A, OCR, charts and captioning. Attach images with the **+** button; "
@@ -92,23 +103,11 @@ queued = st.session_state.pop("queued_prompt", None)
 
 submission = st.chat_input(
     "Ask about a page, chart, or photo",
+    key="chat_box",
     accept_file="multiple",
     file_type=IMAGE_TYPES,
     submit_mode="disable",
 )
-
-# After the input, so a first message removes them: the conversation container sits
-# above this point, and they would otherwise linger under the reply.
-if not st.session_state.chat and not queued and submission is None:
-    picked = st.pills(
-        "Try asking",
-        list(SUGGESTIONS),
-        label_visibility="collapsed",
-        key="chat_suggestion",
-    )
-    if picked:
-        st.session_state.queued_prompt = SUGGESTIONS[picked]
-        st.rerun()
 
 if submission is not None:
     text = (submission.text or "").strip()
@@ -117,6 +116,27 @@ elif queued:
     text, uploads = queued, []
 else:
     text, uploads = "", []
+
+# Every starter prompt names an image. Sent without one, the model describes a chart
+# that does not exist, with invented axes and values.
+has_image = uploads or any(record["images"] for record in st.session_state.chat)
+if text in SUGGESTIONS.values() and not has_image:
+    st.info(
+        "Attach an image with the **+** button, then send.",
+        icon=":material/add_photo_alternate:",
+    )
+    text, submission = "", None
+
+# After the input, so a first message removes them: the conversation container sits
+# above this point, and they would otherwise linger under the reply.
+if not st.session_state.chat and not queued and submission is None:
+    st.pills(
+        "Try asking",
+        list(SUGGESTIONS),
+        label_visibility="collapsed",
+        key="chat_suggestion",
+        on_change=_use_suggestion,
+    )
 
 if text or uploads:
     action = begin_run("chat")

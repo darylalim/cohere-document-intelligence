@@ -163,6 +163,22 @@ check("no wait, no toast", not list(app.toast))
 panel = next(item for item in app.sidebar.expander if item.label == "System")
 check("the run reaches the panel", len(panel.dataframe) == 1, str(panel.dataframe))
 
+print("Starter prompts")
+STARTER = "Describe this chart and state the trend it shows."
+with stubbed():
+    app = page("chat.py").run()
+    check("the pills are offered", len(app.get("button_group")) == 1)
+    app.chat_input[0].set_value(STARTER).run()
+check("a starter with no image asks for one", "Attach an image" in text_of(app))
+check("and nothing ran", app.session_state["chat"] == [])
+check("the pills stay", len(app.get("button_group")) == 1)
+check("no failure", not uncaught(app))
+with stubbed():
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+check("other text still sends", len(app.session_state["chat"]) == 2)
+check("and clears the pills", not app.get("button_group"))
+
 print("Memory warnings")
 
 
