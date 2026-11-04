@@ -85,7 +85,7 @@ Record each answer here, with the date, before moving past it.
 |---|---|---|---|
 | 1 | Is 8-bit's quality cost acceptable, or go back to bf16? | end of M1 | step 1b's report. **Decided 2026-11-03: accept 8-bit** (`docs/performance.md`) |
 | 2 | Keep R7B, keep R7B with idle unload, or switch to Tiny Aya (which costs a citation redesign in M2)? | end of M1 | the M1 memory check, including its Chat worst case (+ 8b quality later, if Tiny Aya). **Decided 2026-11-03: keep R7B, no idle unload for now**, with the cache limit moved into M1 |
-| 3 | Cap the transcription budget? | M3 | step 5g.3's CER sweep |
+| 3 | Cap the transcription budget? | M3 | step 5g.3's CER sweep. **Decided 2026-11-04: no cap, keep the full budget** (`docs/performance.md`). 2.0 MP met the CER bar but misread a digit and dropped a title, to save time paid once per page |
 | 4 | Push branches and open each PR | every milestone | — |
 | 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8 |
 | 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1. **2026-11-04: keep them for now**, asked again at the end of M2; ask again at the end of M4 |
