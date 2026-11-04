@@ -11,10 +11,9 @@ images at their **native resolution** rather than squashing them to a fixed squa
 strengths are documents, charts, OCR and visual grounding — exactly the workload where
 running locally beats shipping scans to an API.
 
-This app runs the **bf16** conversion only
-(`mlx-community/North-Micro-Vision-Instruct-bf16`, ~5 GB), so results stay comparable to
-Cohere's published numbers. Quantised conversions exist upstream if you ever need the
-footprint down.
+This app runs the **8-bit** conversion only
+(`mlx-community/North-Micro-Vision-Instruct-8bit`, ~3.2 GB), which leaves room for a second
+model on a 16 GB Mac.
 
 ## Pages
 
@@ -44,7 +43,7 @@ shows.*
 
 ## Requirements
 
-- Apple Silicon Mac. 16 GB unified memory is enough; peak usage is ~6.2 GB.
+- Apple Silicon Mac. 16 GB unified memory is enough; peak usage is ~4.5 GB.
 - Python 3.11–3.13 (the pinned venv uses 3.12).
 - [uv](https://docs.astral.sh/uv/).
 
@@ -55,13 +54,13 @@ uv sync
 uv run streamlit run streamlit_app.py
 ```
 
-The first launch pulls ~5 GB of weights into the Hugging Face cache. The app loads a
+The first launch pulls ~3.2 GB of weights into the Hugging Face cache. The app loads a
 fixed commit of the checkpoint rather than whatever `main` points at, so to fetch them
 ahead of time, ask for that same commit:
 
 ```bash
-uv run hf download mlx-community/North-Micro-Vision-Instruct-bf16 \
-  --revision 614b36574d6ecf1c2a79ff3ea28aa89bbc7fcd13
+uv run hf download mlx-community/North-Micro-Vision-Instruct-8bit \
+  --revision 26e6b3aef507899fbf86057593d99fc12418e26f
 ```
 
 ## Things worth knowing
@@ -208,9 +207,9 @@ for the patent grant (§3) and, more to the point here, for the explicit stateme
 trademark rights travel with it (§6). *Cohere* and *North Micro Vision* are Cohere's
 marks; this is an unaffiliated project that runs their published checkpoint.
 
-No weights are vendored here: `uv sync` installs no checkpoint, and the ~5 GB arrives
+No weights are vendored here: `uv sync` installs no checkpoint, and the ~3.2 GB arrives
 from the Hugging Face cache on first run. Both
 [CohereLabs/North-Micro-Vision-Instruct](https://huggingface.co/CohereLabs/North-Micro-Vision-Instruct)
-and the [mlx-community bf16 conversion](https://huggingface.co/mlx-community/North-Micro-Vision-Instruct-bf16)
+and the [mlx-community 8-bit conversion](https://huggingface.co/mlx-community/North-Micro-Vision-Instruct-8bit)
 this app loads are Apache-2.0 as well, so the two halves line up — but they are
 governed by their own model cards, not by this repository's `LICENSE`.
