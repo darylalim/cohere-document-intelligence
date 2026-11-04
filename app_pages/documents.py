@@ -12,6 +12,7 @@ from dataclasses import replace
 from io import BytesIO
 
 import streamlit as st
+from PIL import Image
 from streamlit.typing import UploadedFile
 
 from nmv import trace, transcripts
@@ -19,7 +20,15 @@ from nmv.citations import parse
 from nmv.documents import best_transcript, match_line, natural_key
 from nmv.domain import Derivation, Grounding, Page, PageId, Transcript, Turn, page_id
 from nmv.grounding import draw_boxes, parse_boxes
-from nmv.imaging import IMAGE_ERRORS, IMAGE_TYPES, encode, normalize, open_upload, plan
+from nmv.imaging import (
+    IMAGE_ERRORS,
+    IMAGE_TYPES,
+    ImagePlan,
+    encode,
+    normalize,
+    open_upload,
+    plan,
+)
 from nmv.model import (
     MODEL_REVISION,
     Rendered,
@@ -80,6 +89,20 @@ def _read_upload(_upload: UploadedFile, file_id: str) -> Page:
     data = _upload.getvalue()
     image = normalize(open_upload(BytesIO(data)))
     return Page(page_id(data), "", image.size, image)
+
+
+@st.cache_data(show_spinner=False, max_entries=MAX_PAGES)
+def _encoded(
+    _image: Image.Image, page: PageId, budget: int
+) -> tuple[Image.Image, ImagePlan]:
+    """The page as the model sees it, once per (page, budget) pair, so every Locate
+    on a page reuses the resize its transcription paid for.
+
+    ``_image`` is underscore-prefixed so Streamlit skips hashing its pixels, and
+    ``page`` already identifies them. An entry holds only the resized copy, because
+    :func:`_read_upload` keeps the original.
+    """
+    return encode(_image, budget)
 
 
 @st.cache_resource(show_spinner=False)
@@ -149,7 +172,7 @@ def _transcribe(
     """
     assert page.image is not None
     with trace.span("prep"):
-        encoded, resolved = encode(page.image, budget)
+        encoded, resolved = _encoded(page.image, page.id, budget)
     action.set(
         image_tokens=resolved.tokens,
         budget_px=budget,
@@ -199,7 +222,7 @@ def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
     """
     assert page.image is not None
     sent = match_line(span, transcript.text if transcript else "")
-    encoded, resolved = encode(page.image, budget)
+    resolved = plan(*page.source_size, budget)
     derivation = Derivation(
         page.id,
         resolved.target_pixels,
@@ -216,6 +239,8 @@ def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
             resolved_px=resolved.target_pixels,
             store="miss",
         )
+        with trace.span("prep"):
+            encoded, _ = _encoded(page.image, page.id, budget)
         stats = RunStats(model=f"{NMV} · locate")
         rendered = Rendered()
         raw = "".join(

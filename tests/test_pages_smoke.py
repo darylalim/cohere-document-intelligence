@@ -23,7 +23,7 @@ from _check import check, finish  # noqa: E402
 from PIL import Image  # noqa: E402
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
-from nmv import runtime, trace, transcripts, ui  # noqa: E402
+from nmv import imaging, runtime, trace, transcripts, ui  # noqa: E402
 from nmv.r7b_format import Phase, Piece  # noqa: E402
 from nmv.reader import Answer, ContextExceeded  # noqa: E402
 
@@ -339,6 +339,28 @@ with stubbed():
     check("each action left a record", kinds[-3:] == ["transcribe", "ask", "locate"])
     app.run()
     check("a cached Locate adds none", len(trace.recent()) == len(kinds))
+
+print("Ask documents: a page is resized once")
+with stubbed():
+    resizes = []
+    real_encode = imaging.encode
+
+    def counted_encode(image, budget):
+        resizes.append(budget)
+        return real_encode(image, budget)
+
+    with patch("nmv.imaging.encode", counted_encode):
+        app = page("documents.py").run()
+        app.file_uploader[0].set_value([("once.png", png("#123456"), "image/png")]).run()
+        button(app, "Transcribe").click().run()
+        app.chat_input[0].set_value("What is the total due?").run()
+        app.button_group(key="ask_cite_1").set_value(0).run()
+        check("no exception", not uncaught(app), str(app.exception))
+        check("Locate ran", len(app.session_state["locate_cache"]) == 1)
+        check("Locate reused the resize", len(resizes) == 1, str(resizes))
+        app.run()
+        check("a cached Locate does not resize", len(resizes) == 1, str(resizes))
+
 
 print("Ask documents: a point answer")
 
