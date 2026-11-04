@@ -20,7 +20,7 @@ state from here.
   hooks and `.claude/settings.json`
 - [x] **M0 · Foundations** (PR 2)
 - [x] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
-- [ ] **M2 · Working pipeline** (PR 4)
+- [x] **M2 · Working pipeline** (PR 4) — decision 8 recorded below
 - [ ] **M3 · Quality and polish** (PR 5)
 - [ ] **M4 · Docs and release** (PR 6) — decision 7 by the user
 - [ ] Later items, each only if the user asks

@@ -68,6 +68,10 @@ and Command R7B 4-bit both resident. The GPU working-set limit reads 12.71 GB, s
   with only 7.66 GB active. On the second run, with the limit, it fell to 1,952 MB. That
   second run began with idle pages already paged out, so it shows no sustained paging but
   does not show a first load without swap. Measuring that needs a fresh boot.
+- **A first load near a fresh boot swaps about 1.1 GB.** On 2026-11-04, 18 minutes after
+  boot with Chrome open and swap at 0, `tests/test_models_e2e.py` took it to 1,135 MB, with
+  peak memory at 8.97 GB. Later runs of both models stayed flat or fell, to 936 MB. So
+  the growth is a one-off at first load, not sustained paging. Step 8 repeats this.
 - **Chat has the least headroom.** Each extra ceiling image adds about 0.45 GB, so a
   fourth would land near the bar and a fifth would pass it (an extrapolation, not
   measured).

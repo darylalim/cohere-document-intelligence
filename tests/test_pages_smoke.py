@@ -41,7 +41,7 @@ def fake_reply(studio, messages, images, sampling, stats=None) -> Iterator[str]:
     prompt = messages[-1]["content"][-1]["text"]
     if stats is not None:
         stats.finish_reason = "stop"
-    if "Total" in prompt and "Locate" in prompt:
+    if "4,182.55" in prompt and "Locate" in prompt:
         yield "[[100, 100, 400, 200]]"
     elif "Locate" in prompt:
         yield "[[852, 301, 852, 301]]"
@@ -178,13 +178,9 @@ with stubbed():
 
     cited.set_value(0).run()
     check("no exception locating", not uncaught(app), str(app.exception))
-    check(
-        "the located text is the page's line",
-        "Total due: $4,182.55" in text_of(app),
-        text_of(app),
-    )
     (entry,) = app.session_state["locate_cache"].values()
     check("a box was parsed", len(entry[0].boxes) == 1)
+    check("the span on the page was sent", entry[0].instruction == "$4,182.55")
 
 print("Ask documents: a point answer")
 

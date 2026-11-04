@@ -323,7 +323,8 @@ with st.container(horizontal=True):
 
 if save:
     count, size = transcripts.usage()
-    st.caption(f"{count} transcripts saved · {size / 1000:,.0f} KB")
+    noun = "transcript" if count == 1 else "transcripts"
+    st.caption(f"{count} {noun} saved · {size / 1000:,.1f} KB")
 else:
     st.caption(
         "Not saving — this session's transcripts are lost on refresh. Already-saved "
@@ -425,12 +426,14 @@ with conversation:
 
 with viewer:
     if pages:
+        # Through session state and not `default=`: a citation sets this key too,
+        # and Streamlit warns about a widget that has both.
+        state.setdefault(view_key, pages[0].id)
         shown = (
             st.pills(
                 "Page",
                 list(by_id),
                 format_func=lambda page: f"p.{numbers[page]}",
-                default=pages[0].id,
                 key=view_key,
                 wrap=True,
             )
