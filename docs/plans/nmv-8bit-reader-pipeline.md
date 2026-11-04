@@ -90,6 +90,7 @@ Record each answer here, with the date, before moving past it.
 | 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8 |
 | 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1. **2026-11-03: keep them for now**; ask again at the end of M1 |
 | 7 | Release: bump `version` (by hand) | end of M4 | `RELEASING.md` |
+| 8 | When NMV answers Locate with a point, not a box: a message or an approximate marker? | M2, before step 5 | `docs/performance.md`: 6 of 57 targets, only 3 inside the truth. **Decided 2026-11-04: a message**, because a marker would be wrong about half the time |
 
 ### Cut list, if time runs short
 
@@ -1186,6 +1187,9 @@ same shape as the two existing pages.
        system from the one measured.
      - Grounding keeps its sliders. This rule covers Locate only.
    - Parse with `grounding.parse_boxes`.
+   - **A point answer gets its own message (decision 8).** `parse_boxes` rejects
+     a degenerate box such as `[852, 301, 852, 301]`, so detect that case and say
+     the model could not locate the text precisely. Never draw a marker for it.
    - Draw with `grounding.draw_boxes` on the full-resolution `normalize()`d page.
    - Labels are optional; do not assume them.
    - A cited page that is no longer uploaded (removed from the uploader, or a
@@ -1550,6 +1554,7 @@ the most likely new failure, so give it a plain answer.
    - **Locate with no box** reuses Grounding's three-way message (truncated /
      empty / prose). Move that branch into a `ui.explain_no_boxes(result)`
      helper, so both pages share it rather than keeping a fourth copy.
+     A point answer is a fourth case of that helper (decision 8).
 4. **Keep `client.showErrorDetails` at its default.** Every expected failure
    now has its own message, so Streamlit's raw traceback only appears for real
    bugs. On a local single-user app, full detail is what you want there.
