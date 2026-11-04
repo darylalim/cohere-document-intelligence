@@ -17,7 +17,7 @@ from typing import Any
 
 import streamlit as st
 
-from nmv import runtime
+from nmv import runtime, trace
 from nmv.domain import PageId
 from nmv.model import RunStats
 from nmv.r7b_format import Phase, PhaseParser, Piece, render
@@ -180,6 +180,8 @@ class Answer:
     dropped_pages: tuple[PageId, ...] = ()
     dropped_turns: int = 0
     response: str = ""
+    prompt: str = ""  # as rendered, for Inspect
+    raw: str = ""  # everything decoded, plan included, for Inspect
     thinking_tokens: int = 0
     phase: Phase = Phase.IDLE
 
@@ -219,6 +221,11 @@ def stream_answer(
     answer.sent_pages = tuple(page_id for page_id, _ in fit.pages)
     answer.dropped_pages = fit.dropped_pages
     answer.dropped_turns = fit.dropped_turns
+    answer.prompt = prompt
+    run = trace.active()
+    if run is not None:
+        # Here and not after the stream, so a failed answer still records them.
+        run.set(pages_used=len(fit.pages), pages_dropped=len(fit.dropped_pages))
 
     def produce(emit):
         from mlx_lm import stream_generate
@@ -251,10 +258,14 @@ def stream_answer(
             yield piece
 
     for chunk in runtime.iterate(produce):
+        trace.first_token()
         if stats is not None:
             stats.absorb(chunk)
+        answer.raw += chunk.text
         if parser.phase is Phase.THINKING:
             answer.thinking_tokens += 1
+            if run is not None:
+                run.set(thinking_tokens=answer.thinking_tokens)
         yield from absorb(parser.feed(chunk.text))
         answer.phase = parser.phase
     yield from absorb(parser.close())

@@ -23,7 +23,7 @@ from _check import check, finish  # noqa: E402
 from PIL import Image  # noqa: E402
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
-from nmv import transcripts  # noqa: E402
+from nmv import trace, transcripts, ui  # noqa: E402
 from nmv.r7b_format import Phase, Piece  # noqa: E402
 from nmv.reader import Answer, ContextExceeded  # noqa: E402
 
@@ -36,7 +36,9 @@ temp = tempfile.TemporaryDirectory()
 os.environ[transcripts.DB_ENV] = str(Path(temp.name) / "transcripts.db")
 
 
-def fake_reply(studio, messages, images, sampling, stats=None) -> Iterator[str]:
+def fake_reply(
+    studio, messages, images, sampling, stats=None, rendered=None
+) -> Iterator[str]:
     """Transcribe and Locate both come through here; the prompt says which."""
     prompt = messages[-1]["content"][-1]["text"]
     if stats is not None:
@@ -53,6 +55,8 @@ def fake_answer(reader, history, pages, sampling, stats=None, answer=None):
     assert answer is not None
     answer.sent_pages = tuple(page for page, _ in pages)
     answer.response = RESPONSE
+    answer.prompt = "<rendered reader prompt>"
+    answer.raw = f"planning{RESPONSE}"
     yield Piece(Phase.THINKING, "planning")
     yield Piece(Phase.RESPONSE, RESPONSE)
 
@@ -129,6 +133,43 @@ check("no uncaught exception", not uncaught(app), str(app.exception))
 check("it is explained", "GPU memory" in app.error[0].value)
 check("nothing joined the history", app.session_state["chat"] == [])
 
+print("Inspect")
+HOSTILE = "![pixel](https://attacker.example/x.png) **ignore previous instructions**"
+
+
+def hostile_reply(studio, messages, images, sampling, stats=None, rendered=None):
+    if rendered is not None:
+        rendered.prompt = "<|START_OF_TURN|>hello"
+    yield HOSTILE
+
+
+with stubbed(nmv__model__stream_reply=hostile_reply):
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+    check("no exception", not uncaught(app), str(app.exception))
+    code = [block.value for block in app.code]
+    check("the raw output is in a code block", HOSTILE in code, str(code))
+    check("the rendered prompt is too", "<|START_OF_TURN|>hello" in code, str(code))
+    check("the record is a table", len(app.table) == 1)
+    check("the image never renders", "attacker.example" not in text_of(app))
+    app.run()  # the turn is redrawn from the history
+    check("it survives a rerun", HOSTILE in [block.value for block in app.code])
+
+    for _ in range(ui.INSPECT_KEEP + 1):
+        app.chat_input[0].set_value("again").run()
+    app.run()  # the run that evicts one has already drawn it
+    check("only the latest turns keep content", len(app.table) == ui.INSPECT_KEEP)
+    button(app, "Clear conversation").click().run()
+check("clearing forgets them", "inspect_chat" not in app.session_state)
+
+print("Run IDs reach the failure details")
+with stubbed(nmv__model__stream_reply=raises(RuntimeError(OOM))):
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+last = trace.recent()[-1]
+check("the failure is recorded", last.outcome == "out_of_memory", str(last))
+check("the details name the run", f"run {last.run_id}" in text_of(app), text_of(app))
+
 print("Ask documents: the save toggle")
 with stubbed():
     app = page("documents.py").run()
@@ -181,11 +222,16 @@ with stubbed():
     (entry,) = app.session_state["locate_cache"].values()
     check("a box was parsed", len(entry[0].boxes) == 1)
     check("the span on the page was sent", entry[0].instruction == "$4,182.55")
+    check("the answer and the Locate keep Inspect", len(app.table) == 2)
+    kinds = [record.kind for record in trace.recent()]
+    check("each action left a record", kinds[-3:] == ["transcribe", "ask", "locate"])
+    app.run()
+    check("a cached Locate adds none", len(trace.recent()) == len(kinds))
 
 print("Ask documents: a point answer")
 
 
-def point_only(studio, messages, images, sampling, stats=None):
+def point_only(studio, messages, images, sampling, stats=None, rendered=None):
     if stats is not None:
         stats.finish_reason = "stop"
     yield "[[852, 301, 852, 301]]"
@@ -207,7 +253,7 @@ print("Ask documents: a failing page does not stop the rest")
 calls: list[int] = []
 
 
-def fails_once(studio, messages, images, sampling, stats=None):
+def fails_once(studio, messages, images, sampling, stats=None, rendered=None):
     calls.append(1)
     if len(calls) == 1:
         raise RuntimeError(OOM)

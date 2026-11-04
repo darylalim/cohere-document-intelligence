@@ -14,7 +14,7 @@ import json
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -25,9 +25,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from evals.metrics import IOU_HIT, best_iou, cer, cer_raw, field_recall  # noqa: E402
-from nmv import model, prompts  # noqa: E402
+from nmv import model, prompts, trace  # noqa: E402
 from nmv.grounding import parse_boxes  # noqa: E402
-from nmv.imaging import MAX_PIXELS, encode, normalize  # noqa: E402
+from nmv.imaging import MAX_PIXELS, ImagePlan, encode, normalize  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -61,19 +61,34 @@ def package_version(name: str) -> str | None:
         return None
 
 
-def generate(studio, image: Image.Image, prompt: str, limit: int):
-    """One greedy reply. ``Sampling`` has no seed, so temperature 0 is what
-    makes a run repeatable."""
+def generate(
+    studio,
+    image: Image.Image,
+    resolved: ImagePlan,
+    prompt: str,
+    limit: int,
+    kind: trace.Kind,
+):
+    """One greedy reply and its run record. ``Sampling`` has no seed, so temperature 0
+    is what makes a run repeatable."""
+    run = trace.start(kind)
+    run.set(
+        image_tokens=resolved.tokens,
+        budget_px=MAX_PIXELS,
+        resolved_px=resolved.target_pixels,
+    )
     stats = model.RunStats()
     sampling = model.Sampling(max_tokens=limit, temperature=0.0)
     turn = [model.user_turn(prompt, 1)]
     text = "".join(model.stream_reply(studio, turn, [image], sampling, stats))
-    return text, stats
+    return text, stats, asdict(trace.finish(run, stats=stats))
 
 
-def ground(studio, image, target: dict, doc: str) -> tuple[dict, str]:
+def ground(studio, image, resolved, target: dict, doc: str) -> tuple[dict, str]:
     prompt = prompts.LOCATE_PROMPT.format(text=target["target"])
-    text, stats = generate(studio, image, prompt, prompts.LOCATE_MAX_TOKENS)
+    text, stats, record = generate(
+        studio, image, resolved, prompt, prompts.LOCATE_MAX_TOKENS, "locate"
+    )
     boxes = [(b.x1, b.y1, b.x2, b.y2) for b in parse_boxes(text)]
     score = best_iou(target["bbox"], boxes)
     case = {
@@ -85,13 +100,19 @@ def ground(studio, image, target: dict, doc: str) -> tuple[dict, str]:
         "parse_failure": score is None,
         "truncated": stats.truncated,
         "peak_gb": stats.peak_memory,
+        "run": record,
     }
     return case, text
 
 
-def transcribe(studio, image, truth: dict, doc: str) -> tuple[dict, str]:
-    text, stats = generate(
-        studio, image, prompts.TRANSCRIBE_PROMPT, prompts.TRANSCRIBE_MAX_TOKENS
+def transcribe(studio, image, resolved, truth: dict, doc: str) -> tuple[dict, str]:
+    text, stats, record = generate(
+        studio,
+        image,
+        resolved,
+        prompts.TRANSCRIBE_PROMPT,
+        prompts.TRANSCRIBE_MAX_TOKENS,
+        "transcribe",
     )
     case = {
         "doc": doc,
@@ -104,6 +125,7 @@ def transcribe(studio, image, truth: dict, doc: str) -> tuple[dict, str]:
         "prefill_tps": stats.prompt_tps,
         "decode_tps": stats.generation_tps,
         "peak_gb": stats.peak_memory,
+        "run": record,
     }
     return case, text
 
@@ -156,17 +178,17 @@ def main() -> int:
         out.mkdir(parents=True, exist_ok=True)
         for index, page in enumerate(truth["pages"]):
             original = normalize(Image.open(path.parent / page))
-            image, _ = encode(original, MAX_PIXELS)
+            image, resolved = encode(original, MAX_PIXELS)
 
             for number, target in enumerate(truth["boxes"]):
                 if target["page"] != index:
                     continue
-                case, text = ground(studio, image, target, doc)
+                case, text = ground(studio, image, resolved, target, doc)
                 grounding.append(case)
                 (out / f"box-{number}.txt").write_text(text, encoding="utf-8")
                 print(f"{doc} {target['target'][:40]!r} iou={case['iou']}", flush=True)
 
-            case, text = transcribe(studio, image, truth["text"][index], doc)
+            case, text = transcribe(studio, image, resolved, truth["text"][index], doc)
             transcription.append(case)
             (out / f"page-{index + 1}.md").write_text(text, encoding="utf-8")
             print(

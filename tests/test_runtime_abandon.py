@@ -17,13 +17,14 @@ Run:  uv run python tests/test_runtime_abandon.py
 import sys
 import threading
 import time
+from contextvars import ContextVar
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from _check import check, finish  # noqa: E402
 
-from nmv import runtime  # noqa: E402
+from nmv import runtime, trace  # noqa: E402
 
 CHANNEL_LIMIT = 128  # nmv.runtime.iterate's queue maxsize
 PROBE_TIMEOUT = 15.0
@@ -107,5 +108,41 @@ check(
     str(raised),
 )
 check("worker still usable after a failure", worker_responds())
+
+print("run context")
+marker: ContextVar[str] = ContextVar("marker", default="unset")
+marker.set("from the page")
+run = trace.start("chat", "abc123")
+
+
+def on_worker() -> tuple[str, str | None]:
+    with trace.span("parse"):
+        time.sleep(0.01)
+    current = trace.active()
+    return marker.get(), current.run_id if current else None
+
+
+seen_marker, seen_run = runtime.submit(on_worker).result(PROBE_TIMEOUT)
+record = trace.finish(run)
+check("a context variable reaches the job", seen_marker == "from the page", seen_marker)
+check("so does the run", seen_run == run.run_id, str(seen_run))
+check(
+    "a span added on the worker is visible page-side",
+    record.spans.get("parse", 0.0) >= 0.01,
+    str(record.spans),
+)
+check("queue wait is measured", record.queue_wait_s >= 0.0, str(record.queue_wait_s))
+
+print("waiting behind another job")
+release = threading.Event()
+blocker = runtime.submit(release.wait, PROBE_TIMEOUT)
+run = trace.start("chat")
+waiting = runtime.submit(lambda: None)
+time.sleep(0.05)
+release.set()
+waiting.result(PROBE_TIMEOUT)
+blocker.result(PROBE_TIMEOUT)
+record = trace.finish(run)
+check("the wait is the queue's", record.queue_wait_s >= 0.05, str(record.queue_wait_s))
 
 finish()

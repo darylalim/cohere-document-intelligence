@@ -9,6 +9,7 @@ from typing import Any
 
 import streamlit as st
 
+from nmv import trace
 from nmv.imaging import (
     IMAGE_ERRORS,
     IMAGE_TYPES,
@@ -16,9 +17,20 @@ from nmv.imaging import (
     open_upload,
     prepare,
 )
-from nmv.model import RunStats, assistant_turn, stream_reply, user_turn
+from nmv.model import Rendered, RunStats, assistant_turn, stream_reply, user_turn
 from nmv.render import safe_markdown
-from nmv.ui import ensure_studio, render_stats, show_failure, show_reply, sidebar
+from nmv.ui import (
+    Inspection,
+    begin_run,
+    ensure_studio,
+    forget_inspections,
+    keep_inspection,
+    render_stats,
+    show_failure,
+    show_inspect,
+    show_reply,
+    sidebar,
+)
 
 SUGGESTIONS = {
     ":blue[:material/description:] Read a document": (
@@ -31,6 +43,12 @@ SUGGESTIONS = {
         "Extract every table in this image as markdown."
     ),
 }
+
+
+def _clear_conversation() -> None:
+    st.session_state.chat.clear()
+    forget_inspections("chat")
+
 
 st.title("Chat")
 st.caption(
@@ -49,7 +67,7 @@ if st.session_state.chat:
     st.button(
         "Clear conversation",
         icon=":material/delete_sweep:",
-        on_click=st.session_state.chat.clear,
+        on_click=_clear_conversation,
     )
 
 for record in st.session_state.chat:
@@ -63,6 +81,8 @@ for record in st.session_state.chat:
         st.markdown(safe_markdown(record["text"]))
         if record.get("stats_line"):
             st.caption(record["stats_line"])
+        if record.get("run_id"):
+            show_inspect("chat", record["run_id"])
 
 queued = st.session_state.pop("queued_prompt", None)
 
@@ -93,29 +113,36 @@ else:
     text, uploads = "", []
 
 if text or uploads:
+    action = begin_run("chat")
     images, notes, failures = [], [], []
     turn_tokens = 0
-    for upload in uploads:
-        try:
-            image, resolved = prepare(open_upload(upload), budget)
-        except IMAGE_ERRORS as error:
-            failures.append(f"**{upload.name}** — {error}")
-            continue
-        images.append(image)
-        turn_tokens += resolved.tokens
-        note = (
-            f"{upload.name} · {resolved.target[0]}×{resolved.target[1]} · "
-            f"{resolved.tokens:,} tokens"
-        )
-        if resolved.resized:
-            note += f" (from {resolved.source[0]}×{resolved.source[1]})"
-        notes.append(note)
+    largest = 0
+    with trace.span("prep"):
+        for upload in uploads:
+            try:
+                image, resolved = prepare(open_upload(upload), budget)
+            except IMAGE_ERRORS as error:
+                failures.append(f"**{upload.name}** — {error}")
+                continue
+            images.append(image)
+            turn_tokens += resolved.tokens
+            largest = max(largest, resolved.target_pixels)
+            note = (
+                f"{upload.name} · {resolved.target[0]}×{resolved.target[1]} · "
+                f"{resolved.tokens:,} tokens"
+            )
+            if resolved.resized:
+                note += f" (from {resolved.source[0]}×{resolved.source[1]})"
+            notes.append(note)
 
     for failure in failures:
         st.error(failure, icon=":material/broken_image:")
 
     if not text:
         text = "Describe this image." if images else ""
+
+    if not text:
+        trace.finish(action, "bad_image")  # every upload failed, and nothing was asked
 
     if text:
         # Held out of session_state until the reply lands. Committing the user
@@ -160,21 +187,27 @@ if text or uploads:
                 icon=":material/warning:",
             )
 
+        action.set(image_tokens=carried, budget_px=budget, resolved_px=largest)
         stats = RunStats()
+        rendered = Rendered()
         with st.chat_message("assistant"):
             try:
                 reply = show_reply(
-                    stream_reply(studio, messages, ordered_images, sampling, stats)
+                    stream_reply(
+                        studio, messages, ordered_images, sampling, stats, rendered
+                    )
                 )
             except Exception as exc:
                 # The pending turn is simply never committed. Only a text turn can
                 # be put back: the queue holds no images.
-                show_failure(
+                failure = show_failure(
                     exc,
                     retry=None
                     if images
                     else lambda: st.session_state.update(queued_prompt=text),
+                    run_id=action.run_id,
                 )
+                trace.finish(action, failure.kind, stats)
                 st.stop()
             stats_line = (
                 f"{stats.prompt_tokens:,} prompt tokens · "
@@ -184,11 +217,22 @@ if text or uploads:
             if stats.truncated:
                 stats_line += " · **stopped at max tokens**"
             st.caption(stats_line)
+            run_record = trace.finish(action, stats=stats)
+            keep_inspection(
+                "chat", Inspection(rendered.prompt, reply, run_record, tuple(notes))
+            )
+            show_inspect("chat", run_record.run_id)
 
         st.session_state.last_stats = stats
         render_stats(stats_slot, stats)
         # Both turns commit together, so history is never left half-written.
         st.session_state.chat.append(pending)
         st.session_state.chat.append(
-            {"role": "assistant", "text": reply, "images": [], "stats_line": stats_line}
+            {
+                "role": "assistant",
+                "text": reply,
+                "images": [],
+                "stats_line": stats_line,
+                "run_id": run_record.run_id,
+            }
         )

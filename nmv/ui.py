@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Iterable
 from contextlib import suppress
+from dataclasses import asdict, dataclass
 
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
-from nmv import runtime
+from nmv import runtime, trace
 from nmv.citations import parse
 from nmv.errors import Failure, classify
 from nmv.grounding import contains_json, is_point_answer
@@ -35,6 +37,7 @@ MAX_MEGAPIXELS = MAX_PIXELS / MEGAPIXEL
 MAX_PAGES = 10  # about memory and transcription time; the reader's budget is its own
 READING_WIDTH = 760  # about 80 characters at the theme's 15 px base size
 PAGE_IMAGE_WIDTH = 880  # above this an A4 page is taller than a 1440p screen
+INSPECT_KEEP = 5  # per page: the content lives in session state, and only this much
 
 # Every widget below carries `persist_state="session"`, and a bare `key` is not
 # a substitute. Streamlit folds the active page's script hash into every element
@@ -44,6 +47,67 @@ PAGE_IMAGE_WIDTH = 880  # above this an A4 page is taller than a 1440p screen
 # silently reset the budget to the ceiling and every sampling control to its
 # default. Session scope also covers the sliders `_sampling_control` hides in
 # deterministic mode, which were dropped the same way on each toggle.
+
+
+def begin_run(kind: trace.Kind) -> trace.RunBuilder:
+    """Start the run record, with the first 6 characters of the session id."""
+    context = get_script_run_ctx()
+    return trace.start(kind, context.session_id[:6] if context else trace.NO_ID)
+
+
+@dataclass(frozen=True)
+class Inspection:
+    """What the model saw and said. Content, so it stays in session state and never
+    reaches a log, the run record or the disk. A refresh clears it."""
+
+    prompt: str
+    raw: str
+    record: trace.RunRecord
+    notes: tuple[str, ...] = ()
+
+
+def keep_inspection(scope: str, inspection: Inspection) -> None:
+    kept = st.session_state.setdefault(f"inspect_{scope}", {})
+    kept[inspection.record.run_id] = inspection
+    while len(kept) > INSPECT_KEEP:
+        kept.pop(next(iter(kept)))
+
+
+def forget_inspections(scope: str) -> None:
+    st.session_state.pop(f"inspect_{scope}", None)
+
+
+def _record_rows(record: trace.RunRecord) -> list[dict[str, str]]:
+    values = asdict(record)
+    spans = values.pop("spans")
+    values.update({f"{name} (s)": seconds for name, seconds in spans.items()})
+    return [
+        {
+            "Field": name,
+            "Value": f"{value:.3f}" if isinstance(value, float) else str(value),
+        }
+        for name, value in values.items()
+    ]
+
+
+def show_inspect(scope: str, run_id: str) -> None:
+    """Draw a kept run, or nothing once it has aged out.
+
+    ``st.code`` renders nothing, which is what makes it safe for hostile text: this
+    is where a user checks whether a document carried an injected instruction.
+    """
+    inspection = st.session_state.get(f"inspect_{scope}", {}).get(run_id)
+    if inspection is None:
+        return
+    with st.expander("Inspect"):
+        for note in inspection.notes:
+            st.caption(safe_markdown(note))
+        st.caption("Prompt, as the chat template rendered it")
+        st.code(inspection.prompt or "(empty)", language=None, wrap_lines=True)
+        st.caption("Raw model output")
+        st.code(inspection.raw or "(empty)", language=None, wrap_lines=True)
+        st.caption("Run record")
+        st.table(_record_rows(inspection.record))
 
 
 def show_reply(chunks: Iterable[str]) -> str:
@@ -84,13 +148,15 @@ def show_failure(
     *,
     retry_key: str = "retry",
     first_report: bool = True,
+    run_id: str = "",
 ) -> Failure:
     """The one way a page reports a load or generation failure.
 
     Wrap the call in ``except Exception`` and nothing broader: ``st.stop()`` and
     ``st.rerun()`` raise a ``BaseException``. ``retry`` runs when the user presses
     Retry, before the rerun, so it can put back what the run was doing. Pass
-    ``first_report=False`` to redraw a failure that was already logged.
+    ``first_report=False`` to redraw a failure that was already logged. ``run_id``
+    goes in the details, so one search of the terminal finds the whole story.
     """
     failure = classify(exc)
     if first_report:
@@ -100,6 +166,8 @@ def show_failure(
                 runtime.clear_cache()
     st.error(f"**{failure.title}.** {failure.remedy}", icon=":material/error:")
     with st.expander("Details"):
+        if run_id:
+            st.caption(f"run {run_id}")
         st.exception(exc)
     if retry is not None:
         st.button("Retry", icon=":material/refresh:", on_click=retry, key=retry_key)

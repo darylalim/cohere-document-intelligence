@@ -12,6 +12,7 @@ import streamlit as st
 from PIL import Image
 from streamlit.typing import UploadedFile
 
+from nmv import trace
 from nmv.grounding import Box, draw_boxes, parse_boxes
 from nmv.imaging import (
     IMAGE_ERRORS,
@@ -22,7 +23,14 @@ from nmv.imaging import (
     open_upload,
 )
 from nmv.model import RunStats, stream_reply, user_turn
-from nmv.ui import ensure_studio, explain_no_boxes, render_stats, show_failure, sidebar
+from nmv.ui import (
+    begin_run,
+    ensure_studio,
+    explain_no_boxes,
+    render_stats,
+    show_failure,
+    sidebar,
+)
 
 PRESETS = {
     "Objects": (
@@ -181,6 +189,12 @@ st.caption(
 )
 
 if run:
+    action = begin_run("ground")
+    action.set(
+        image_tokens=resolved.tokens,
+        budget_px=budget,
+        resolved_px=resolved.target_pixels,
+    )
     stats = RunStats()
     try:
         with st.spinner("Locating…"):
@@ -190,15 +204,23 @@ if run:
                 )
             )
     except Exception as exc:
-        show_failure(exc, retry=lambda: st.session_state.update(grounding_retry=True))
+        failure = show_failure(
+            exc,
+            retry=lambda: st.session_state.update(grounding_retry=True),
+            run_id=action.run_id,
+        )
+        trace.finish(action, failure.kind, stats)
         st.stop()
     st.session_state.last_stats = stats
     render_stats(stats_slot, stats)
+    with trace.span("parse"):
+        parsed = parse_boxes(raw)
     st.session_state.grounding_result = {
         "raw": raw,
-        "boxes": parse_boxes(raw),
+        "boxes": parsed,
         "truncated": stats.truncated,
     }
+    trace.finish(action, stats=stats)
 
 result = st.session_state.get("grounding_result")
 if result is None:

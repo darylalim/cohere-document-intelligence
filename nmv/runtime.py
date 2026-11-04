@@ -28,7 +28,10 @@ import queue
 import threading
 from collections.abc import Callable, Generator
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextvars import copy_context
 from typing import Any, TypeVar
+
+from nmv import trace
 
 T = TypeVar("T")
 
@@ -83,9 +86,20 @@ def _ensure_booted() -> None:
 
 
 def submit(fn: Callable[..., T], *args: Any, **kwargs: Any) -> Future[T]:
-    """Queue work on the MLX worker. Never call this from the worker itself."""
+    """Queue work on the MLX worker. Never call this from the worker itself.
+
+    The job runs in a copy of the caller's context, which is how the worker finds
+    the current run: a bare executor submit arrives with every default instead.
+    """
     _ensure_booted()
-    return _EXECUTOR.submit(fn, *args, **kwargs)
+    context = copy_context()
+    submitted = trace.clock()
+
+    def job() -> T:
+        context.run(trace.job_started, submitted)
+        return context.run(fn, *args, **kwargs)
+
+    return _EXECUTOR.submit(job)
 
 
 def call(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:

@@ -13,13 +13,20 @@ from io import BytesIO
 import streamlit as st
 from streamlit.typing import UploadedFile
 
-from nmv import transcripts
+from nmv import trace, transcripts
 from nmv.citations import parse
 from nmv.documents import best_transcript, match_line, natural_key
 from nmv.domain import Derivation, Grounding, Page, PageId, Transcript, Turn, page_id
 from nmv.grounding import draw_boxes, parse_boxes
 from nmv.imaging import IMAGE_ERRORS, IMAGE_TYPES, encode, normalize, open_upload, plan
-from nmv.model import MODEL_REVISION, RunStats, Sampling, stream_reply, user_turn
+from nmv.model import (
+    MODEL_REVISION,
+    Rendered,
+    RunStats,
+    Sampling,
+    stream_reply,
+    user_turn,
+)
 from nmv.prompts import (
     LOCATE_MAX_TOKENS,
     LOCATE_PROMPT,
@@ -41,12 +48,17 @@ from nmv.ui import (
     MAX_PAGES,
     PAGE_IMAGE_WIDTH,
     READING_WIDTH,
+    Inspection,
+    begin_run,
     ensure_reader,
     ensure_studio,
     explain_no_boxes,
+    forget_inspections,
+    keep_inspection,
     render_stats,
     show_answer,
     show_failure,
+    show_inspect,
     show_reader_licence,
     sidebar,
 )
@@ -125,11 +137,18 @@ def _usable_transcript(page: Page, budget: int) -> Transcript | None:
     )
 
 
-def _transcribe(page: Page, budget: int, save: bool) -> None:
+def _transcribe(
+    page: Page, budget: int, save: bool, action: trace.RunBuilder, stats: RunStats
+) -> None:
     """One page, kept the moment it finishes, so a later failure cannot lose it."""
     assert page.image is not None
-    encoded, resolved = encode(page.image, budget)
-    stats = RunStats(model=f"{NMV} · transcribe")
+    with trace.span("prep"):
+        encoded, resolved = encode(page.image, budget)
+    action.set(
+        image_tokens=resolved.tokens,
+        budget_px=budget,
+        resolved_px=resolved.target_pixels,
+    )
     text = "".join(
         stream_reply(
             studio,
@@ -145,13 +164,32 @@ def _transcribe(page: Page, budget: int, save: bool) -> None:
         stats.finish_reason,
         *resolved.target,
     )
-    if not (save and transcripts.put(transcript, page.display_name)):
+    with trace.span("store"):
+        saved = save and transcripts.put(transcript, page.display_name)
+    if not saved:
         state.ask_held[transcript.derivation.key()] = transcript
+    action.set(store="miss" if saved else "not-saved")
     state.last_stats = stats
+    trace.finish(action, stats=stats)
+
+
+def _reuse(
+    found: dict[PageId, Transcript | None], by_id: dict[PageId, Page], budget: int
+) -> str:
+    """The run record's ``store``: did every page come from this budget's transcript?"""
+    for page, transcript in found.items():
+        wanted = _transcribe_derivation(by_id[page], budget).key()
+        if transcript is not None and transcript.derivation.key() != wanted:
+            return "fallback-budget"
+    return "hit"
 
 
 def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
-    """Box the document's text for a cited span, cached and always greedy."""
+    """Box the document's text for a cited span, cached and always greedy.
+
+    A cached result is no action: this runs on every rerun while a citation is
+    selected, and a record each time would push real runs out of the ring.
+    """
     assert page.image is not None
     sent = match_line(span, transcript.text if transcript else "")
     encoded, resolved = encode(page.image, budget)
@@ -164,7 +202,15 @@ def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
     )
     key = (derivation.key(), sent)
     if key not in state.locate_cache:
+        action = begin_run("locate")
+        action.set(
+            image_tokens=resolved.tokens,
+            budget_px=budget,
+            resolved_px=resolved.target_pixels,
+            store="miss",
+        )
         stats = RunStats(model=f"{NMV} · locate")
+        rendered = Rendered()
         raw = "".join(
             stream_reply(
                 studio,
@@ -172,14 +218,28 @@ def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
                 [encoded],
                 Sampling(max_tokens=LOCATE_MAX_TOKENS, temperature=0.0),
                 stats,
+                rendered,
             )
         )
         state.last_stats = stats
         render_stats(stats_slot, stats)
-        result = Grounding(derivation, sent, tuple(parse_boxes(raw)), stats.truncated)
+        with trace.span("parse"):
+            boxes = tuple(parse_boxes(raw))
+        result = Grounding(derivation, sent, boxes, stats.truncated)
         while len(state.locate_cache) >= LOCATE_CACHE_ENTRIES:
             state.locate_cache.pop(next(iter(state.locate_cache)))
-        state.locate_cache[key] = (result, raw)
+        record = trace.finish(action, stats=stats)
+        size = f"{resolved.target[0]}×{resolved.target[1]}"
+        keep_inspection(
+            "ask",
+            Inspection(
+                rendered.prompt,
+                raw,
+                record,
+                (f"Image: {size}, {resolved.tokens:,} tokens.",),
+            ),
+        )
+        state.locate_cache[key] = (result, raw, record.run_id)
     return state.locate_cache[key]
 
 
@@ -187,6 +247,7 @@ def _new_conversation() -> None:
     state.ask_turns = []
     state.ask_notes = {}
     state.locate_target = None
+    forget_inspections("ask")
 
 
 def _pick_citation(widget: str, entries: list[tuple[str, PageId]], view: str) -> None:
@@ -397,9 +458,9 @@ st.caption(
     "whatever the sidebar's sampling and max tokens say."
 )
 progress = st.empty()
-for failed_name, failure in state.ask_failed:
+for failed_name, failure, failed_run in state.ask_failed:
     st.caption(f"Page **{failed_name}** was not transcribed:")
-    show_failure(failure, first_report=False)
+    show_failure(failure, first_report=False, run_id=failed_run)
 for page in needed:
     if page not in queue:
         st.caption(f"p.{numbers[page]} has no transcript yet, so it is not sent.")
@@ -423,6 +484,7 @@ with conversation:
                     st.caption(state.ask_notes[index])
                 if turn.role == "assistant":
                     _citations(index, turn, numbers, view_key)
+                    show_inspect("ask", turn.run_id)
 
 with viewer:
     if pages:
@@ -451,18 +513,27 @@ with viewer:
                 with st.spinner("Locating…"):
                     located = _locate(page, target[0], transcript, budget)
             except Exception as exc:
-                show_failure(exc, retry=lambda: None, retry_key="retry_locate")
+                action = trace.active()  # None if it failed before reaching the model
+                failure = show_failure(
+                    exc,
+                    retry=lambda: None,
+                    retry_key="retry_locate",
+                    run_id=action.run_id if action else "",
+                )
+                if action is not None:
+                    trace.finish(action, failure.kind)
         if located is not None and located[0].boxes:
             image = draw_boxes(page.image, list(located[0].boxes))
         st.image(image, width=PAGE_IMAGE_WIDTH)
         if located is not None:
-            result, raw = located
+            result, raw, located_run = located
             st.caption(
                 safe_markdown(f"Located “{result.instruction}”.")
                 + " Greedy, whatever the sidebar says."
             )
             if not result.boxes:
                 explain_no_boxes(raw, result.truncated, fixed_limit=True)
+            show_inspect("ask", located_run)
 
         with st.expander("Transcript"):
             if transcript is None:
@@ -514,6 +585,8 @@ if question:
             answer = Answer()
             stats = RunStats(model=R7B)
             deterministic = sampling.temperature == 0.0
+            action = begin_run("ask")
+            action.set(store=_reuse(found, by_id, budget))
             try:
                 reader = ensure_reader()
                 show_answer(
@@ -527,21 +600,25 @@ if question:
                     )
                 )
             except ContextExceeded as error:
+                trace.finish(action, "context_exceeded", stats)
                 st.warning(str(error), icon=":material/content_cut:")
                 st.stop()
             except Exception as exc:
                 # Nothing joins the history unless the reply arrived: an orphaned
                 # user turn would corrupt every later one.
-                show_failure(
+                failure = show_failure(
                     exc,
                     retry=lambda: state.update(ask_retry=question),
                     retry_key="retry_question",
+                    run_id=action.run_id,
                 )
+                trace.finish(action, failure.kind, stats)
                 st.stop()
 
     state.last_stats = stats
     render_stats(stats_slot, stats)
     if answer.cut_off_planning:
+        trace.finish(action, stats=stats)
         with messages:
             st.warning(
                 "The answer was cut off while planning. Ask about fewer pages, or ask "
@@ -550,7 +627,8 @@ if question:
             )
         st.stop()
 
-    clean, citations = parse(answer.response)
+    with trace.span("parse"):
+        clean, citations = parse(answer.response)
     notes = []
     if answer.dropped_pages:
         names = ", ".join(f"p.{numbers[page]}" for page in answer.dropped_pages)
@@ -559,6 +637,21 @@ if question:
         notes.append(f"The {answer.dropped_turns} oldest turns were left out.")
     if stats.truncated:
         notes.append("The answer stopped at the reader's token limit.")
+    record = trace.finish(action, stats=stats)
+    sent = ", ".join(f"p.{numbers[page]}" for page in answer.sent_pages)
+    left_out = ", ".join(f"p.{numbers[page]}" for page in answer.dropped_pages)
+    keep_inspection(
+        "ask",
+        Inspection(
+            answer.prompt,
+            answer.raw,
+            record,
+            (
+                f"Sent to the reader: {sent or 'none'}.",
+                f"Left out by the context budget: {left_out or 'none'}.",
+            ),
+        ),
+    )
     state.ask_turns.append(Turn("user", safe_markdown(question), question))
     state.ask_turns.append(
         Turn(
@@ -567,6 +660,7 @@ if question:
             answer.response,
             tuple(citations),
             answer.sent_pages,
+            record.run_id,
         )
     )
     if notes:
@@ -583,10 +677,13 @@ if queue:
     progress.caption(
         f"Page {done} of {state.transcribe_total} · asking a question pauses this."
     )
+    action = begin_run("transcribe")
+    stats = RunStats(model=f"{NMV} · transcribe")
     try:
-        _transcribe(page, budget, save)
+        _transcribe(page, budget, save, action, stats)
     except Exception as exc:
-        show_failure(exc)
-        state.ask_failed.append((page.display_name, exc))
+        failure = show_failure(exc, run_id=action.run_id)
+        trace.finish(action, failure.kind, stats)
+        state.ask_failed.append((page.display_name, exc, action.run_id))
     queue.pop(0)
     st.rerun()

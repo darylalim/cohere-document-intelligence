@@ -20,7 +20,7 @@ from typing import Any, cast
 import streamlit as st
 from PIL import Image
 
-from nmv import runtime
+from nmv import runtime, trace
 
 MODEL_REPO = "mlx-community/North-Micro-Vision-Instruct-8bit"
 # A commit on that repo, not a branch, because a checkpoint can run code here.
@@ -112,6 +112,17 @@ class RunStats:
                 setattr(self, name, value)
 
 
+@dataclass
+class Rendered:
+    """The prompt as the chat template rendered it, filled in on the worker.
+
+    Apart from ``RunStats`` because this is content, and ``last_stats`` outlives the
+    conversation. Only Inspect keeps it, and only in session state.
+    """
+
+    prompt: str = ""
+
+
 def _load(repo_id: str, revision: str) -> Studio:
     from mlx_vlm import load
     from mlx_vlm.utils import load_config
@@ -163,6 +174,7 @@ def stream_reply(
     images: list[Image.Image],
     sampling: Sampling,
     stats: RunStats | None = None,
+    rendered: Rendered | None = None,
 ) -> Iterator[str]:
     """Yield response deltas, suitable for ``ui.show_reply``."""
 
@@ -173,6 +185,8 @@ def stream_reply(
         prompt = apply_chat_template(
             studio.processor, studio.config, messages, num_images=len(images)
         )
+        if rendered is not None:
+            rendered.prompt = cast(str, prompt)
         for chunk in stream_generate(
             studio.model,
             studio.processor,
@@ -189,6 +203,7 @@ def stream_reply(
                 return
 
     for chunk in runtime.iterate(produce):
+        trace.first_token()
         if stats is not None:
             stats.absorb(chunk)
         yield chunk.text

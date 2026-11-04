@@ -75,3 +75,11 @@ and Command R7B 4-bit both resident. The GPU working-set limit reads 12.71 GB, s
 - **Chat has the least headroom.** Each extra ceiling image adds about 0.45 GB, so a
   fourth would land near the bar and a fifth would pass it (an extrapolation, not
   measured).
+
+## Saving run records
+
+Set `NMV_TRACE_FILE=<path>` and every action appends its run record to that file as one
+JSON line, for medians and spread over many runs instead of reading the sidebar. It is
+unset by default. A record holds numbers, IDs and enum values only, never document text,
+prompts or file names, so the file may be kept anywhere. A run Streamlit interrupts
+mid-stream leaves no record.

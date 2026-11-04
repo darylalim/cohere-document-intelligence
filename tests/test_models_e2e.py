@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 from _check import check, finish  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from nmv import model, reader, runtime  # noqa: E402
+from nmv import model, reader, runtime, trace  # noqa: E402
 from nmv.citations import parse  # noqa: E402
 from nmv.documents import match_line  # noqa: E402
 from nmv.domain import page_id  # noqa: E402
@@ -82,6 +82,20 @@ if boxes:
         str(edges),
     )
 
+print("the rendered prompt")
+rendered = model.Rendered()
+reply = model.stream_reply(
+    studio,
+    [model.user_turn("Say hi.", 1)],
+    [encoded],
+    model.Sampling(max_tokens=8, temperature=0.0),
+    rendered=rendered,
+)
+"".join(reply)
+check(
+    "it reaches the page from the worker", "Say hi." in rendered.prompt, rendered.prompt
+)
+
 print("transcription")
 transcript = nmv(encoded, TRANSCRIBE_PROMPT, TRANSCRIBE_MAX_TOKENS)
 flat = re.sub(r"\s+", " ", transcript).lower()
@@ -92,15 +106,19 @@ print("reader")
 loaded = reader.load_reader()
 question = [{"role": "user", "content": "What is the total due?"}]
 answer = reader.Answer()
+stats = model.RunStats()
+action = trace.start("ask")
 pieces = list(
     reader.stream_answer(
         loaded,
         question,
         [(page, transcript)],
         reader.reader_sampling(True),
-        answer=answer,
+        stats,
+        answer,
     )
 )
+record = trace.finish(action, stats=stats)
 clean, citations = parse(answer.response)
 check("the answer has the total", TOTAL in clean, clean)
 check(
@@ -112,6 +130,11 @@ check("sent_pages is the page", answer.sent_pages == (page,))
 shown = "".join(piece.text for piece in pieces if piece.phase is Phase.RESPONSE)
 check("no control tokens in the response", "<|" not in shown, shown)
 check("no control tokens in the clean text", "<|" not in clean and "<co" not in clean)
+check("the record counts the page", (record.pages_used, record.pages_dropped) == (1, 0))
+check("it has the first token", (record.first_token_s or 0) > 0, str(record))
+check("and both MLX spans", {"prefill", "decode"} <= record.spans.keys(), str(record))
+check("Inspect gets the rendered prompt", "<|START_OF_TURN_TOKEN|>" in answer.prompt)
+check("and the raw output, tags included", answer.response in answer.raw)
 
 print("locate")
 if citations:
