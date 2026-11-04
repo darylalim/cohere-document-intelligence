@@ -529,6 +529,7 @@ with viewer:
                 )
                 if action is not None:
                     trace.finish(action, failure.kind)
+                    render_stats(stats_slot, None)
         if located is not None and located[0].boxes:
             image = draw_boxes(page.image, list(located[0].boxes))
         st.image(image, width=PAGE_IMAGE_WIDTH)
@@ -620,6 +621,7 @@ if question:
                     run_id=action.run_id,
                 )
                 trace.finish(action, failure.kind, stats)
+                render_stats(stats_slot, None)
                 st.stop()
 
     state.last_stats = stats

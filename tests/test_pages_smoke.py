@@ -163,6 +163,80 @@ check("no wait, no toast", not list(app.toast))
 panel = next(item for item in app.sidebar.expander if item.label == "System")
 check("the run reaches the panel", len(panel.dataframe) == 1, str(panel.dataframe))
 
+print("Memory warnings")
+
+
+def memory(pressure: int, swap: float = 100.0, reader: bool = True, **overrides):
+    resident = {**SNAPSHOT, "models": {"nmv": True, "reader": reader}}
+    return stubbed(
+        nmv__ui__runtime__snapshot=lambda: resident,
+        nmv__ui__system__pressure_level=lambda: pressure,
+        nmv__ui__system__swap_used_mb=lambda: swap,
+        **overrides,
+    )
+
+
+def finished_run() -> None:
+    trace.finish(trace.start("ask"))
+
+
+def titles(app: AppTest) -> list[str]:
+    return [item.proto.title for item in app.warning]
+
+
+with memory(2):
+    app = page("chat.py").run()
+    check("a new session only takes a baseline", not titles(app), str(titles(app)))
+    finished_run()
+    app.run()
+    check("pressure 2 warns after a run", "Memory is running short" in titles(app))
+    check("it names the fix", "unload the reader" in text_of(app), text_of(app))
+    check("no button off Ask documents", "Unload reader" not in labels(app))
+with memory(1):
+    app.run()
+    check("it stays until the next run", "Memory is running short" in titles(app))
+    finished_run()
+    app.run()
+    check("a calm run clears it", not titles(app), str(titles(app)))
+with memory(1, swap=500.0):
+    finished_run()
+    app.run()
+    check("swap growth warns", "Memory is running short" in titles(app))
+
+with memory(4), patch("nmv.ui.logger.warning") as warned:
+    finished_run()
+    app.run()
+    check("critical is urgent", "Memory is critically low" in titles(app))
+    check("and logged once", warned.call_count == 1, str(warned.call_args_list))
+    app.run()
+    check("not again on a rerun", warned.call_count == 1, str(warned.call_args_list))
+
+with memory(2, reader=False):
+    app = page("documents.py").run()
+    finished_run()
+    app.run()
+    check("no reader, no button", "Unload reader" not in labels(app))
+    check("and no mention of it", "unload the reader" not in text_of(app))
+
+unloads: list[bool] = []
+with memory(2, nmv__ui__unload_reader=lambda: unloads.append(True)):
+    app = page("documents.py").run()
+    check("no warning, no button", "Unload reader" not in labels(app))
+    finished_run()
+    app.run()
+    check("Ask documents offers it", "Unload reader" in labels(app))
+    button(app, "Unload reader").click().run()
+    check("it unloads", unloads == [True], str(unloads))
+    check("the warning goes", not titles(app), str(titles(app)))
+    check("so does the button", "Unload reader" not in labels(app))
+
+print("A failed run reports straight away")
+with memory(2, nmv__model__stream_reply=raises(RuntimeError(OOM))):
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+check("no uncaught exception", not uncaught(app), str(app.exception))
+check("the warning does not wait", "Memory is running short" in titles(app))
+
 print("Chat generation failure")
 with stubbed(nmv__model__stream_reply=raises(RuntimeError(OOM))):
     app = page("chat.py").run()

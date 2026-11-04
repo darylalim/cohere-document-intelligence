@@ -210,6 +210,7 @@ if run:
             run_id=action.run_id,
         )
         trace.finish(action, failure.kind, stats)
+        render_stats(stats_slot, None)
         st.stop()
     st.session_state.last_stats = stats
     render_stats(stats_slot, stats)

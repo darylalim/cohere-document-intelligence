@@ -11,6 +11,7 @@ preamble, but none is sent: the ``rag`` template already instructs the model.
 
 from __future__ import annotations
 
+import gc
 import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -99,6 +100,21 @@ def _load(local_path: str) -> Reader:
 def load_reader() -> Reader:
     """Load once per server process, as ``load_studio`` does."""
     return runtime.call(_load, download_reader())
+
+
+def _release() -> None:
+    import mlx.core as mx
+
+    gc.collect()  # a loaded model can sit in reference cycles
+    mx.clear_cache()
+    runtime.mark_loaded("reader", False)
+
+
+def unload_reader() -> None:
+    """Free the reader's memory; the next question reloads it. A job that still holds
+    the reader finishes first, because the release queues behind it."""
+    load_reader.clear()
+    runtime.call(_release)
 
 
 def is_reader_cached() -> bool:

@@ -12,6 +12,9 @@ import subprocess
 NORMAL, WARNING, CRITICAL = 1, 2, 4
 PRESSURE_LABELS = {NORMAL: "Normal", WARNING: "Warning", CRITICAL: "Critical"}
 TIMEOUT_S = 1
+# Swap moves a little whatever this app does, and a warning that fires on any
+# movement would soon be ignored.
+SWAP_GROWTH_MB = 64.0
 
 _SWAP_USED = re.compile(r"\bused = (\d+(?:\.\d+)?)([KMG])\b")
 _MB_PER_UNIT = {"K": 1 / 1024, "M": 1.0, "G": 1024.0}
@@ -49,3 +52,17 @@ def pressure_level() -> int | None:
 
 def swap_used_mb() -> float | None:
     return parse_swap_used(_sysctl("vm.swapusage"))
+
+
+def assess(
+    pressure: int | None, swap_mb: float | None, previous_swap_mb: float | None
+) -> int:
+    """The level to warn at after a run. A reading that failed never warns."""
+    if pressure == CRITICAL:
+        return CRITICAL
+    grew = (
+        swap_mb is not None
+        and previous_swap_mb is not None
+        and swap_mb - previous_swap_mb >= SWAP_GROWTH_MB
+    )
+    return WARNING if pressure == WARNING or grew else NORMAL

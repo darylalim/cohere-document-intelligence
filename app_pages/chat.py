@@ -208,6 +208,7 @@ if text or uploads:
                     run_id=action.run_id,
                 )
                 trace.finish(action, failure.kind, stats)
+                render_stats(stats_slot, None)
                 st.stop()
             stats_line = (
                 f"{stats.prompt_tokens:,} prompt tokens · "

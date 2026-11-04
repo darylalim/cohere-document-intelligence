@@ -28,7 +28,13 @@ from nmv.model import (
     load_studio,
 )
 from nmv.r7b_format import Phase, Piece
-from nmv.reader import READER_REPO, Reader, is_reader_cached, load_reader
+from nmv.reader import (
+    READER_REPO,
+    Reader,
+    is_reader_cached,
+    load_reader,
+    unload_reader,
+)
 from nmv.render import safe_markdown
 
 logger = logging.getLogger(__name__)
@@ -59,6 +65,7 @@ class SidebarSlots:
 
     stats: DeltaGenerator
     system: DeltaGenerator
+    alert: DeltaGenerator
 
 
 def begin_run(kind: trace.Kind) -> trace.RunBuilder:
@@ -416,12 +423,62 @@ def _run_rows() -> list[dict[str, str | int | float | None]]:
     ]
 
 
-def _render_system(slot: DeltaGenerator) -> None:
+def _check_memory(pressure: int | None, swap: float | None) -> None:
+    """Judge memory once per finished run, in any tab, however that run ended.
+
+    Keyed on the newest run record and not called from the pages, because a
+    transcription reruns without ever reaching ``render_stats``. A session's first
+    look only takes its baseline, so it never warns about runs from before it.
+    """
+    state = st.session_state
+    recent = trace.recent()
+    latest = recent[-1].run_id if recent else None
+    if "memory_run" not in state:
+        state.memory_run, state.swap_seen = latest, swap
+        return
+    if latest == state.memory_run:
+        return
+    level = system.assess(pressure, swap, state.swap_seen)
+    state.memory_run, state.swap_seen, state.memory_level = latest, swap, level
+    if level == system.CRITICAL:
+        logger.warning("memory pressure critical after run %s", latest)
+
+
+def _memory_level() -> int:
+    return st.session_state.get("memory_level", system.NORMAL)
+
+
+def _render_alert(slot: DeltaGenerator) -> None:
+    level = _memory_level()
+    if level == system.NORMAL:
+        slot.empty()
+        return
+    remedy = "Lower the image budget or max tokens"
+    if runtime.snapshot()["models"]["reader"]:
+        remedy += ", or unload the reader"
+    slot.warning(
+        f"{remedy}. macOS may otherwise swap, and answers will slow down.",
+        title=(
+            "Memory is critically low"
+            if level == system.CRITICAL
+            else "Memory is running short"
+        ),
+        icon=":material/memory:",
+    )
+
+
+def _unload_reader() -> None:
+    unload_reader()
+    st.session_state.memory_level = system.NORMAL
+    st.toast("Reader unloaded. The next question reloads it.")
+
+
+def _render_system(
+    slot: DeltaGenerator, pressure: int | None, swap: float | None
+) -> None:
     """Fill the System panel. Nothing here waits for the worker, so a tab stays
     responsive during another tab's answer."""
     snapshot = runtime.snapshot()
-    pressure = system.pressure_level()
-    swap = system.swap_used_mb()
     pending = runtime.pending()
     count, size = transcripts.usage()
     models = [MODEL_NAMES[name] for name, loaded in snapshot["models"].items() if loaded]
@@ -462,8 +519,15 @@ def render_stats(slots: SidebarSlots, stats: RunStats | None) -> None:
     work because remounting resets stateful widgets — ``st.metric`` holds no
     such state, so that hazard does not apply here. The System slot sits inside
     its expander for the same reason: the expander keeps its open state.
+
+    A page that stops after a failure passes ``None``: its run has no timings to
+    show, but the panels should not wait for the next rerun to report it.
     """
-    _render_system(slots.system)
+    pressure = system.pressure_level()
+    swap = system.swap_used_mb()
+    _check_memory(pressure, swap)
+    _render_alert(slots.alert)
+    _render_system(slots.system, pressure, swap)
     if stats is None:
         return
     with slots.stats.container():
@@ -479,7 +543,8 @@ def render_stats(slots: SidebarSlots, stats: RunStats | None) -> None:
 
 
 def sidebar(*, reader: bool = False) -> tuple[int, Sampling, SidebarSlots]:
-    """Render every shared control. ``reader`` adds Command R7B's model caption.
+    """Render every shared control, and the memory warning at this point on the page.
+    ``reader`` adds Command R7B's model caption and the warning's Unload button.
 
     Returns the image budget, the sampling config, and the slots the caller hands
     to ``render_stats`` once generation finishes.
@@ -497,6 +562,18 @@ def sidebar(*, reader: bool = False) -> tuple[int, Sampling, SidebarSlots]:
         with st.expander("System"):
             system_slot = st.empty()
 
-    slots = SidebarSlots(stats_slot, system_slot)
+    slots = SidebarSlots(stats_slot, system_slot, st.empty())
     render_stats(slots, st.session_state.get("last_stats"))
+    # Here, not in render_stats: that draws twice a run, and a widget cannot repeat.
+    if (
+        reader
+        and _memory_level() != system.NORMAL
+        and runtime.snapshot()["models"]["reader"]
+    ):
+        st.button(
+            "Unload reader",
+            icon=":material/eject:",
+            on_click=_unload_reader,
+            key="unload_reader",
+        )
     return budget, sampling, slots

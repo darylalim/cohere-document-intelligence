@@ -56,6 +56,18 @@ for error in (subprocess.TimeoutExpired("sysctl", 1), FileNotFoundError("sysctl"
         check(f"{name} is None", system.pressure_level() is None)
         check(f"{name} is None for swap", system.swap_used_mb() is None)
 
+print("assessing memory")
+assess = system.assess
+check("calm stays normal", assess(1, 100.0, 100.0) == system.NORMAL)
+check("pressure 2 warns", assess(2, 100.0, 100.0) == system.WARNING)
+check("pressure 4 is critical", assess(4, 100.0, 100.0) == system.CRITICAL)
+check("critical beats growth", assess(4, 900.0, 100.0) == system.CRITICAL)
+check("swap growth warns", assess(1, 164.0, 100.0) == system.WARNING)
+check("a small rise does not", assess(1, 163.0, 100.0) == system.NORMAL)
+check("nor does falling swap", assess(1, 100.0, 900.0) == system.NORMAL)
+check("unknown readings never warn", assess(None, None, None) == system.NORMAL)
+check("nor does a missing baseline", assess(1, 900.0, None) == system.NORMAL)
+
 print("snapshot")
 first = runtime.snapshot()
 check("starts with nothing loaded", not any(first["models"].values()))

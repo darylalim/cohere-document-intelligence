@@ -104,6 +104,7 @@ for text in INVOICE_TEXT:
 
 print("reader")
 loaded = reader.load_reader()
+before_ask = runtime.call(memory)[0]  # the run below starts a fresh peak
 question = [{"role": "user", "content": "What is the total due?"}]
 answer = reader.Answer()
 stats = model.RunStats()
@@ -159,7 +160,20 @@ check(
 
 print("memory")
 peak, cache, limit = runtime.call(memory)
+peak = max(peak, before_ask)
 print(f"  peak {peak:.2f} GB, cache {cache:.2f} GB, limit {limit:.2f} GB")
 check("peak stays under the limit", peak <= limit)
+
+print("unloading the reader")
+resident = runtime.call(runtime.active_gb)
+del loaded
+reader.unload_reader()
+freed = resident - runtime.snapshot()["active_gb"]
+print(f"  {resident:.2f} GB active, {freed:.2f} GB freed")
+check("its weights are freed", freed > 3.5, f"{freed:.2f} GB")
+check("the snapshot says so", runtime.snapshot()["models"]["reader"] is False)
+reloaded = reader.load_reader()
+check("the next question can reload it", runtime.snapshot()["models"]["reader"] is True)
+check("from a fresh load", runtime.call(runtime.active_gb) > resident - 1.0)
 
 finish()

@@ -213,8 +213,8 @@ def submit(fn: Callable[..., T], *args: Any, **kwargs: Any) -> Future[T]:
     def job() -> T:
         context.run(trace.job_started, submitted)
         run = context.run(trace.active)
-        # Only for a run: scripts/memory_check.py and the e2e test read the peak
-        # across several jobs, from a job of its own.
+        # Only for a run: scripts/memory_check.py reads the peak across several jobs,
+        # from a job of its own.
         if run is not None:
             _reset_peak()
         began = trace.clock()
