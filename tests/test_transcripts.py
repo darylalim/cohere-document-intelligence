@@ -269,6 +269,40 @@ check(
 )
 check("no thread raised", not errors, str(errors))
 
+print("failure logging")
+
+
+class Lines(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(record.getMessage())
+
+
+lines = Lines()
+transcripts.logger.addHandler(lines)
+logging.disable(logging.NOTSET)
+broken = fresh_db()
+broken.parent.mkdir()
+broken.write_bytes(b"not a database" * 1024)
+for _ in range(5):
+    transcripts.get(BASE.key())
+transcripts.usage()
+check("a broken store logs once", len(lines.lines) == 1, str(lines.lines))
+broken.unlink()
+check("it recovers", transcripts.put(saved()))
+check("and recovering is silent", len(lines.lines) == 1)
+broken.unlink()
+for name in ("-wal", "-shm"):
+    Path(f"{broken}{name}").unlink(missing_ok=True)
+broken.write_bytes(b"not a database" * 1024)
+transcripts.get(BASE.key())
+check("failing again logs again", len(lines.lines) == 2, str(lines.lines))
+logging.disable(logging.CRITICAL)
+transcripts.logger.removeHandler(lines)
+
 print("location")
 del os.environ[transcripts.DB_ENV]
 check(

@@ -136,17 +136,31 @@ def _connect() -> Generator[sqlite3.Connection]:
         yield db
 
 
+_last_failure: str | None = None
+
+
 def _or_else(miss: Callable[[], R]) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Log a store failure and return ``miss()``, so the pipeline carries on."""
+    """Log a store failure and return ``miss()``, so the pipeline carries on.
+
+    Every rerun reads the store several times, so a broken one would repeat the same
+    line a dozen times a rerun. It logs when the failure changes, and again if the
+    store recovers and then fails.
+    """
 
     def decorate(function: Callable[P, R]) -> Callable[P, R]:
         @wraps(function)
         def guarded(*args: P.args, **kwargs: P.kwargs) -> R:
+            global _last_failure
             try:
-                return function(*args, **kwargs)
+                result = function(*args, **kwargs)
             except STORE_ERRORS as error:
-                logger.warning("the store at %s failed: %s", db_path(), error)
+                failure = f"the store at {db_path()} failed: {error}"
+                if failure != _last_failure:
+                    logger.warning(failure)
+                _last_failure = failure
                 return miss()
+            _last_failure = None
+            return result
 
         return guarded
 
