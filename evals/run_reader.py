@@ -46,8 +46,8 @@ from nmv.documents import match_line  # noqa: E402
 from nmv.domain import PageId, page_id  # noqa: E402
 from nmv.grounding import parse_boxes  # noqa: E402
 from nmv.imaging import MAX_PIXELS, encode, normalize  # noqa: E402
+from nmv.r7b_format import START_ACTION  # noqa: E402
 
-ACTION_MARKER = "<|START_ACTION|>"
 INVENTED = -1  # a citation to a position that was never sent
 
 
@@ -85,7 +85,9 @@ def cited_pages(citations: list, answer: reader.Answer, pages: list) -> list[int
     return found
 
 
-def locate(studio, folder: Path, truth: dict, case: dict, citation, pages: list) -> dict:
+def locate(
+    studio, folder: Path, truth: dict, case: dict, citation, pages: list, saved: Path
+) -> dict:
     """Box the first cited span as the app does, on the page it cites."""
     page = case["cited"][0]
     wanted = truth_box(truth, case["q"])
@@ -97,6 +99,7 @@ def locate(studio, folder: Path, truth: dict, case: dict, citation, pages: list)
     prompt = prompts.LOCATE_PROMPT.format(text=sent)
     limit = prompts.LOCATE_MAX_TOKENS
     text, _, _ = generate(studio, image, resolved, prompt, limit, "locate")
+    saved.write_text(text, encoding="utf-8")
     boxes = [(b.x1, b.y1, b.x2, b.y2) for b in parse_boxes(text)]
     score = best_iou(wanted["bbox"], boxes)
     return {
@@ -122,7 +125,7 @@ def score(truth: dict, question: dict, answer, stats, seconds, pages) -> tuple:
         "answerable": answerable,
         "cited": cited,
         "thinking_tokens": answer.thinking_tokens,
-        "action_channel": ACTION_MARKER in answer.raw,
+        "action_channel": START_ACTION in answer.raw,
         "truncated": stats.truncated,
         "prompt_tokens": stats.prompt_tokens,
         "generated_tokens": stats.generation_tokens,
@@ -187,7 +190,7 @@ def conversation(loaded, truth: dict, pages: list, out: Path) -> list[dict]:
         answer, _, _ = ask(loaded, history, pages, False)
         (out / f"turn-{turn}.txt").write_text(answer.raw, encoding="utf-8")
         history.append({"role": "assistant", "content": answer.response})
-        rows.append({"turn": turn, "action": ACTION_MARKER in answer.raw})
+        rows.append({"turn": turn, "action": START_ACTION in answer.raw})
     return rows
 
 
@@ -236,7 +239,10 @@ def main() -> int:
             (out / f"q{number}.txt").write_text(answer.raw, encoding="utf-8")
             case, citations = score(truth, question, answer, stats, seconds, pages)
             if studio is not None and case["answerable"] and citations:
-                case |= locate(studio, path.parent, truth, case, citations[0], pages)
+                saved = out / f"locate-q{number}.txt"
+                case |= locate(
+                    studio, path.parent, truth, case, citations[0], pages, saved
+                )
             cases.append(case)
             print(
                 json.dumps(
