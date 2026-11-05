@@ -2666,8 +2666,8 @@ Uses part A's set, runner and metrics (step 1b). Run it in M3, after step 8's
 performance pass (items 6–9), once the pipeline exists and the M1 memory check
 has passed.
 
-1. **Reader configs:** `reader-r7b`, and `reader-tinyaya` (step 8's fallback,
-   evaluated on quality as well as memory).
+1. **Reader configs:** `reader-r7b`. **Decided 2026-11-04: R7B only.** Decision 2
+   kept R7B, so `reader-tinyaya` runs only if R7B's scores call for a comparison.
    - **Each reader runs twice:**
      - **on gold transcripts:** the truth file's `reference` text, which
        measures reasoning and citing alone

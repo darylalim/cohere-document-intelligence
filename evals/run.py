@@ -163,6 +163,8 @@ def main() -> int:
     name = (
         f"{date.today().isoformat()}-{git('rev-parse', '--short', 'HEAD')}-{args.config}"
     )
+    if args.eval_set != "set-v1":  # a smaller set must not overwrite the main summary
+        name += f"-{args.eval_set}"
     raw = ROOT / "evals" / "runs" / name
     started = time.monotonic()
     studio = model.load_studio(config.repo, config.revision)
