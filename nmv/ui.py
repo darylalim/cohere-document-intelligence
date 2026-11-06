@@ -8,6 +8,7 @@ from contextlib import suppress
 from dataclasses import asdict, dataclass
 
 import streamlit as st
+from PIL import Image
 from streamlit.delta_generator import DeltaGenerator
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
@@ -66,6 +67,17 @@ class SidebarSlots:
     stats: DeltaGenerator
     system: DeltaGenerator
     alert: DeltaGenerator
+
+
+def show_page_image(image: Image.Image, caption: str) -> None:
+    """A page at ``PAGE_IMAGE_WIDTH``, or narrower if its column is.
+
+    The limit is on a container because ``st.image(width=880)`` fixes the image at 880
+    px whatever the column: its wrapper shrinks to the image, so ``max-width: 100%``
+    never applies, and the page runs under the next column or off the window.
+    """
+    with st.container(width=PAGE_IMAGE_WIDTH):
+        st.image(image, caption=caption, width="stretch")
 
 
 def begin_run(kind: trace.Kind) -> trace.RunBuilder:

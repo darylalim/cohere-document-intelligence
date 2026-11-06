@@ -58,7 +58,6 @@ from nmv.reader import (
 from nmv.render import safe_markdown
 from nmv.ui import (
     MAX_PAGES,
-    PAGE_IMAGE_WIDTH,
     READING_WIDTH,
     Inspection,
     begin_run,
@@ -71,6 +70,7 @@ from nmv.ui import (
     show_answer,
     show_failure,
     show_inspect,
+    show_page_image,
     show_reader_licence,
     sidebar,
 )
@@ -430,7 +430,7 @@ def _page_panel(
     # safe_markdown, so the model's span stays out of it, in the caption below.
     boxed = located is not None and located[0].boxes
     alt = f"Page {numbers[shown]} of {len(numbers)}" + (", box drawn" if boxed else "")
-    st.image(image, caption=alt, width=PAGE_IMAGE_WIDTH)
+    show_page_image(image, alt)
     if located is not None:
         result, raw, located_run = located
         found_at = [describe(box) for box in result.boxes]
