@@ -131,6 +131,7 @@ themes. Known gaps, and what is not yet checked, are in
 - [Evaluation](evals/README.md): how those measurements are made
 - [Contributing](CONTRIBUTING.md): development, tests and CI
 - [Releasing](RELEASING.md): the steps before a version bump
+- [Security](SECURITY.md): how to report a vulnerability, and the trust model
 
 ## License
 

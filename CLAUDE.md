@@ -331,6 +331,7 @@ Every fact has one home. Edit it there and link to it from anywhere else.
 | `docs/performance.md` | Measured quality, memory and speed |
 | `evals/README.md` | How the quality numbers are made |
 | `CONTRIBUTING.md`, `RELEASING.md` | Development, tests, CI, and the steps before a bump |
+| `SECURITY.md` | How to report a vulnerability, and the trust model |
 | `.streamlit/config.toml` | Theme numbers and trades, in comments |
 | `CLAUDE.md` | Rules and invariants, each with its reason |
 | `docs/plans/` | Records, not current truth |
