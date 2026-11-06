@@ -47,6 +47,8 @@ shows.*
 - Python 3.11–3.13 (the pinned venv uses 3.12).
 - [uv](https://docs.astral.sh/uv/).
 
+Measured quality and memory are in [`docs/performance.md`](docs/performance.md).
+
 ## Setup
 
 ```bash

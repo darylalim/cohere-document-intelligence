@@ -2,6 +2,68 @@
 
 ## Quality
 
+### Quality: the baseline
+
+`evals/baseline.json`, the shipped pair of NMV 8-bit and R7B on `evals/set-v1`. Temperature
+0, ceiling image budget, M2 Pro 16 GB, 2026-11-05, code at `a6ffec4`. `set-v2` is three
+pages with planted instructions, and is not part of the baseline. Summaries are in
+`evals/results/`. [`evals/README.md`](../evals/README.md) has the commands.
+
+| Vision | set-v1 | set-v2 |
+|---|---|---|
+| Grounding hits (IoU ≥ 0.5) | 24 / 57 | 5 / 9 |
+| CER, markup removed | 4.29% | 5.71% |
+| Field recall | 98.96% | 91.67% |
+| Peak memory | 4.52 GB | 4.45 GB |
+
+| Reader | set-v1, gold text | set-v1, NMV text | set-v2, gold text | set-v2, NMV text |
+|---|---|---|---|---|
+| Correct answers | 78 / 84 | 77 / 84 | 10 / 12 | 12 / 12 |
+| Citation precision | 1.00 | 1.00 | 1.00 | 1.00 |
+| Citation recall | 0.976 | 1.00 | 1.00 | 1.00 |
+| Citations off their evidence page | 0 | 0 | 0 | 0 |
+| Correct refusals | 19 / 21 | 19 / 21 | 3 / 3 | 3 / 3 |
+| Planted instructions followed | n/a | n/a | 0 / 3 | 0 / 3 |
+| Locate hits (IoU ≥ 0.5) | n/a | 13 / 84 | n/a | 2 / 12 |
+
+Gold text is the page's true text, so it measures the reader alone. NMV text is the real
+pipeline. The whole run took 66 minutes. A set-v1 pass took 12–14, or 22 on NMV text,
+which also runs Locate.
+
+With each set-v1 document's five questions asked as one conversation, 0 of 105 replies were
+a tool call, down from 9 of 105 before the prompt opened the response itself. R7B wrote no thinking
+in any scored answer, before or after that change.
+
+### What the reader numbers mean
+
+- **Reading a bill's parties is the main weakness.** "Which company was billed" is wrong
+  on 5 of 11 questions on NMV text and 4 of 11 on gold text. R7B names the company on
+  the letterhead, the one that sent the invoice. It is the same mistake on both, so it is
+  the reader's, not OCR's. Both of `set-v2`'s gold-text errors are this question too, though
+NMV text got those right, so the error is not stable.
+- **Set-v1's other NMV errors are one question.** "What is the second column's heading?"
+  fails on both articles.
+- **The tick-box errors on gold text come from the set.** Gold text has no tick marks, so
+  neither form's "Which contact method is ticked?" can be answered from it.
+- **Correct refusals understates by one on NMV text.** `form-01` says the date of birth is
+  not provided, but cites the word "applicant" while saying so, which the proxy counts as
+  an answer. The other misses are real: R7B gave "before any contract is signed" for a
+  meeting date, and an invoice number for a purchase order number.
+- **Not measured:** questions that need several steps across pages, and Locate on a label
+  rather than a value. Neither is in a set yet. A dense-page check outside the set got a
+  longest-period question wrong (10 weeks, with 34 and 38 on the pages).
+
+### What the Locate numbers mean
+
+Locate is the weakest number here, and `report.py --against baseline` does not hold it, so
+a regression there fails nothing. Of 84 set-v1 cases:
+
+- **13 hit**, and 38 have a box whose centre is inside the truth. The gap is the one
+  described under grounding below: the model boxes the key part of a line.
+- **34 are points**, about 40%, so nothing is drawn and the page says why (decision 8).
+  Those are the 34 replies with no box; 4 of them came with no brackets.
+- **12 have a box whose centre is outside the truth.**
+
 ### Quality: 8-bit against bf16
 
 `evals/set-v1`, 21 documents, 24 pages, 57 grounding targets. Temperature 0, ceiling
