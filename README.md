@@ -98,6 +98,16 @@ If the internal disk is short, set `HF_HOME` to a folder on an external drive. O
 weights are cached the app can run offline; see
 [Network traffic](docs/privacy.md#network-traffic).
 
+## Updating
+
+```bash
+git fetch --tags && git checkout <new tag> && uv sync --locked
+```
+
+A release that moves a model pin says so in its notes, with the download size, because that
+update pulls new weights. `uv run hf cache rm <revision hash>` removes the old ones, and
+`uv run hf cache ls --revisions` lists what is cached.
+
 ## Accessibility
 
 Every box is described in words and numbered to match its table row, every image has a
