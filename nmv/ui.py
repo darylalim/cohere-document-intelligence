@@ -262,12 +262,14 @@ def explain_no_boxes(raw: str, truncated: bool, *, fixed_limit: bool = False) ->
             icon=":material/my_location:",
         )
     elif contains_json(raw):
-        # The model answered, and the answer is "nothing here matches": a correct
-        # result, not a failure, so this says nothing about sampling.
+        # The model answered, and the answer is "nothing here matches". That can be
+        # right, or chance under sampling (docs/performance.md), which a fixed_limit
+        # caller cannot be: Locate is greedy, so the toggle is no remedy there.
+        remedy = "" if fixed_limit else " With sampling on, **Deterministic** may help."
         st.info(
             "The model returned an empty result — it found nothing matching this "
             "instruction. Try different wording or another task preset, or raise "
-            "the image budget if the target is small.",
+            f"the image budget if the target is small.{remedy}",
             icon=":material/search_off:",
         )
     else:

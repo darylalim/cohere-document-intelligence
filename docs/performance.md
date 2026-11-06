@@ -100,6 +100,10 @@ The absolute hit rate understates grounding, on both checkpoints alike:
   8-bit, including all four receipt targets. `parse_boxes` rejects these as degenerate,
   so they count as "no usable box", although three of the six land inside the truth.
 - **7 of 57 boxes are off target**, for example the whole column for a column heading.
+- **Under sampling, an empty result can be chance.** These runs are greedy, so they cannot
+  show it. On `assets/sample-invoice.png`, "Stamps and signatures" at the default
+  temperature of 0.7 returned `[]` in 1 of 7 runs, while a deterministic run hit the stamp.
+  Seven runs give no rate. The empty-result message on Grounding suggests **Deterministic**.
 
 ## Memory
 
