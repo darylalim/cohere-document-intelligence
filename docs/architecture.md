@@ -26,7 +26,7 @@ nmv/trace.py              one run record per action, never content
 nmv/log.py                terminal logging, metadata only
 nmv/system.py             macOS memory status
 nmv/ui.py                 shared sidebar
-scripts/                  memory check and performance pass
+scripts/                  preflight doctor, memory check, performance pass
 evals/                    eval sets, runners, metrics and the baseline
 tests/                    plain-script tests in tiers, run by tests/run.py
 ```

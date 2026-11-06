@@ -158,13 +158,14 @@ grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ str
 That must return nothing.
 
 If you ever broaden the ruff `select` set, note that `PLC0415`
-(`import-outside-top-level`) fires on 28 function-local imports (`uv run ruff check
+(`import-outside-top-level`) fires on 29 function-local imports (`uv run ruff check
 --select PLC0415 --no-fix .`). Ignore the rule, never hoist them to satisfy it:
 
 - 24 are MLX and deliberate: 5 mlx-vlm, 4 mlx-lm and 15 `mlx.core`, in `nmv/`, `scripts/`
   and `tests/`.
-- 4 are `huggingface_hub`, which the invariant does not cover: `is_cached()`,
-  `is_reader_cached()`, `download_reader()` and `_is_download_error()`.
+- 5 are `huggingface_hub`, which the invariant does not cover: `is_cached()`,
+  `is_reader_cached()`, `download_reader()`, `_is_download_error()` and the doctor's
+  `missing_weights()`, which must run before `uv sync`.
 
 Consequences:
 
@@ -207,6 +208,7 @@ Ask documents, which calls `transcripts.clear()`.
 | `nmv/grounding.py` | 0–1000 box parsing and PIL overlay rendering |
 | `nmv/ui.py` | Shared sidebar; returns `(budget, sampling, SidebarSlots)` |
 | `app_pages/*.py` | Page scripts — UI only, direct scripts with no `main()` |
+| `scripts/doctor.py` | Preflight check. **Standard library only at module level.** |
 | `scripts/memory_check.py` | Whether both models fit on this Mac. Needs the weights. |
 | `scripts/perf_pass.py` | The performance pass on a generated dense document |
 | `evals/` | Eval sets, runners, metrics and the baseline. See `evals/README.md`. |
