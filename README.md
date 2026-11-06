@@ -47,6 +47,8 @@ shows.*
 - Python 3.11–3.13 (the pinned venv uses 3.12).
 - [uv](https://docs.astral.sh/uv/).
 
+Measured quality and memory are in [`docs/performance.md`](docs/performance.md).
+
 ## Setup
 
 ```bash
@@ -150,6 +152,34 @@ treat answers about untrusted documents accordingly. The one way such text could
 reach outside the app is a Markdown image, which a browser loads from any URL with
 no click, so every message on the page has images replaced with `[image: alt]` text
 first. Links are left alone, because they need a click.
+
+## Accessibility
+
+Boxes drawn on an image say nothing to a screen reader, and colour alone cannot link a
+box to its row. So the app gives each one a text equivalent:
+
+- **Every box is described in words,** such as "lower right · about 25% of the page
+  wide, 15% tall". Grounding shows this in the table's "where" column, and Ask documents
+  in the caption under a located page.
+- **Every box is numbered.** `#N` stays on the box and matches the table's `#` column,
+  even with "Show label text" off.
+- **Stream responses can be turned off** in the sidebar. A reply then appears once,
+  complete, with no moving text.
+- **Every image has a caption** in place of alt text, which `st.image` does not offer.
+- **Every alert says what to do next,** and citations name their page in text.
+- **Contrast floors are tested** on both themes by `tests/test_theme_contrast.py`. It
+  computes colours from the config, so it is a floor rather than proof of what renders.
+
+Known gaps:
+
+- **The keyboard focus ring is 2.43:1** in both themes, under the 3:1 that WCAG
+  recommends. No single config value fixes it without undoing the accent's other
+  trades, and the app uses no custom CSS.
+- **The dark theme's toggle knob is 2.26:1** on its "on" track. The Transcribe button
+  states the save mode in text, so that setting never depends on the knob.
+- **Widget ARIA and live regions belong to Streamlit,** so the app cannot change them.
+
+Not yet checked: VoiceOver, keyboard-only use, reflow at 320 px, and an axe pass.
 
 ## Layout
 

@@ -12,9 +12,11 @@ import streamlit as st
 from PIL import Image
 from streamlit.typing import UploadedFile
 
-from nmv.grounding import Box, draw_boxes, parse_boxes
+from nmv import trace
+from nmv.grounding import Box, describe, draw_boxes, parse_boxes
 from nmv.imaging import (
     IMAGE_ERRORS,
+    IMAGE_REMEDY,
     IMAGE_TYPES,
     ImagePlan,
     encode,
@@ -22,7 +24,15 @@ from nmv.imaging import (
     open_upload,
 )
 from nmv.model import RunStats, stream_reply, user_turn
-from nmv.ui import ensure_studio, explain_no_boxes, render_stats, show_failure, sidebar
+from nmv.ui import (
+    PAGE_IMAGE_WIDTH,
+    begin_run,
+    ensure_studio,
+    explain_no_boxes,
+    render_stats,
+    show_failure,
+    sidebar,
+)
 
 PRESETS = {
     "Objects": (
@@ -48,7 +58,7 @@ def _encode_upload(
     """Normalise and resize an upload, once per (file, budget) pair.
 
     Uncached, this ran on *every* rerun: nudging a sampling slider or flipping
-    "Show labels" paid a full EXIF transpose and resize of the original. Measured
+    "Show label text" paid a full EXIF transpose and resize of the original. Measured
     on an M2 Max, encoding costs 27 ms for the sample invoice and 100 ms for a
     12 MP phone photo, against ~2 ms and ~9 ms to unpickle the cached result.
 
@@ -91,7 +101,7 @@ def _render_overlay(
 
 @st.fragment
 def _overlay_panel(image: Image.Image, file_id: str, boxes: list[Box], stem: str) -> None:
-    """The overlay column, isolated so "Show labels" reruns only this much.
+    """The overlay column, isolated so "Show label text" reruns only this much.
 
     The toggle lives inside the fragment on purpose: a fragment only scopes
     reruns triggered by widgets it owns, so leaving the toggle outside would
@@ -101,12 +111,15 @@ def _overlay_panel(image: Image.Image, file_id: str, boxes: list[Box], stem: str
     A full-app rerun (any sidebar widget) still re-executes this body, which is
     why :func:`_render_overlay` is cached rather than merely fragment-scoped.
     """
-    show_labels = st.toggle("Show labels", value=True, key="grounding_labels")
+    show_labels = st.toggle("Show label text", value=True, key="grounding_labels")
     if not boxes:
-        st.image(image, width="stretch")
+        st.image(image, caption="Your image, no boxes", width=PAGE_IMAGE_WIDTH)
         return
     annotated, png_bytes = _render_overlay(image, file_id, tuple(boxes), show_labels)
-    st.image(annotated, width="stretch")
+    # st.image has no alt text, so a caption stands in: the table holds the detail.
+    count = "1 box" if len(boxes) == 1 else f"{len(boxes)} boxes"
+    alt = f"Your image with {count} drawn, numbered as in the table"
+    st.image(annotated, caption=alt, width=PAGE_IMAGE_WIDTH)
     st.download_button(
         "Download overlay",
         png_bytes,
@@ -145,7 +158,7 @@ instruction = st.text_area(
 # Keying on the upload alone let a new instruction, preset or image budget
 # render a fresh "Encoding at ..." caption directly above the previous run's
 # overlay, table and download — stale output indistinguishable from current.
-# "Show labels" is deliberately absent: it only re-renders what is already
+# "Show label text" is deliberately absent: it only re-renders what is already
 # there, and re-running the model for it would be wasteful.
 signature = (getattr(upload, "file_id", None), instruction, budget)
 if st.session_state.get("grounding_signature") != signature:
@@ -167,7 +180,7 @@ if upload is None:
 try:
     original, encoded, resolved = _encode_upload(upload, upload.file_id, budget)
 except IMAGE_ERRORS as error:
-    st.error(str(error), icon=":material/broken_image:")
+    st.error(f"{error} {IMAGE_REMEDY}", icon=":material/broken_image:")
     st.stop()
 
 st.caption(
@@ -181,6 +194,12 @@ st.caption(
 )
 
 if run:
+    action = begin_run("ground")
+    action.set(
+        image_tokens=resolved.tokens,
+        budget_px=budget,
+        resolved_px=resolved.target_pixels,
+    )
     stats = RunStats()
     try:
         with st.spinner("Locating…"):
@@ -190,19 +209,28 @@ if run:
                 )
             )
     except Exception as exc:
-        show_failure(exc, retry=lambda: st.session_state.update(grounding_retry=True))
+        failure = show_failure(
+            exc,
+            retry=lambda: st.session_state.update(grounding_retry=True),
+            run_id=action.run_id,
+        )
+        trace.finish(action, failure.kind, stats)
+        render_stats(stats_slot, None)
         st.stop()
     st.session_state.last_stats = stats
     render_stats(stats_slot, stats)
+    with trace.span("parse"):
+        parsed = parse_boxes(raw)
     st.session_state.grounding_result = {
         "raw": raw,
-        "boxes": parse_boxes(raw),
+        "boxes": parsed,
         "truncated": stats.truncated,
     }
+    trace.finish(action, stats=stats)
 
 result = st.session_state.get("grounding_result")
 if result is None:
-    st.image(original, caption="Ready", width="stretch")
+    st.image(original, caption="Ready", width=PAGE_IMAGE_WIDTH)
     st.stop()
 
 boxes = result["boxes"]
@@ -220,6 +248,7 @@ with details:
                 {
                     "#": index + 1,
                     "label": box.label or "—",
+                    "where": describe(box),
                     "grid": f"{box.x1:.0f}, {box.y1:.0f}, {box.x2:.0f}, {box.y2:.0f}",
                     "pixels": "{}, {}, {}, {}".format(
                         *box.to_pixels(original.width, original.height)

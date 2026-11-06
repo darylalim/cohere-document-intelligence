@@ -23,6 +23,10 @@ if out=$(grep -rnE --include='*.py' '^[^#]*(unsafe_allow_html=True|trust_remote_
   nmv/ app_pages/ streamlit_app.py); then
   failures+=$'\n--- unsafe_allow_html or trust_remote_code ---\n'"$out"
 fi
+if out=$(grep -rnE 'log(ger)?\.(debug|info|warning|error|exception|critical)\(.*\b(text|transcript|prompt|messages|reply|raw|span|query|label|name)\b' \
+  nmv/ app_pages/); then
+  failures+=$'\n--- a logging call references document content ---\n'"$out"
+fi
 if ! out=$(uv run ty check 2>&1); then
   failures+=$'\n--- uv run ty check ---\n'"$(tail -n 40 <<<"$out")"
 fi

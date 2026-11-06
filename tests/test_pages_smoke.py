@@ -23,7 +23,7 @@ from _check import check, finish  # noqa: E402
 from PIL import Image  # noqa: E402
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
-from nmv import transcripts  # noqa: E402
+from nmv import imaging, runtime, trace, transcripts, ui  # noqa: E402
 from nmv.r7b_format import Phase, Piece  # noqa: E402
 from nmv.reader import Answer, ContextExceeded  # noqa: E402
 
@@ -36,7 +36,9 @@ temp = tempfile.TemporaryDirectory()
 os.environ[transcripts.DB_ENV] = str(Path(temp.name) / "transcripts.db")
 
 
-def fake_reply(studio, messages, images, sampling, stats=None) -> Iterator[str]:
+def fake_reply(
+    studio, messages, images, sampling, stats=None, rendered=None
+) -> Iterator[str]:
     """Transcribe and Locate both come through here; the prompt says which."""
     prompt = messages[-1]["content"][-1]["text"]
     if stats is not None:
@@ -53,6 +55,8 @@ def fake_answer(reader, history, pages, sampling, stats=None, answer=None):
     assert answer is not None
     answer.sent_pages = tuple(page for page, _ in pages)
     answer.response = RESPONSE
+    answer.prompt = "<rendered reader prompt>"
+    answer.raw = f"planning{RESPONSE}"
     yield Piece(Phase.THINKING, "planning")
     yield Piece(Phase.RESPONSE, RESPONSE)
 
@@ -121,6 +125,156 @@ for name in ("chat.py", "grounding.py", "documents.py"):
     check("it gets show_failure's message", "GPU memory" in app.error[0].value)
     check("it offers Retry", "Retry" in labels(app))
 
+print("System panel")
+SNAPSHOT = {
+    **runtime.snapshot(),
+    "active_gb": 11.0,
+    "cache_gb": 1.0,
+    "limit_gb": 10.7,  # past the limit: st.progress raises above 1.0 unless clamped
+    "models": {"nmv": True, "reader": False},
+}
+with stubbed(
+    nmv__ui__runtime__snapshot=lambda: SNAPSHOT,
+    nmv__ui__runtime__pending=lambda: 3,
+    nmv__ui__system__pressure_level=lambda: 2,
+    nmv__ui__system__swap_used_mb=lambda: None,
+):
+    app = page("chat.py").run()
+panel = next(item for item in app.sidebar.expander if item.label == "System")
+shown = " ".join(item.value for item in panel.caption)
+check("it renders past the limit", not uncaught(app), str(app.exception))
+check("collapsed", not panel.proto.expanded)
+bar = panel.get("progress")[0].proto
+check("the bar is clamped", bar.value == 100, str(bar.value))
+check("its text keeps the real figures", bar.text == "12.0 / 10.7 GB", bar.text)
+check("pressure is named", "Memory pressure: Warning" in shown, shown)
+check("a failed read is Unknown", "Swap used: Unknown" in shown, shown)
+check("models are named", "North Micro Vision" in shown and "R7B" not in shown, shown)
+check("the worker shows its queue", "busy · 2 queued" in shown, shown)
+
+with stubbed(nmv__ui__runtime__pending=lambda: 2):
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+check("a wait is explained", "(2 ahead)" in app.toast[0].value, str(list(app.toast)))
+with stubbed():
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+check("no wait, no toast", not list(app.toast))
+panel = next(item for item in app.sidebar.expander if item.label == "System")
+check("the run reaches the panel", len(panel.dataframe) == 1, str(panel.dataframe))
+
+print("Starter prompts")
+STARTER = "Describe this chart and state the trend it shows."
+with stubbed():
+    app = page("chat.py").run()
+    check("the pills are offered", len(app.get("button_group")) == 1)
+    app.chat_input[0].set_value(STARTER).run()
+check("a starter with no image asks for one", "Attach an image" in text_of(app))
+check("and nothing ran", app.session_state["chat"] == [])
+check("the pills stay", len(app.get("button_group")) == 1)
+check("no failure", not uncaught(app))
+with stubbed():
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+check("other text still sends", len(app.session_state["chat"]) == 2)
+check("and clears the pills", not app.get("button_group"))
+
+print("Stream responses")
+with patch("nmv.ui.st") as fake_st:
+    slot = fake_st.empty.return_value
+    check("on returns the text", ui.show_reply(iter(["a", "b"])) == "ab")
+    check("on redraws per chunk", slot.markdown.call_count == 2)
+    fake_st.reset_mock()
+    check("off returns the text", ui.show_reply(iter(["a", "b"]), False) == "ab")
+    check("off draws once", fake_st.markdown.call_count == 1)
+    check("off never streams", slot.markdown.call_count == 0)
+    fake_st.reset_mock()
+    pieces = [Piece(Phase.THINKING, "plan"), Piece(Phase.RESPONSE, "<co>Yes</co: 0:[0]>")]
+    ui.show_answer(iter(pieces), False)
+    drawn = str(fake_st.markdown.call_args)
+    check("an answer draws once, without its tags", "Yes" in drawn and "<co" not in drawn)
+    check("and without its plan", "plan" not in drawn, drawn)
+with stubbed():
+    app = page("chat.py").run()
+    app.sidebar.toggle(key="stream_responses").set_value(False).run()
+    app.chat_input[0].set_value("hello").run()
+check("a reply lands with it off", len(app.session_state["chat"]) == 2)
+check("and shows", "Total due" in text_of(app), text_of(app))
+
+print("Memory warnings")
+
+
+def memory(pressure: int, swap: float = 100.0, reader: bool = True, **overrides):
+    resident = {**SNAPSHOT, "models": {"nmv": True, "reader": reader}}
+    return stubbed(
+        nmv__ui__runtime__snapshot=lambda: resident,
+        nmv__ui__system__pressure_level=lambda: pressure,
+        nmv__ui__system__swap_used_mb=lambda: swap,
+        **overrides,
+    )
+
+
+def finished_run() -> None:
+    trace.finish(trace.start("ask"))
+
+
+def titles(app: AppTest) -> list[str]:
+    return [item.proto.title for item in app.warning]
+
+
+with memory(2):
+    app = page("chat.py").run()
+    check("a new session only takes a baseline", not titles(app), str(titles(app)))
+    finished_run()
+    app.run()
+    check("pressure 2 warns after a run", "Memory is running short" in titles(app))
+    check("it names the fix", "unload the reader" in text_of(app), text_of(app))
+    check("no button off Ask documents", "Unload reader" not in labels(app))
+with memory(1):
+    app.run()
+    check("it stays until the next run", "Memory is running short" in titles(app))
+    finished_run()
+    app.run()
+    check("a calm run clears it", not titles(app), str(titles(app)))
+with memory(1, swap=500.0):
+    finished_run()
+    app.run()
+    check("swap growth warns", "Memory is running short" in titles(app))
+
+with memory(4), patch("nmv.ui.logger.warning") as warned:
+    finished_run()
+    app.run()
+    check("critical is urgent", "Memory is critically low" in titles(app))
+    check("and logged once", warned.call_count == 1, str(warned.call_args_list))
+    app.run()
+    check("not again on a rerun", warned.call_count == 1, str(warned.call_args_list))
+
+with memory(2, reader=False):
+    app = page("documents.py").run()
+    finished_run()
+    app.run()
+    check("no reader, no button", "Unload reader" not in labels(app))
+    check("and no mention of it", "unload the reader" not in text_of(app))
+
+unloads: list[bool] = []
+with memory(2, nmv__ui__unload_reader=lambda: unloads.append(True)):
+    app = page("documents.py").run()
+    check("no warning, no button", "Unload reader" not in labels(app))
+    finished_run()
+    app.run()
+    check("Ask documents offers it", "Unload reader" in labels(app))
+    button(app, "Unload reader").click().run()
+    check("it unloads", unloads == [True], str(unloads))
+    check("the warning goes", not titles(app), str(titles(app)))
+    check("so does the button", "Unload reader" not in labels(app))
+
+print("A failed run reports straight away")
+with memory(2, nmv__model__stream_reply=raises(RuntimeError(OOM))):
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+check("no uncaught exception", not uncaught(app), str(app.exception))
+check("the warning does not wait", "Memory is running short" in titles(app))
+
 print("Chat generation failure")
 with stubbed(nmv__model__stream_reply=raises(RuntimeError(OOM))):
     app = page("chat.py").run()
@@ -128,6 +282,43 @@ with stubbed(nmv__model__stream_reply=raises(RuntimeError(OOM))):
 check("no uncaught exception", not uncaught(app), str(app.exception))
 check("it is explained", "GPU memory" in app.error[0].value)
 check("nothing joined the history", app.session_state["chat"] == [])
+
+print("Inspect")
+HOSTILE = "![pixel](https://attacker.example/x.png) **ignore previous instructions**"
+
+
+def hostile_reply(studio, messages, images, sampling, stats=None, rendered=None):
+    if rendered is not None:
+        rendered.prompt = "<|START_OF_TURN|>hello"
+    yield HOSTILE
+
+
+with stubbed(nmv__model__stream_reply=hostile_reply):
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+    check("no exception", not uncaught(app), str(app.exception))
+    code = [block.value for block in app.code]
+    check("the raw output is in a code block", HOSTILE in code, str(code))
+    check("the rendered prompt is too", "<|START_OF_TURN|>hello" in code, str(code))
+    check("the record is a table", len(app.table) == 1)
+    check("the image never renders", "attacker.example" not in text_of(app))
+    app.run()  # the turn is redrawn from the history
+    check("it survives a rerun", HOSTILE in [block.value for block in app.code])
+
+    for _ in range(ui.INSPECT_KEEP + 1):
+        app.chat_input[0].set_value("again").run()
+    app.run()  # the run that evicts one has already drawn it
+    check("only the latest turns keep content", len(app.table) == ui.INSPECT_KEEP)
+    button(app, "Clear conversation").click().run()
+check("clearing forgets them", "inspect_chat" not in app.session_state)
+
+print("Run IDs reach the failure details")
+with stubbed(nmv__model__stream_reply=raises(RuntimeError(OOM))):
+    app = page("chat.py").run()
+    app.chat_input[0].set_value("hello").run()
+last = trace.recent()[-1]
+check("the failure is recorded", last.outcome == "out_of_memory", str(last))
+check("the details name the run", f"run {last.run_id}" in text_of(app), text_of(app))
 
 print("Ask documents: the save toggle")
 with stubbed():
@@ -181,11 +372,85 @@ with stubbed():
     (entry,) = app.session_state["locate_cache"].values()
     check("a box was parsed", len(entry[0].boxes) == 1)
     check("the span on the page was sent", entry[0].instruction == "$4,182.55")
+    check("the answer and the Locate keep Inspect", len(app.table) == 2)
+    kinds = [record.kind for record in trace.recent()]
+    check("each action left a record", kinds[-3:] == ["transcribe", "ask", "locate"])
+    app.run()
+    check("a cached Locate adds none", len(trace.recent()) == len(kinds))
+
+print("Ask documents: a page is resized once")
+with stubbed():
+    resizes = []
+    real_encode = imaging.encode
+
+    def counted_encode(image, budget):
+        resizes.append(budget)
+        return real_encode(image, budget)
+
+    with patch("nmv.imaging.encode", counted_encode):
+        app = page("documents.py").run()
+        app.file_uploader[0].set_value([("once.png", png("#123456"), "image/png")]).run()
+        button(app, "Transcribe").click().run()
+        app.chat_input[0].set_value("What is the total due?").run()
+        app.button_group(key="ask_cite_1").set_value(0).run()
+        check("no exception", not uncaught(app), str(app.exception))
+        check("Locate ran", len(app.session_state["locate_cache"]) == 1)
+        check("Locate reused the resize", len(resizes) == 1, str(resizes))
+        app.run()
+        check("a cached Locate does not resize", len(resizes) == 1, str(resizes))
+
+
+print("Ask documents: a citation click redraws only what changed")
+with stubbed():
+    app = page("documents.py").run()
+    app.file_uploader[0].set_value(
+        [
+            ("first.png", png("#654321"), "image/png"),
+            ("second.png", png("#abcdef"), "image/png"),
+        ]
+    ).run()
+    button(app, "Transcribe").click().run()
+    app.chat_input[0].set_value("What is the total due?").run()
+    app.chat_input[0].set_value("And again?").run()
+    app.button_group(key="ask_cite_1").set_value(0).run()
+    check("no exception on a miss", not uncaught(app), str(app.exception))
+    check("the miss reached the sidebar", "· locate" in text_of(app), text_of(app))
+
+    full_runs = []
+    real_usage = transcripts.usage
+
+    def counted_usage():
+        full_runs.append(1)
+        return real_usage()
+
+    with patch("nmv.transcripts.usage", counted_usage):
+        app.button_group(key="ask_cite_3").set_value(0).run()
+        check("no exception on a hit", not uncaught(app), str(app.exception))
+        check("no full run on a hit", not full_runs, str(len(full_runs)))
+        where = "Page 1 · “$4,182.55” · upper left · about 30%"
+        check("the panel kept its box", where in text_of(app), text_of(app))
+    check("the other turn was cleared", app.session_state["ask_cite_1"] is None)
+
+    # AppTest delivers a click as a full run, which is what a click that lands during
+    # a run becomes when it joins that run's closing st.rerun().
+    app.session_state["transcribe_queue"] = [app.session_state["ask_signature"][0]]
+    app.session_state["transcribe_total"] = 1
+    app.button_group(key="ask_cite_1").set_value(0).run()
+    check("no exception mid-queue", not uncaught(app), str(app.exception))
+    check("a click does not stall the queue", app.session_state["transcribe_queue"] == [])
+
+    app.session_state["ask_answering"] = True
+    full_runs.clear()
+    with patch("nmv.transcripts.usage", counted_usage):
+        app.button_group(key="ask_cite_3").set_value(0).run()
+    check("a click after an answer redraws it", bool(full_runs))
+    check("the next full run clears the flag", not app.session_state["ask_answering"])
+
 
 print("Ask documents: a point answer")
 
 
-def point_only(studio, messages, images, sampling, stats=None):
+def point_only(studio, messages, images, sampling, stats=None, rendered=None):
     if stats is not None:
         stats.finish_reason = "stop"
     yield "[[852, 301, 852, 301]]"
@@ -207,7 +472,7 @@ print("Ask documents: a failing page does not stop the rest")
 calls: list[int] = []
 
 
-def fails_once(studio, messages, images, sampling, stats=None):
+def fails_once(studio, messages, images, sampling, stats=None, rendered=None):
     calls.append(1)
     if len(calls) == 1:
         raise RuntimeError(OOM)

@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Iterable
 from contextlib import suppress
+from dataclasses import asdict, dataclass
 
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
-from nmv import runtime
+from nmv import runtime, system, trace, transcripts
 from nmv.citations import parse
 from nmv.errors import Failure, classify
 from nmv.grounding import contains_json, is_point_answer
@@ -26,15 +28,26 @@ from nmv.model import (
     load_studio,
 )
 from nmv.r7b_format import Phase, Piece
-from nmv.reader import READER_REPO, Reader, is_reader_cached, load_reader
+from nmv.reader import (
+    READER_REPO,
+    Reader,
+    is_reader_cached,
+    load_reader,
+    unload_reader,
+)
 from nmv.render import safe_markdown
 
-logger = logging.getLogger("nmv")
+logger = logging.getLogger(__name__)
 
 MAX_MEGAPIXELS = MAX_PIXELS / MEGAPIXEL
 MAX_PAGES = 10  # about memory and transcription time; the reader's budget is its own
 READING_WIDTH = 760  # about 80 characters at the theme's 15 px base size
 PAGE_IMAGE_WIDTH = 880  # above this an A4 page is taller than a 1440p screen
+INSPECT_KEEP = 5  # per page: the content lives in session state, and only this much
+MODEL_NAMES: dict[runtime.ModelName, str] = {
+    "nmv": "North Micro Vision",
+    "reader": "Command R7B",
+}
 
 # Every widget below carries `persist_state="session"`, and a bare `key` is not
 # a substitute. Streamlit folds the active page's script hash into every element
@@ -46,8 +59,92 @@ PAGE_IMAGE_WIDTH = 880  # above this an A4 page is taller than a 1440p screen
 # deterministic mode, which were dropped the same way on each toggle.
 
 
-def show_reply(chunks: Iterable[str]) -> str:
-    """Stream model output onto the page and return the raw, unfiltered text.
+@dataclass(frozen=True)
+class SidebarSlots:
+    """The parts of the sidebar that a finished run redraws."""
+
+    stats: DeltaGenerator
+    system: DeltaGenerator
+    alert: DeltaGenerator
+
+
+def begin_run(kind: trace.Kind) -> trace.RunBuilder:
+    """Start the run record, with the first 6 characters of the session id.
+
+    Every job starts here, so this is also where a wait gets explained: with one
+    worker, another tab's job would otherwise look like a hang.
+    """
+    ahead = runtime.pending()
+    if ahead:
+        st.toast(
+            f"Waiting for another tab's job ({ahead} ahead)",
+            icon=":material/hourglass_top:",
+        )
+    context = get_script_run_ctx()
+    return trace.start(kind, context.session_id[:6] if context else trace.NO_ID)
+
+
+@dataclass(frozen=True)
+class Inspection:
+    """What the model saw and said. Content, so it stays in session state and never
+    reaches a log, the run record or the disk. A refresh clears it."""
+
+    prompt: str
+    raw: str
+    record: trace.RunRecord
+    notes: tuple[str, ...] = ()
+
+
+def keep_inspection(scope: str, inspection: Inspection) -> None:
+    kept = st.session_state.setdefault(f"inspect_{scope}", {})
+    kept[inspection.record.run_id] = inspection
+    while len(kept) > INSPECT_KEEP:
+        kept.pop(next(iter(kept)))
+
+
+def forget_inspections(scope: str) -> None:
+    st.session_state.pop(f"inspect_{scope}", None)
+
+
+def _record_rows(record: trace.RunRecord) -> list[dict[str, str]]:
+    values = asdict(record)
+    spans = values.pop("spans")
+    values.update({f"{name} (s)": seconds for name, seconds in spans.items()})
+    return [
+        {
+            "Field": name,
+            "Value": f"{value:.3f}" if isinstance(value, float) else str(value),
+        }
+        for name, value in values.items()
+    ]
+
+
+def show_inspect(scope: str, run_id: str) -> None:
+    """Draw a kept run, or nothing once it has aged out.
+
+    ``st.code`` renders nothing, which is what makes it safe for hostile text: this
+    is where a user checks whether a document carried an injected instruction.
+    """
+    inspection = st.session_state.get(f"inspect_{scope}", {}).get(run_id)
+    if inspection is None:
+        return
+    with st.expander("Inspect"):
+        for note in inspection.notes:
+            st.caption(safe_markdown(note))
+        st.caption("Prompt, as the chat template rendered it")
+        st.code(inspection.prompt or "(empty)", language=None, wrap_lines=True)
+        st.caption("Raw model output")
+        st.code(inspection.raw or "(empty)", language=None, wrap_lines=True)
+        st.caption("Run record")
+        st.table(_record_rows(inspection.record))
+
+
+def show_reply(chunks: Iterable[str], streaming: bool = True) -> str:
+    """Show model output on the page and return the raw, unfiltered text.
+
+    With ``streaming`` off it collects under a spinner and renders once, for
+    screen readers and anyone distracted by moving text. The chunks are consumed
+    fully either way, so stats and leaving mid-answer behave the same.
 
     Not ``st.write_stream``: that renders raw chunks with
     ``unterminated_parsing=True``, so an injected Markdown image could load while
@@ -55,6 +152,11 @@ def show_reply(chunks: Iterable[str]) -> str:
     first. The return value has not, because the conversation history must keep
     what the model actually said; run it through ``safe_markdown`` to redraw it.
     """
+    if not streaming:
+        with st.spinner("Answering…"):
+            reply = "".join(chunks)
+        st.markdown(safe_markdown(reply))
+        return reply
     slot = st.empty()
     reply = ""
     for chunk in chunks:
@@ -63,12 +165,18 @@ def show_reply(chunks: Iterable[str]) -> str:
     return reply
 
 
-def show_answer(pieces: Iterable[Piece]) -> None:
-    """Stream the reader's response, without its plan and its citation tags.
+def show_answer(pieces: Iterable[Piece], streaming: bool = True) -> None:
+    """Show the reader's response, without its plan and its citation tags.
 
     ``parse`` tolerates a tag cut off mid-stream, so no half-written ``<co>`` flashes
-    past. The reader's ``Answer`` keeps the raw response for the history.
+    past. The reader's ``Answer`` keeps the raw response for the history. ``streaming``
+    works as in ``show_reply``.
     """
+    if not streaming:
+        with st.spinner("Answering…"):
+            reply = "".join(p.text for p in pieces if p.phase is Phase.RESPONSE)
+        st.markdown(safe_markdown(parse(reply)[0]))
+        return
     slot = st.empty()
     slot.caption("Planning the answer…")
     reply = ""
@@ -84,22 +192,31 @@ def show_failure(
     *,
     retry_key: str = "retry",
     first_report: bool = True,
+    run_id: str = "",
 ) -> Failure:
     """The one way a page reports a load or generation failure.
 
     Wrap the call in ``except Exception`` and nothing broader: ``st.stop()`` and
     ``st.rerun()`` raise a ``BaseException``. ``retry`` runs when the user presses
     Retry, before the rerun, so it can put back what the run was doing. Pass
-    ``first_report=False`` to redraw a failure that was already logged.
+    ``first_report=False`` to redraw a failure that was already logged. ``run_id``
+    goes in the details, so one search of the terminal finds the whole story.
     """
     failure = classify(exc)
     if first_report:
-        logger.error("%s: %s", failure.kind, type(exc).__name__, exc_info=exc)
+        # The class only: an exception's message can carry a file name. Expected
+        # kinds get no traceback, and a run's own record already reports them.
+        if failure.kind == "internal":
+            logger.error("%s: %s", failure.kind, type(exc).__name__, exc_info=exc)
+        elif not run_id:
+            logger.warning("%s: %s", failure.kind, type(exc).__name__)
         if failure.kind == "out_of_memory":
             with suppress(Exception):  # the page must still report the first failure
                 runtime.clear_cache()
     st.error(f"**{failure.title}.** {failure.remedy}", icon=":material/error:")
     with st.expander("Details"):
+        if run_id:
+            st.caption(f"run {run_id}")
         st.exception(exc)
     if retry is not None:
         st.button("Retry", icon=":material/refresh:", on_click=retry, key=retry_key)
@@ -303,25 +420,149 @@ def _sampling_control() -> Sampling:
     )
 
 
-def render_stats(slot: DeltaGenerator, stats: RunStats | None) -> None:
-    """Fill the reserved sidebar slot with timings from a run.
+def _display_control() -> None:
+    """The pages read this from session state, where its key puts it."""
+    st.subheader("Display", divider="gray")
+    st.toggle(
+        "Stream responses",
+        value=True,
+        key="stream_responses",
+        persist_state="session",
+        help="Off shows each reply once it is complete, with no moving text.",
+    )
 
-    The slot is claimed while the sidebar draws, before generation starts, so
-    a fresh run can write into it afterwards. Without that, the panel would
-    always trail one interaction behind — it would render the *previous* run's
+
+def _run_rows() -> list[dict[str, str | int | float | None]]:
+    """The recent runs, newest first. Run records hold numbers only."""
+    return [
+        {
+            "Kind": record.kind,
+            "Queue s": round(record.queue_wait_s, 2),
+            "First token s": (
+                None if record.first_token_s is None else round(record.first_token_s, 2)
+            ),
+            "Prompt tokens": record.prompt_tokens,
+            "Generated": record.generated_tokens,
+            "Thinking": record.thinking_tokens,
+            "Peak GB": round(record.peak_gb, 2),
+        }
+        for record in reversed(trace.recent())
+    ]
+
+
+def _check_memory(pressure: int | None, swap: float | None) -> None:
+    """Judge memory once per finished run, in any tab, however that run ended.
+
+    Keyed on the newest run record and not called from the pages, because a
+    transcription reruns without ever reaching ``render_stats``. A session's first
+    look only takes its baseline, so it never warns about runs from before it.
+    """
+    state = st.session_state
+    recent = trace.recent()
+    latest = recent[-1].run_id if recent else None
+    loads = runtime.snapshot()["loads"]
+    if "memory_run" not in state:
+        state.memory_run, state.swap_seen, state.memory_loads = latest, swap, loads
+        return
+    if latest == state.memory_run:
+        return
+    # A load pages idle memory out once, about 0.5 GB on 16 GB with pressure Normal,
+    # so swap growth across one says nothing. Pressure still counts.
+    previous = state.swap_seen if loads == state.memory_loads else None
+    level = system.assess(pressure, swap, previous)
+    state.memory_run, state.swap_seen, state.memory_level = latest, swap, level
+    state.memory_loads = loads
+    if level == system.CRITICAL:
+        logger.warning("memory pressure critical after run %s", latest)
+
+
+def _memory_level() -> int:
+    return st.session_state.get("memory_level", system.NORMAL)
+
+
+def _render_alert(slot: DeltaGenerator) -> None:
+    level = _memory_level()
+    if level == system.NORMAL:
+        slot.empty()
+        return
+    remedy = "Lower the image budget or max tokens"
+    if runtime.snapshot()["models"]["reader"]:
+        remedy += ", or unload the reader"
+    slot.warning(
+        f"{remedy}. macOS may otherwise swap, and answers will slow down.",
+        title=(
+            "Memory is critically low"
+            if level == system.CRITICAL
+            else "Memory is running short"
+        ),
+        icon=":material/memory:",
+    )
+
+
+def _unload_reader() -> None:
+    unload_reader()
+    st.session_state.memory_level = system.NORMAL
+    st.toast("Reader unloaded. The next question reloads it.")
+
+
+def _render_system(
+    slot: DeltaGenerator, pressure: int | None, swap: float | None
+) -> None:
+    """Fill the System panel. Nothing here waits for the worker, so a tab stays
+    responsive during another tab's answer."""
+    snapshot = runtime.snapshot()
+    pending = runtime.pending()
+    count, size = transcripts.usage()
+    models = [MODEL_NAMES[name] for name, loaded in snapshot["models"].items() if loaded]
+    runs = _run_rows()
+
+    with slot.container():
+        limit = snapshot["limit_gb"]
+        if limit:
+            used = snapshot["active_gb"] + snapshot["cache_gb"]
+            # The limit is soft, and going past it is when this bar matters most.
+            # st.progress raises above 1.0, so only the bar is clamped.
+            st.progress(min(used / limit, 1.0), text=f"{used:.1f} / {limit:.1f} GB")
+        else:
+            st.caption("Memory appears once a job has finished.")
+        label = system.PRESSURE_LABELS.get(pressure or 0, "Unknown")
+        st.caption(f"Memory pressure: {label}")
+        st.caption(f"Swap used: {'Unknown' if swap is None else f'{swap:,.0f} MB'}")
+        st.caption(f"Models loaded: {', '.join(models) or 'none'}")
+        st.caption(f"Worker: {f'busy · {pending - 1} queued' if pending else 'idle'}")
+        st.caption(f"Saved transcripts: {count} · {size / 1000:,.1f} KB")
+        if runs:
+            st.dataframe(runs, hide_index=True, alt="The last 10 runs, newest first")
+
+
+def render_stats(slots: SidebarSlots, stats: RunStats | None) -> None:
+    """Fill the reserved sidebar slots with timings from a run.
+
+    The slots are claimed while the sidebar draws, before generation starts, so
+    a fresh run can write into them afterwards. Without that, the panels would
+    always trail one interaction behind — they would render the *previous* run's
     numbers under a "Last run" heading.
 
-    It is an ``st.empty()`` rather than an ``st.container()`` because this runs
+    They are ``st.empty()`` rather than ``st.container()`` because this runs
     twice per interaction: once from ``sidebar()`` carrying the previous run's
     numbers, then again from the page once generation finishes. ``st.empty()``
     replaces on write; a container appends, stacking two "Last run" panels.
     Streamlit's own guidance discourages ``st.empty()`` slots filled after slow
     work because remounting resets stateful widgets — ``st.metric`` holds no
-    such state, so that hazard does not apply here.
+    such state, so that hazard does not apply here. The System slot sits inside
+    its expander for the same reason: the expander keeps its open state.
+
+    A page that stops after a failure passes ``None``: its run has no timings to
+    show, but the panels should not wait for the next rerun to report it.
     """
+    pressure = system.pressure_level()
+    swap = system.swap_used_mb()
+    _check_memory(pressure, swap)
+    _render_alert(slots.alert)
+    _render_system(slots.system, pressure, swap)
     if stats is None:
         return
-    with slot.container():
+    with slots.stats.container():
         st.subheader("Last run", divider="gray")
         if stats.model:
             st.caption(stats.model)
@@ -333,11 +574,12 @@ def render_stats(slot: DeltaGenerator, stats: RunStats | None) -> None:
             st.metric("Peak memory GB", f"{stats.peak_memory:.2f}")
 
 
-def sidebar(*, reader: bool = False) -> tuple[int, Sampling, DeltaGenerator]:
-    """Render every shared control. ``reader`` adds Command R7B's model caption.
+def sidebar(*, reader: bool = False) -> tuple[int, Sampling, SidebarSlots]:
+    """Render every shared control, and the memory warning at this point on the page.
+    ``reader`` adds Command R7B's model caption and the warning's Unload button.
 
-    Returns the image budget, the sampling config, and a slot the caller fills
-    with run statistics once generation finishes.
+    Returns the image budget, the sampling config, and the slots the caller hands
+    to ``render_stats`` once generation finishes.
     """
     with st.sidebar:
         st.caption("Model")
@@ -348,7 +590,23 @@ def sidebar(*, reader: bool = False) -> tuple[int, Sampling, DeltaGenerator]:
             st.caption("8B · 4-bit · CC-BY-NC-4.0 · non-commercial")
         budget = _budget_control()
         sampling = _sampling_control()
+        _display_control()
         stats_slot = st.empty()
+        with st.expander("System"):
+            system_slot = st.empty()
 
-    render_stats(stats_slot, st.session_state.get("last_stats"))
-    return budget, sampling, stats_slot
+    slots = SidebarSlots(stats_slot, system_slot, st.empty())
+    render_stats(slots, st.session_state.get("last_stats"))
+    # Here, not in render_stats: that draws twice a run, and a widget cannot repeat.
+    if (
+        reader
+        and _memory_level() != system.NORMAL
+        and runtime.snapshot()["models"]["reader"]
+    ):
+        st.button(
+            "Unload reader",
+            icon=":material/eject:",
+            on_click=_unload_reader,
+            key="unload_reader",
+        )
+    return budget, sampling, slots

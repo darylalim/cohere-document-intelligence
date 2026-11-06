@@ -13,6 +13,7 @@ thread, and calls tend to follow their imports.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, cast
@@ -20,7 +21,9 @@ from typing import Any, cast
 import streamlit as st
 from PIL import Image
 
-from nmv import runtime
+from nmv import runtime, trace
+
+logger = logging.getLogger(__name__)
 
 MODEL_REPO = "mlx-community/North-Micro-Vision-Instruct-8bit"
 # A commit on that repo, not a branch, because a checkpoint can run code here.
@@ -112,12 +115,33 @@ class RunStats:
                 setattr(self, name, value)
 
 
+@dataclass
+class Rendered:
+    """The prompt as the chat template rendered it, filled in on the worker.
+
+    Apart from ``RunStats`` because this is content, and ``last_stats`` outlives the
+    conversation. Only Inspect keeps it, and only in session state.
+    """
+
+    prompt: str = ""
+
+
 def _load(repo_id: str, revision: str) -> Studio:
     from mlx_vlm import load
     from mlx_vlm.utils import load_config
 
+    logger.info("loading %s @ %s", repo_id, revision[:7])
+    began = trace.clock()
     model, processor = load(repo_id, revision=revision)
     config = load_config(repo_id, revision=revision)
+    logger.info(
+        "loaded %s @ %s in %.1f s, %.2f GB active",
+        repo_id,
+        revision[:7],
+        trace.clock() - began,
+        runtime.active_gb(),
+    )
+    runtime.mark_loaded("nmv")
     return Studio(model=model, processor=processor, config=config)
 
 
@@ -163,8 +187,17 @@ def stream_reply(
     images: list[Image.Image],
     sampling: Sampling,
     stats: RunStats | None = None,
+    rendered: Rendered | None = None,
 ) -> Iterator[str]:
     """Yield response deltas, suitable for ``ui.show_reply``."""
+    run = trace.active()
+    if run is not None:
+        run.set(max_tokens=sampling.max_tokens)
+    logger.debug(
+        "sampling %s, resolved sizes %s",
+        sampling.as_kwargs(),
+        [image.size for image in images],
+    )
 
     def produce(emit):
         from mlx_vlm import stream_generate
@@ -173,6 +206,8 @@ def stream_reply(
         prompt = apply_chat_template(
             studio.processor, studio.config, messages, num_images=len(images)
         )
+        if rendered is not None:
+            rendered.prompt = cast(str, prompt)
         for chunk in stream_generate(
             studio.model,
             studio.processor,
@@ -189,6 +224,7 @@ def stream_reply(
                 return
 
     for chunk in runtime.iterate(produce):
+        trace.first_token()
         if stats is not None:
             stats.absorb(chunk)
         yield chunk.text

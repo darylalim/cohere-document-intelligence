@@ -5,6 +5,10 @@ Run with:  uv run streamlit run streamlit_app.py
 
 import streamlit as st
 
+from nmv import log
+
+log.setup()
+
 st.set_page_config(
     page_title="Cohere Document Intelligence",
     page_icon=":material/frame_inspect:",

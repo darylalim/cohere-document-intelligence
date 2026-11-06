@@ -17,13 +17,14 @@ Run:  uv run python tests/test_runtime_abandon.py
 import sys
 import threading
 import time
+from contextvars import ContextVar
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from _check import check, finish  # noqa: E402
 
-from nmv import runtime  # noqa: E402
+from nmv import runtime, trace  # noqa: E402
 
 CHANNEL_LIMIT = 128  # nmv.runtime.iterate's queue maxsize
 PROBE_TIMEOUT = 15.0
@@ -107,5 +108,110 @@ check(
     str(raised),
 )
 check("worker still usable after a failure", worker_responds())
+
+print("run context")
+marker: ContextVar[str] = ContextVar("marker", default="unset")
+marker.set("from the page")
+run = trace.start("chat", "abc123")
+
+
+def on_worker() -> tuple[str, str | None]:
+    with trace.span("parse"):
+        time.sleep(0.01)
+    current = trace.active()
+    return marker.get(), current.run_id if current else None
+
+
+seen_marker, seen_run = runtime.submit(on_worker).result(PROBE_TIMEOUT)
+record = trace.finish(run)
+check("a context variable reaches the job", seen_marker == "from the page", seen_marker)
+check("so does the run", seen_run == run.run_id, str(seen_run))
+check(
+    "a span added on the worker is visible page-side",
+    record.spans.get("parse", 0.0) >= 0.01,
+    str(record.spans),
+)
+check("queue wait is measured", record.queue_wait_s >= 0.0, str(record.queue_wait_s))
+
+print("waiting behind another job")
+release = threading.Event()
+blocker = runtime.submit(release.wait, PROBE_TIMEOUT)
+run = trace.start("chat")
+waiting = runtime.submit(lambda: None)
+time.sleep(0.05)
+release.set()
+waiting.result(PROBE_TIMEOUT)
+blocker.result(PROBE_TIMEOUT)
+record = trace.finish(run)
+check("the wait is the queue's", record.queue_wait_s >= 0.05, str(record.queue_wait_s))
+
+
+def settled(timeout: float = PROBE_TIMEOUT) -> bool:
+    """A waiter can wake before the future's callbacks run, so give them a moment."""
+    deadline = time.monotonic() + timeout
+    while runtime.pending() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    return runtime.pending() == 0
+
+
+print("pending jobs")
+check("nothing pending when idle", settled())
+release = threading.Event()
+blocker = runtime.submit(release.wait, PROBE_TIMEOUT)
+queued = runtime.submit(lambda: None)
+check("running and queued both count", runtime.pending() == 2, str(runtime.pending()))
+release.set()
+blocker.result(PROBE_TIMEOUT)
+queued.result(PROBE_TIMEOUT)
+check("back to 0 after jobs that succeed", settled(), str(runtime.pending()))
+
+
+def fails() -> None:
+    raise RuntimeError("job exploded")
+
+
+failed = runtime.submit(fails)
+check("the job's own exception survives", isinstance(failed.exception(), RuntimeError))
+check("back to 0 after a job that raises", settled(), str(runtime.pending()))
+
+print("snapshot")
+run = trace.start("ask")
+runtime.call(time.sleep, 0.02)
+trace.finish(run)
+latest = runtime.snapshot()
+check("a job publishes its kind", latest["last_kind"] == "ask", str(latest["last_kind"]))
+check("and its length", latest["last_seconds"] >= 0.02, str(latest["last_seconds"]))
+check("the limit is read", latest["limit_gb"] > 0, str(latest["limit_gb"]))
+check("memory is never negative", min(latest["active_gb"], latest["peak_gb"]) >= 0)
+runtime.call(lambda: None)
+later = runtime.snapshot()["updated"]
+check(
+    "a job outside a run still refreshes it",
+    later is not None and latest["updated"] is not None and later > latest["updated"],
+)
+check("under its own label", runtime.snapshot()["last_kind"] == runtime.NO_RUN)
+
+print("peak memory")
+
+
+def allocate() -> None:
+    import mlx.core as mx
+
+    mx.eval(mx.zeros((256, 1024, 1024), dtype=mx.float32))  # 1 GiB, freed on return
+
+
+run = trace.start("chat")
+runtime.call(allocate)
+trace.finish(run)
+big = runtime.snapshot()["peak_gb"]
+check("a run's peak includes what it allocated", big >= 1.0, f"{big:.2f} GB")
+runtime.call(lambda: None)
+kept = runtime.snapshot()["peak_gb"]
+check("a job outside a run leaves the peak alone", kept == big, f"{kept:.2f} GB")
+run = trace.start("chat")
+runtime.call(lambda: None)
+trace.finish(run)
+small = runtime.snapshot()["peak_gb"]
+check("the next run starts from a fresh peak", small < big - 0.5, f"{small:.2f} GB")
 
 finish()

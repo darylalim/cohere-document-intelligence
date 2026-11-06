@@ -11,6 +11,11 @@ Those markers are not EOS tokens, so they arrive in the text stream. Only the
 response is shown, and only the response may become history: the template wraps
 past assistant turns in response markers itself, so storing the raw stream would
 nest them. The thinking can contain ``<co>`` tags too, and they mean nothing.
+
+The prompt opens the response itself. Left to choose, R7B sometimes calls a tool on a
+follow-up question, though it has none: 9 of 105 conversation replies were an action
+block and no answer. So the plan above normally never appears, and an action block is
+still caught if one comes, because that JSON must not reach the page or the history.
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ START_THINKING = "<|START_THINKING|>"
 END_THINKING = "<|END_THINKING|>"
 START_RESPONSE = "<|START_RESPONSE|>"
 END_RESPONSE = "<|END_RESPONSE|>"
+START_ACTION = "<|START_ACTION|>"
 
 
 class Phase(StrEnum):
@@ -37,6 +43,7 @@ _NEXT = {
     END_THINKING: Phase.IDLE,
     START_RESPONSE: Phase.RESPONSE,
     END_RESPONSE: Phase.DONE,
+    START_ACTION: Phase.DONE,
 }
 
 
@@ -46,7 +53,7 @@ class Piece(NamedTuple):
 
 
 def render(tokenizer: Any, history: list[dict], documents: list[dict]) -> str:
-    """The full prompt, through the checkpoint's own ``rag`` template."""
+    """The full prompt, through the checkpoint's own ``rag`` template, up to the reply."""
     prompt = tokenizer.apply_chat_template(
         history,
         documents=documents,
@@ -55,7 +62,7 @@ def render(tokenizer: Any, history: list[dict], documents: list[dict]) -> str:
         add_generation_prompt=True,
         tokenize=False,
     )
-    return cast(str, prompt)
+    return cast(str, prompt) + START_RESPONSE
 
 
 def _held_back(buffer: str) -> int:

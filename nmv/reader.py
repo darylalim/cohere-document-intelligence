@@ -11,16 +11,20 @@ preamble, but none is sent: the ``rag`` template already instructs the model.
 
 from __future__ import annotations
 
+import gc
+import logging
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
 import streamlit as st
 
-from nmv import runtime
+from nmv import runtime, trace
 from nmv.domain import PageId
 from nmv.model import RunStats
 from nmv.r7b_format import Phase, PhaseParser, Piece, render
+
+logger = logging.getLogger(__name__)
 
 READER_REPO = "mlx-community/c4ai-command-r7b-12-2024-4bit"
 # A commit, not a branch, for the reasons at MODEL_REVISION. This commit has no .py
@@ -75,10 +79,20 @@ def download_reader() -> str:
 def _load(local_path: str) -> Reader:
     from mlx_lm import load
 
+    logger.info("loading %s @ %s", READER_REPO, READER_REVISION[:7])
+    began = trace.clock()
     loaded = load(local_path)
     # Here and not at boot: only with both models resident does the cache matter.
     # This already runs on the worker, so it calls limit_cache directly.
     runtime.limit_cache()
+    logger.info(
+        "loaded %s @ %s in %.1f s, %.2f GB active",
+        READER_REPO,
+        READER_REVISION[:7],
+        trace.clock() - began,
+        runtime.active_gb(),
+    )
+    runtime.mark_loaded("reader")
     return Reader(model=loaded[0], tokenizer=loaded[1])
 
 
@@ -86,6 +100,21 @@ def _load(local_path: str) -> Reader:
 def load_reader() -> Reader:
     """Load once per server process, as ``load_studio`` does."""
     return runtime.call(_load, download_reader())
+
+
+def _release() -> None:
+    import mlx.core as mx
+
+    gc.collect()  # a loaded model can sit in reference cycles
+    mx.clear_cache()
+    runtime.mark_loaded("reader", False)
+
+
+def unload_reader() -> None:
+    """Free the reader's memory; the next question reloads it. A job that still holds
+    the reader finishes first, because the release queues behind it."""
+    load_reader.clear()
+    runtime.call(_release)
 
 
 def is_reader_cached() -> bool:
@@ -159,7 +188,8 @@ def check_fits(
     if prompt_tokens + max_tokens > context:
         raise ContextExceeded(
             f"The prompt needs {prompt_tokens} tokens and the answer up to "
-            f"{max_tokens}, past the reader's limit of {context}."
+            f"{max_tokens}, past the reader's limit of {context}. Ask about fewer "
+            "pages, or start a new conversation."
         )
 
 
@@ -180,6 +210,8 @@ class Answer:
     dropped_pages: tuple[PageId, ...] = ()
     dropped_turns: int = 0
     response: str = ""
+    prompt: str = ""  # as rendered, for Inspect
+    raw: str = ""  # everything decoded, plan included, for Inspect
     thinking_tokens: int = 0
     phase: Phase = Phase.IDLE
 
@@ -215,10 +247,26 @@ def stream_answer(
 
     fit = fit_context(history, pages, render_prompt, count, sampling.max_tokens)
     prompt = render_prompt(fit.history, fit.pages)
-    check_fits(count(prompt), sampling.max_tokens)
+    tokens = count(prompt)
+    check_fits(tokens, sampling.max_tokens)
+    logger.debug(
+        "reader input: %d tokens, %d pages dropped, %d turns dropped",
+        tokens,
+        len(fit.dropped_pages),
+        fit.dropped_turns,
+    )
     answer.sent_pages = tuple(page_id for page_id, _ in fit.pages)
     answer.dropped_pages = fit.dropped_pages
     answer.dropped_turns = fit.dropped_turns
+    answer.prompt = prompt
+    run = trace.active()
+    if run is not None:
+        # Here and not after the stream, so a failed answer still records them.
+        run.set(
+            max_tokens=sampling.max_tokens,
+            pages_used=len(fit.pages),
+            pages_dropped=len(fit.dropped_pages),
+        )
 
     def produce(emit):
         from mlx_lm import stream_generate
@@ -251,10 +299,14 @@ def stream_answer(
             yield piece
 
     for chunk in runtime.iterate(produce):
+        trace.first_token()
         if stats is not None:
             stats.absorb(chunk)
+        answer.raw += chunk.text
         if parser.phase is Phase.THINKING:
             answer.thinking_tokens += 1
+            if run is not None:
+                run.set(thinking_tokens=answer.thinking_tokens)
         yield from absorb(parser.feed(chunk.text))
         answer.phase = parser.phase
     yield from absorb(parser.close())

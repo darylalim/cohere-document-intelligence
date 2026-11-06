@@ -25,11 +25,13 @@ GRID = 1000.0
 _BOX_KEYS = ("bbox_2d", "box_2d", "bbox", "box", "rect", "coordinates")
 _LABEL_KEYS = ("label", "name", "text", "object", "category", "class", "caption")
 
-# Four numbers in brackets, allowing decimals and negative signs.
-_QUAD = re.compile(
-    r"\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,"
-    r"\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]"
-)
+# Four numbers, allowing decimals and negative signs.
+_NUMBER = r"\s*(-?\d+(?:\.\d+)?)\s*"
+_FOUR = ",".join([_NUMBER] * 4)
+_QUAD = re.compile(rf"\[{_FOUR}\]")
+# The same as a whole reply with no brackets, which the model sometimes gives for a
+# point. Whole reply only: four numbers in prose are not coordinates.
+_BARE_QUAD = re.compile(_FOUR)
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 
 PALETTE = [
@@ -42,6 +44,10 @@ PALETTE = [
     (45, 212, 191),
     (244, 114, 182),
 ]
+
+
+LOW_THIRD, HIGH_THIRD = 333, 667  # the 3×3 grid ``describe`` places a box on
+MOST_OF_PAGE = 90  # percent of both axes
 
 
 @dataclass(frozen=True)
@@ -65,6 +71,33 @@ class Box:
     @property
     def area(self) -> float:
         return (self.x2 - self.x1) * (self.y2 - self.y1)
+
+
+def _rounded_percent(percent: float) -> str:
+    """To the nearest 5, halves up: ``round`` would turn 12.5% into 10%."""
+    return "under 5%" if percent < 5 else f"{int(percent / 5 + 0.5) * 5}%"
+
+
+def describe(box: Box) -> str:
+    """Where a box sits and how big it is, for anyone who cannot see the overlay.
+
+    Never reads the label, because labels are optional.
+    """
+    x1, x2 = min(box.x1, box.x2), max(box.x1, box.x2)
+    y1, y2 = min(box.y1, box.y2), max(box.y1, box.y2)
+    wide, tall = (x2 - x1) / GRID * 100, (y2 - y1) / GRID * 100
+    if wide >= MOST_OF_PAGE and tall >= MOST_OF_PAGE:
+        return "most of the page"
+
+    def third(centre: float, low: str, middle: str, high: str) -> str:
+        return low if centre < LOW_THIRD else high if centre > HIGH_THIRD else middle
+
+    row = third((y1 + y2) / 2, "upper", "middle", "lower")
+    column = third((x1 + x2) / 2, "left", "centre", "right")
+    place = "centre" if (row, column) == ("middle", "centre") else f"{row} {column}"
+    width = _rounded_percent(wide)
+    width = width if wide < 5 else f"about {width}"
+    return f"{place} · {width} of the page wide, {_rounded_percent(tall)} tall"
 
 
 def _make_box(values, label: str) -> Box | None:
@@ -238,10 +271,14 @@ def contains_json(text: str) -> bool:
 def is_point_answer(text: str) -> bool:
     """True when the reply holds a point, such as ``[852, 301, 852, 301]``.
 
+    A reply of only ``852,301,852,301``, with no brackets, is one too.
+
     :func:`parse_boxes` rejects these as degenerate. Only about half land on their
     target, so nothing is drawn for one; this lets the page say why.
     """
-    for match in _QUAD.finditer(text or ""):
+    text = text or ""
+    bare = _BARE_QUAD.fullmatch(text)
+    for match in [bare] if bare else _QUAD.finditer(text):
         x1, y1, x2, y2 = (float(value) for value in match.groups())
         if abs(x2 - x1) < 1.0 and abs(y2 - y1) < 1.0:
             return True
@@ -274,7 +311,12 @@ def _font(size: int) -> ImageFont.BaseImageFont:
 def draw_boxes(
     image: Image.Image, boxes: list[Box], *, show_labels: bool = True
 ) -> Image.Image:
-    """Composite translucent boxes and label chips over a copy of ``image``."""
+    """Composite translucent boxes and numbered chips over a copy of ``image``.
+
+    Every box keeps its ``#N``: it is what links a box to its table row, because
+    colour alone cannot, and ``PALETTE`` holds a red and a green. ``show_labels``
+    only adds the label's text.
+    """
     canvas = image.convert("RGBA")
     overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -300,9 +342,9 @@ def draw_boxes(
             (x1, y1, x2, y2), fill=(*colour, 38), outline=(*colour, 255), width=stroke
         )
 
-        if not show_labels:
-            continue
-        caption = box.label or f"#{index + 1}"
+        caption = f"#{index + 1}"
+        if show_labels and box.label:
+            caption += f" {box.label}"
         left, top, right, bottom = draw.textbbox((0, 0), caption, font=font)
         chip_w, chip_h = right - left + 2 * pad, bottom - top + 2 * pad
 

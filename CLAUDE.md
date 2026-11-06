@@ -151,6 +151,8 @@ Consequences:
 | File | Responsibility |
 |---|---|
 | `nmv/runtime.py` | MLX worker thread. Read first. |
+| `nmv/trace.py` | One `RunRecord` per action: numbers and IDs only. **No MLX, no Streamlit.** |
+| `nmv/log.py` | Terminal logging, level from `NMV_LOG_LEVEL`. Metadata only, never content. |
 | `nmv/model.py` | Loading (`st.cache_resource`), `Sampling`, `RunStats`, streaming |
 | `nmv/reader.py` | Command R7B: loading, context budget, streaming answers |
 | `nmv/r7b_format.py` | R7B's template and thinking/response phases. **No MLX import.** |

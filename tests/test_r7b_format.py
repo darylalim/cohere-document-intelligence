@@ -11,7 +11,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from _check import check, finish  # noqa: E402
 
-from nmv.r7b_format import Phase, PhaseParser, stream_phases  # noqa: E402
+from nmv.r7b_format import (  # noqa: E402
+    START_RESPONSE,
+    Phase,
+    PhaseParser,
+    render,
+    stream_phases,
+)
 
 NORMAL = (
     "<|START_THINKING|>I will check page 1.<|END_THINKING|>\n"
@@ -65,6 +71,34 @@ check("markers without a plan", text_of([bare], Phase.RESPONSE) == "Just this.")
 check(
     "no markers at all is still the reply",
     text_of(["\n Plain."], Phase.RESPONSE) == "Plain.",
+)
+
+print("the prompt opens the response")
+
+
+class Template:
+    def apply_chat_template(self, history, **options) -> str:
+        return "<|CHATBOT_TOKEN|>"
+
+
+check("render ends at the reply", render(Template(), [], []).endswith(START_RESPONSE))
+check(
+    "a reply with no opening marker is the reply",
+    text_of(["The total.<|END_RESPONSE|>"], Phase.RESPONSE) == "The total.",
+)
+
+print("an action block, which the reader has no tools for")
+ACTION = (
+    "<|START_THINKING|>I will look.<|END_THINKING|><|START_ACTION|>[\n"
+    '    {"tool_call_id": "1", "tool_name": "direct-injected-document"}\n'
+    "]<|END_ACTION|>"
+)
+check("alone, it is no reply", text_of([ACTION], Phase.RESPONSE) == "")
+check("split, it is no reply", text_of(split(ACTION, 3), Phase.RESPONSE) == "")
+check(
+    "after an answer, only the answer stays",
+    text_of(["Half an answer.<|START_ACTION|>[]<|END_ACTION|>"], Phase.RESPONSE)
+    == "Half an answer.",
 )
 
 print("<co> inside the thinking")
