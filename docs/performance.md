@@ -191,6 +191,17 @@ In the app, the reader's first load took swap from 427 MB to 947 MB with pressur
 and it stayed flat on the follow-up. That used to raise "Memory is running short" on the
 first question, so swap growth across a model load no longer warns. Pressure still does.
 
+### Measured on an M2 Max (32 GB)
+
+Reproduce with `assets/sample-invoice.png`.
+
+| Metric | Value |
+|---|---|
+| Weight load (cached) | ~3.4 s |
+| Prefill | ~590 tok/s |
+| Decode | 72–88 tok/s |
+| Peak memory | 6.17 GB |
+
 ## Saving run records
 
 Set `NMV_TRACE_FILE=<path>` and every action appends its run record to that file as one

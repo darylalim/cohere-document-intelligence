@@ -1,0 +1,156 @@
+# Architecture
+
+How the app works, and why it is built this way.
+
+## Layout
+
+```text
+streamlit_app.py          entry point and router
+app_pages/chat.py         multi-turn visual chat
+app_pages/grounding.py    detection with box overlay
+nmv/runtime.py            the MLX worker thread (read this first)
+nmv/model.py              loading, sampling, streaming
+nmv/imaging.py            token budgeting and resizing (no MLX import)
+nmv/grounding.py          0–1000 box parsing and rendering
+nmv/ui.py                 shared sidebar
+tests/                    resize/token invariants, worker-abandonment regression
+```
+
+## How Ask documents works
+
+North Micro Vision reads, Command R7B reasons, and North Micro Vision locates. R7B never
+sees the image, so a box always comes from a second pass over the page.
+
+```mermaid
+flowchart TD
+    upload["Upload pages"] --> normalize["Normalise EXIF orientation"]
+    normalize --> read["Read: NMV transcribes each page once"]
+    read --> store[("Transcripts: on disk, or in memory with saving off")]
+    store --> reason["Reason: R7B answers over the transcripts, with citations"]
+    question["Your question"] --> reason
+    reason --> answer["Answer with citations"]
+    answer -- "pick a citation" --> locate["Locate: NMV boxes the cited text"]
+    normalize --> locate
+    locate --> overlay["Boxes drawn on the full-resolution page"]
+```
+
+## Token count scales with pixel area
+
+The encoder cuts an image into 16 px patches, merges each 2×2 block, and spends one
+language-model token per merged block. One token therefore covers 32×32 px:
+
+```text
+tokens = pixels / 1024
+```
+
+The **Image budget** slider is the single biggest lever on prefill latency and KV-cache
+memory. Its ceiling is 3,868,706 px — 1654×2339, an A4 page at 200 dpi, the largest
+resolution Cohere trained on, and mlx-vlm's own default cap. Each edge snaps to a
+multiple of 32, and anything above the ceiling is scaled down to fit:
+
+| Input | Encoded | Tokens |
+|---|---|---:|
+| A4 scan @ 200 dpi (1654×2339) | 1632×2336 | 3,723 |
+| 1080p photo (1920×1080) | 1920×1088 | 2,040 |
+| 12 MP phone photo (4032×3024) | 2240×1696 | 3,710 |
+
+The checkpoint's `preprocessor_config.json` advertises a far larger `size.longest_edge`
+of 16,777,216 px (16,384 tokens — double the 8K context the model was actually validated
+at for multimodal input). mlx-vlm never reads it: its processor only honours keys
+literally named `min_pixels`/`max_pixels`, which that file lacks. The effective budget is
+the sane one.
+
+## Grounding coordinates are resolution independent
+
+Boxes come back as `[x1, y1, x2, y2]` on a **0–1000** grid, not in pixels, so
+`x_px = x / 1000 * width` works against whichever rendering you like. That is why the
+overlay can be drawn on your full-resolution upload even though the encoder saw a
+downscaled copy — nothing has to be rescaled between the two.
+
+Two traps this codebase handles and you should keep handling:
+
+- **EXIF orientation.** Phone photos carry a rotation tag. Normalise it *before*
+  encoding, and draw boxes on that same normalised image — otherwise the model reads a
+  sideways page while the overlay is upright and every coordinate lands wrong.
+- **Bare arrays.** Despite being asked for labelled JSON, the model often replies with a
+  plain `[659, 671, 921, 799]`. `nmv/grounding.py` parses JSON, fenced blocks and loose
+  prose, and treats labels as optional.
+
+## MLX streams are thread-local — this shapes the whole architecture
+
+MLX binds each thread's default stream to that thread, and an array that has not been
+evaluated yet is work queued on one of those streams, so only that thread can evaluate
+it. mlx-vlm's `load()` evaluates the model's parameters but not the arrays it keeps under
+underscore names, and the text model's shared rotary `_inv_freq` table is one of them: it
+stays pending until the first forward pass reads it, so that pass has to run on the
+thread that loaded the model.
+
+Streamlit starts **a fresh ScriptRunner thread for each rerun the browser requests**, and
+`st.cache_resource` loads the model during the page's first render. So in a naive app the
+first reply, and every one after it, dies with:
+
+```text
+RuntimeError: There is no Stream(gpu, 1) in current thread.
+```
+
+`nmv/runtime.py` fixes this by running the import, the load and every later MLX call on
+one long-lived worker thread, streaming tokens back over a bounded queue. It also
+serialises GPU work across browser tabs, which matters because MLX generation is not
+reentrant.
+
+**The invariant:** mlx-vlm is imported only inside worker functions, never at module
+scope, so anything it queues at import time lands on the worker too. `nmv/imaging.py`
+therefore mirrors mlx-vlm's `smart_resize` as plain arithmetic instead of importing it;
+`tests/test_resize_parity.py` asserts the copy stays identical to upstream.
+
+```mermaid
+flowchart LR
+    subgraph sessions["Streamlit, a fresh thread per rerun"]
+        tab1["Browser tab"]
+        tab2["Browser tab"]
+    end
+    subgraph worker["One MLX worker thread"]
+        jobs["Imports, loads and generation, one job at a time"]
+    end
+    tab1 -- "runtime.call, runtime.iterate" --> jobs
+    tab2 -- "runtime.call, runtime.iterate" --> jobs
+    jobs -- "tokens, over a bounded queue" --> tab1
+    jobs -- "publishes after each job" --> snapshot[("Snapshot")]
+    snapshot -- "runtime.snapshot, never waits on the worker" --> tab2
+```
+
+## The model's own limits
+
+- No system prompts — Cohere notes it was not trained to follow them, so the app never
+  sends one. Task instructions go in the user turn.
+- Weak text-only reasoning (MMLU 0.504). No tool calling, no agentic workflows, limited
+  maths and code.
+- 8K context was validated for multimodal input, even though the LM backbone claims 128K.
+
+## Accessibility
+
+Boxes drawn on an image say nothing to a screen reader, and colour alone cannot link a
+box to its row. So the app gives each one a text equivalent:
+
+- **Every box is described in words,** such as "lower right · about 25% of the page
+  wide, 15% tall". Grounding shows this in the table's "where" column, and Ask documents
+  in the caption under a located page.
+- **Every box is numbered.** `#N` stays on the box and matches the table's `#` column,
+  even with "Show label text" off.
+- **Stream responses can be turned off** in the sidebar. A reply then appears once,
+  complete, with no moving text.
+- **Every image has a caption** in place of alt text, which `st.image` does not offer.
+- **Every alert says what to do next,** and citations name their page in text.
+- **Contrast floors are tested** on both themes by `tests/test_theme_contrast.py`. It
+  computes colours from the config, so it is a floor rather than proof of what renders.
+
+Known gaps:
+
+- **The keyboard focus ring is 2.43:1** in both themes, under the 3:1 that WCAG
+  recommends. No single config value fixes it without undoing the accent's other
+  trades, and the app uses no custom CSS.
+- **The dark theme's toggle knob is 2.26:1** on its "on" track. The Transcribe button
+  states the save mode in text, so that setting never depends on the knob.
+- **Widget ARIA and live regions belong to Streamlit,** so the app cannot change them.
+
+Not yet checked: VoiceOver, keyboard-only use, reflow at 320 px, and an axe pass.
