@@ -57,14 +57,25 @@ citation to see it boxed on the page.
 - Python 3.11–3.13 (the pinned venv uses 3.12).
 - [uv](https://docs.astral.sh/uv/).
 
+It runs on your own Mac only. MLX needs Apple's GPU, so hosted platforms and Docker cannot
+run it.
+
 Measured quality and memory are in [`docs/performance.md`](docs/performance.md).
 
-## Setup
+## Quick start
 
 ```bash
-uv sync
-uv run streamlit run streamlit_app.py
+git clone --branch <latest release tag> https://github.com/darylalim/cohere-document-intelligence
+cd cohere-document-intelligence && uv run --no-project --python 3.12 scripts/doctor.py
+uv sync --locked && uv run streamlit run streamlit_app.py
 ```
+
+Take the tag from the [releases page](https://github.com/darylalim/cohere-document-intelligence/releases):
+a release tag is a commit that passed CI, which `main` may not be. uv provides the Python
+in `.python-version`, so no other install is needed. The second line checks this Mac can
+run the app, and says what to fix if it cannot.
+
+An earlier version used the bf16 weights; `uv run hf cache rm model/mlx-community/North-Micro-Vision-Instruct-bf16` frees that space.
 
 The first launch pulls ~3.2 GB of weights into the Hugging Face cache. The app loads a
 fixed commit of the checkpoint rather than whatever `main` points at, so to fetch them
@@ -82,8 +93,6 @@ To fetch that ahead of time too:
 uv run hf download mlx-community/c4ai-command-r7b-12-2024-4bit \
   --revision 2ae601b3d780410caacd2148c6c96e620144f22d
 ```
-
-An earlier version used the bf16 weights; `uv run hf cache rm model/mlx-community/North-Micro-Vision-Instruct-bf16` frees that space.
 
 ## Accessibility
 
