@@ -80,22 +80,23 @@ An earlier version used the bf16 weights; `uv run hf cache rm model/mlx-communit
 Start the app when you need it and press Ctrl-C to quit. Do not run it as a login service:
 that would keep about 8 GB of models resident on a 16 GB Mac all day.
 
-The first launch pulls ~3.2 GB of weights into the Hugging Face cache. The app loads a
-fixed commit of the checkpoint rather than whatever `main` points at, so to fetch them
-ahead of time, ask for that same commit:
+## Weights
+
+The first launch pulls ~3.2 GB of weights into the Hugging Face cache, and Ask documents
+offers to download Command R7B (4.5 GB) on the page. The app loads a fixed commit of each
+checkpoint rather than whatever `main` points at, so to fetch them ahead of time, ask for
+those same commits:
 
 ```bash
 uv run hf download mlx-community/North-Micro-Vision-Instruct-8bit \
   --revision 26e6b3aef507899fbf86057593d99fc12418e26f
-```
-
-Ask documents also needs Command R7B (4.5 GB), which it offers to download on the page.
-To fetch that ahead of time too:
-
-```bash
 uv run hf download mlx-community/c4ai-command-r7b-12-2024-4bit \
   --revision 2ae601b3d780410caacd2148c6c96e620144f22d
 ```
+
+If the internal disk is short, set `HF_HOME` to a folder on an external drive. Once the
+weights are cached the app can run offline; see
+[Network traffic](docs/privacy.md#network-traffic).
 
 ## Accessibility
 
