@@ -41,6 +41,9 @@ check("swapped corners are put in order", boxes_in("swapped.handmade.txt") == [s
 
 check("a point is not a box", parse_boxes("[[852, 301, 852, 301]]") == [])
 check("a point is recognised", is_point_answer("[[852, 301, 852, 301]]"))
+check("a bare point is recognised", is_point_answer("862,301,862,301\n"))
+check("a bare box is not a point", not is_point_answer("660,672,920,798"))
+check("numbers in prose are not a point", not is_point_answer("Pages 1,2,1,2 match"))
 check("a real box is not a point", not is_point_answer("[[660, 672, 920, 798]]"))
 check("a zero-width line is not a point", not is_point_answer("[[10, 10, 10, 900]]"))
 check("prose is not a point", not is_point_answer("I see [nothing] here"))

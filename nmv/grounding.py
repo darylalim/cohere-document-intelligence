@@ -25,11 +25,13 @@ GRID = 1000.0
 _BOX_KEYS = ("bbox_2d", "box_2d", "bbox", "box", "rect", "coordinates")
 _LABEL_KEYS = ("label", "name", "text", "object", "category", "class", "caption")
 
-# Four numbers in brackets, allowing decimals and negative signs.
-_QUAD = re.compile(
-    r"\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,"
-    r"\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]"
-)
+# Four numbers, allowing decimals and negative signs.
+_NUMBER = r"\s*(-?\d+(?:\.\d+)?)\s*"
+_FOUR = ",".join([_NUMBER] * 4)
+_QUAD = re.compile(rf"\[{_FOUR}\]")
+# The same as a whole reply with no brackets, which the model sometimes gives for a
+# point. Whole reply only: four numbers in prose are not coordinates.
+_BARE_QUAD = re.compile(_FOUR)
 _FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 
 PALETTE = [
@@ -269,10 +271,14 @@ def contains_json(text: str) -> bool:
 def is_point_answer(text: str) -> bool:
     """True when the reply holds a point, such as ``[852, 301, 852, 301]``.
 
+    A reply of only ``852,301,852,301``, with no brackets, is one too.
+
     :func:`parse_boxes` rejects these as degenerate. Only about half land on their
     target, so nothing is drawn for one; this lets the page say why.
     """
-    for match in _QUAD.finditer(text or ""):
+    text = text or ""
+    bare = _BARE_QUAD.fullmatch(text)
+    for match in [bare] if bare else _QUAD.finditer(text):
         x1, y1, x2, y2 = (float(value) for value in match.groups())
         if abs(x2 - x1) < 1.0 and abs(y2 - y1) < 1.0:
             return True
