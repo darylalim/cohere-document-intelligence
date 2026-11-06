@@ -310,7 +310,7 @@ routes to version-matched reference docs bundled inside the installed package.
 
 ## Measured baselines
 
-- **M2 Pro 16 GB, 8-bit NMV and 4-bit R7B:** both loaded 7.66 GB · peak 11.06 GB · a ceiling
+- **M2 Pro 16 GB, 8-bit NMV and 4-bit R7B:** both loaded 7.66 GB · peak 11.16 GB · a ceiling
   page takes 31.2 s (prefill 267 tok/s, decode 59 tok/s).
 - **M2 Max 32 GB, bf16 NMV, before the move to 8-bit:** load 3.4 s · prefill ~590 tok/s ·
   decode 72–88 tok/s · peak 6.17 GB.

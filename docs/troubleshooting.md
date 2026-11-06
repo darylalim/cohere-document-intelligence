@@ -9,6 +9,9 @@ The image or the conversation needs more memory than is free. Lower the image bu
 tokens in the sidebar. On Ask documents, ask about fewer pages. Quit other heavy apps too,
 because they share the same memory.
 
+Running out gradually often shows up as extreme slowness before any error, as macOS swaps.
+If a run seems stuck, stop the server with Ctrl-C and start it with a lower image budget.
+
 MLX can also fail in a way that may stop the server instead of showing this message. The
 terminal then prints `[METAL] Command buffer execution failed`, and the page stops
 responding. Start the app again with a lower image budget.
