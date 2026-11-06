@@ -4,23 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A Streamlit app for running Cohere's North Micro Vision (2.4B native-resolution
-vision-language model) locally on Apple Silicon via MLX. Two pages: multi-turn visual
-chat, and grounding with a bounding-box overlay.
+A Streamlit app for reading documents locally on Apple Silicon via MLX. Cohere's North
+Micro Vision (2.4B native-resolution vision-language model) reads the pages, and Command
+R7B answers questions over them. Three pages: multi-turn visual chat, grounding with a
+bounding-box overlay, and Ask documents, which transcribes pages, answers with citations
+and boxes the cited text on the page.
 
-**8-bit only** — `mlx-community/North-Micro-Vision-Instruct-8bit`, ~3.2 GB, ~4.5 GB peak. Chosen
-so a second model fits alongside it on a 16 GB Mac. Do not add other variants without being
-asked.
+**8-bit NMV and 4-bit R7B, chosen for 16 GB.**
+`mlx-community/North-Micro-Vision-Instruct-8bit` (~3.2 GB) and
+`mlx-community/c4ai-command-r7b-12-2024-4bit` (~4.5 GB) stay resident together and peak at
+about 11 GB. Do not add other variants without being asked.
 
-**The checkpoint is pinned to a Hub commit** — `MODEL_REVISION` in `nmv/model.py`, which
-`load()`, `load_config()` and `is_cached()` all take. A checkpoint can run code here two
-ways: mlx-vlm executes the file `config.json` names under `model_file`, and it loads the
-cohere_compass tokenizer with `trust_remote_code=True`, so transformers runs any module
-an `auto_map` entry names — from this repo, or from another repo's `main`. `load()` also
-downloads `*.py` with the weights, so following `main` would run whatever that repo
-publishes next. Moving the pin is a code change: confirm the new commit has no `.py`
-files and no `model_file` or `auto_map` key in any `.json`, then update the `--revision`
-in both prefetch commands.
+**Both checkpoints are pinned to Hub commits** — `MODEL_REVISION` in `nmv/model.py` and
+`READER_REVISION` in `nmv/reader.py`, which every load, config read and cache check takes.
+A checkpoint can run code here two ways: mlx-vlm executes the file `config.json` names
+under `model_file`, and it loads the cohere_compass tokenizer with
+`trust_remote_code=True`, so transformers runs any module an `auto_map` entry names — from
+this repo, or from another repo's `main`. `load()` also downloads `*.py` with the weights,
+so following `main` would run whatever that repo publishes next. Moving a pin is a code
+change: confirm the new commit has no `.py` files and no `model_file` or `auto_map` key in
+any `.json`, then update its `--revision` in the prefetch commands here and in the README.
 
 ## Commands
 
@@ -28,9 +31,8 @@ in both prefetch commands.
 uv sync                                        # create venv, install pinned deps
 uv run streamlit run streamlit_app.py          # run the app (localhost:8501)
 
-uv run python tests/test_resize_parity.py      # resize/token invariants; plain script, no pytest
-uv run python tests/test_runtime_abandon.py    # MLX worker must survive abandoned streams
-uv run ruff check .                            # lint  (E, F, I, UP, B, SIM, C4)
+uv run python tests/run.py all                 # every tier except weights
+uv run ruff check .                            # lint  (E, F, I, UP, B, SIM, C4, S608)
 uv run ruff format .                           # format (line-length 90)
 uv run ty check                                # type check (targets 3.11)
 
@@ -41,15 +43,21 @@ uv run hf download mlx-community/c4ai-command-r7b-12-2024-4bit \
   --revision 2ae601b3d780410caacd2148c6c96e620144f22d
 ```
 
+`tests/run.py` takes a tier: `fast` (pure Python), `mlx` (Apple Silicon, no weights), `ui`
+(AppTest, models stubbed) or `weights` (real models, local only). `all` runs the first
+three, and `--with-weights` adds the last. A test declares its tier on its first line as
+`# tier: <name>`, and a file with no header is `fast`, so adding one needs no list edited.
+Tests are plain scripts with no pytest, so `uv run python tests/<file>.py` runs just one.
+
 ruff and ty are locked dev dependencies, so use `uv run ruff` / `uv run ty`, not the
 `uvx` forms — those resolve independently of `uv.lock` and will drift the day a new
 release ships. Reach for `uvx` only for tools the project does not declare.
 
-ty runs clean. Two call sites in `nmv/model.py` use `cast` because mlx-vlm's
-annotations are narrower than its runtime behaviour (`apply_chat_template` returns a
+ty runs clean. `nmv/model.py` and `nmv/r7b_format.py` use `cast` where the libraries'
+annotations are narrower than their runtime behaviour (`apply_chat_template` returns a
 `str` under the default `return_messages=False`; `image=` accepts PIL objects because
-`prepare_inputs` routes them through `process_image`). Keep the casts and their
-comments rather than replacing them with blanket ignores.
+`prepare_inputs` routes them through `process_image`). Keep the casts and their comments
+rather than replacing them with blanket ignores.
 
 There are no `ty: ignore` suppressions. ty reports an unused one as a warning and exits
 1 on warnings, so if a false positive ever needs one, keep it targeted, explain it in a
@@ -65,13 +73,16 @@ When working with Python, invoke the relevant `/astral:<skill>` for `uv`, `ty`, 
 
 ## CI and releases
 
-`.github/workflows/ci.yml` runs every command above on an Apple Silicon runner, plus the
-module-scope MLX import grep. There is no Linux job because the tests cannot run there.
-The lock does install on Linux — `mlx` publishes manylinux wheels — but its extension
-links `libmlx.so`, which the wheel does not ship. `mlx-metal` supplies the library on
-macOS (as `libmlx.dylib`); on Linux only the `mlx[cpu]` / `mlx[cuda]` extras do, and they
-are not locked. So `import mlx.core` fails, and both tests import it through
-`nmv.runtime` or mlx-vlm.
+`.github/workflows/ci.yml` runs every command above on an Apple Silicon runner, tier by
+tier and without `weights`, plus the static greps. The tests have no Linux job because
+they cannot run there. The lock does install on Linux — `mlx` publishes manylinux wheels —
+but its extension links `libmlx.so`, which the wheel does not ship. `mlx-metal` supplies
+the library on macOS (as `libmlx.dylib`); on Linux only the `mlx[cpu]` / `mlx[cuda]` extras
+do, and they are not locked. So `import mlx.core` fails there.
+
+`audit` is the one check on Linux, allowed because it installs nothing project-specific: it
+exports the lock and runs a pinned `pip-audit` over it. (`release` runs on Linux too, but it
+only publishes.)
 
 **Editing `version` in `pyproject.toml` is a publish action.** On `main`, once CI passes,
 the workflow tags that commit and publishes a GitHub release with notes built from commit
@@ -93,6 +104,19 @@ Skipping it fails CI before anything publishes: `uv sync --locked` reports drift
 declares `needs: check`. So the outcome of a half-finished bump is a red run and *no
 release at all* rather than a broken one — safe, but worth recognising, since uv's hint
 names `uv lock` without connecting it to the version you just changed.
+
+## Claude Code hooks
+
+`.claude/settings.json` enforces the hardest rules, so a refusal is the rule speaking. If a
+guard is wrong, fix its script and re-test it with a piped payload; never delete it.
+[`CONTRIBUTING.md`](CONTRIBUTING.md#claude-code-hooks) says what each refusal means.
+
+- `version-guard.sh`: denies any change to `version`.
+- MLX import guard: flags a module-scope MLX import after an edit.
+- `pin-guard.sh`: flags a `*_REVISION` that is not a 40-hex commit, or a download of `*.py`.
+- `stop-checks.sh`: runs ty, the fast tier and the static greps at the end of a turn.
+- ruff fix and format, and `restart-reminder.sh`: never refuse.
+- Permission rules: `hf cache rm` / `delete` and `rm *transcripts.db*` always ask.
 
 ## The constraint that shapes the architecture
 
@@ -134,9 +158,13 @@ grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ str
 That must return nothing.
 
 If you ever broaden the ruff `select` set, note that `PLC0415`
-(`import-outside-top-level`) fires on six function-local imports. Five are mlx-vlm and
-deliberate — ignore the rule, never hoist them to satisfy it. The sixth is
-`huggingface_hub` in `is_cached()`, which the invariant does not cover.
+(`import-outside-top-level`) fires on 28 function-local imports (`uv run ruff check
+--select PLC0415 --no-fix .`). Ignore the rule, never hoist them to satisfy it:
+
+- 24 are MLX and deliberate: 5 mlx-vlm, 4 mlx-lm and 15 `mlx.core`, in `nmv/`, `scripts/`
+  and `tests/`.
+- 4 are `huggingface_hub`, which the invariant does not cover: `is_cached()`,
+  `is_reader_cached()`, `download_reader()` and `_is_download_error()`.
 
 Consequences:
 
@@ -148,6 +176,15 @@ Consequences:
   `runtime.iterate()` (streaming). Never call those *from* the worker: single worker,
   instant deadlock.
 
+**The same shape applies to SQLite: never share a `sqlite3` connection across threads.**
+Streamlit reruns on fresh threads and `sqlite3` refuses a connection from another one, so
+`nmv/transcripts.py` opens one per call through `_connect()`.
+
+Transcripts are the contents of the user's documents. They live in
+`~/.cache/cohere-document-intelligence/transcripts.db` (`NMV_TRANSCRIPT_DB` overrides it,
+so point that at a temp file when testing). Clear them with **Clear saved transcripts** on
+Ask documents, which calls `transcripts.clear()`.
+
 ## Module roles
 
 | File | Responsibility |
@@ -158,10 +195,21 @@ Consequences:
 | `nmv/model.py` | Loading (`st.cache_resource`), `Sampling`, `RunStats`, streaming |
 | `nmv/reader.py` | Command R7B: loading, context budget, streaming answers |
 | `nmv/r7b_format.py` | R7B's template and thinking/response phases. **No MLX import.** |
+| `nmv/prompts.py` | Every fixed prompt and its version. **No MLX, no Streamlit.** |
+| `nmv/domain.py` | The document pipeline's data model. **No MLX, no Streamlit.** |
+| `nmv/documents.py` | Ask documents' decisions, testable. **No MLX, no Streamlit.** |
+| `nmv/citations.py` | Parse R7B's citation tags. **No MLX, no Streamlit.** |
+| `nmv/transcripts.py` | The SQLite transcript store. **No MLX, no Streamlit.** |
+| `nmv/errors.py` | Sort exceptions into what the user can do. **No MLX, no Streamlit.** |
+| `nmv/render.py` | Make untrusted model output safe to render as Markdown |
+| `nmv/system.py` | What macOS says about memory. **No MLX, no Streamlit.** Never raises. |
 | `nmv/imaging.py` | Token budgeting, `encode`/`prepare`, EXIF normalisation. **No MLX import.** |
 | `nmv/grounding.py` | 0–1000 box parsing and PIL overlay rendering |
-| `nmv/ui.py` | Shared sidebar; returns `(budget, sampling, stats_slot)` |
+| `nmv/ui.py` | Shared sidebar; returns `(budget, sampling, SidebarSlots)` |
 | `app_pages/*.py` | Page scripts — UI only, direct scripts with no `main()` |
+| `scripts/memory_check.py` | Whether both models fit on this Mac. Needs the weights. |
+| `scripts/perf_pass.py` | The performance pass on a generated dense document |
+| `evals/` | Eval sets, runners, metrics and the baseline. See `evals/README.md`. |
 
 ## Domain rules that are easy to get wrong
 
@@ -228,51 +276,59 @@ result, which skips that copy, so there the defaults stick. A browser keeps the 
 max tokens and temperature in both directions, and the "Up to N tokens" caption shows the
 server has them. Removing Grounding's `st.stop()` calls only makes AppTest look fixed.
 
-**The app has a dark and a light theme, built as one system (Polar Indigo).**
-`.streamlit/config.toml` puts shared keys in `[theme]` and `[theme.sidebar]` and each
-mode's colours in `[theme.dark]` / `[theme.light]` plus their `.sidebar` tables. Having both
-variant tables puts System, Light and Dark in the app menu; a first-time viewer gets
-System, which follows the OS `prefers-color-scheme` live. A pick is stored in
-localStorage under `stActiveTheme-<path>-v2`, keyed by the URL path the tab was loaded
-from, so a reload on `/grounding` does not see a choice made after loading `/` — that is
-Streamlit, not an app bug. Leave `base` unset (Streamlit forces it per mode).
-`baseFontSize`, `baseFontWeight`, `fontFaces`, `metricValueFontSize`/`Weight` and
-`showSidebarBorder` are only accepted in `[theme]`; Streamlit logs and drops them elsewhere.
-Both halves keep the neutral hue (~266°), the accent hue (273.5°, the widest gap in
-`PALETTE` in `nmv/grounding.py`, 233°→306°) and the aurora hues of callout text and
-avatars; lightness and chroma are what move.
+**The app has a dark and a light theme, built as one system (Polar Indigo).** Every number
+and trade is in the comments of `.streamlit/config.toml`; read them before changing a
+colour. `tests/test_theme_contrast.py` holds the contrast floors. The rules:
 
-In the dark half the accent sets the ground. Streamlit paints the primary button label
-and chat send arrow a fixed `#fff` on `primaryColor` (no key changes it), and the selected
-`st.segmented_control` option in `primaryColor` on a 10–20% tint of itself, so on a dark
-ground no single primary passes both at 4.5:1. Dark gives up "Find boxes" (3.05:1 at rest,
-5.54 on hover) to keep the always-visible selected task at 5.33, which needs a ground at
-OKLCH L ≤ 0.19 (`#0f131c`) — do not lighten it towards Nord's `#2e3440` without re-running
-the trade. Its residuals are that label, the focus ring (2.43) and the toggle knob on the
-"on" track (2.26).
-
-The light half exists for long scan sessions, since a white scan is an 18.6:1 step on the
-dark ground. Its ground `#dee1e8` is a cool grey mat set by the scan's edge: white,
-off-white and grey-copy paper all stay lighter than it (1.31, 1.17, 1.06:1), and no chrome
-rises above L 0.942, so on Grounding the document stays the brightest thing on screen.
-Chat's user bubble is the exception (fixed gray20 over the mat, where a grey copy steps
-1.02:1). There the trade inverts: the dark primary `#323c78` passes the white label (10.2)
-and the selected task (6.70) together, and its one residual is the focus ring (2.43).
-
-Do not swap either accent for a teal — on a dark ground teal lands on `#2dd4bf`, which
-*is* `PALETTE[6]`. The numbers behind every value are in the file's comments. Streamlit
-derives most rendered colours (hover darkening, alert tints, faded captions), so check
-contrast on resolved colours, not config values, and a change meant for one half must
-leave the other half's resolved colours unchanged. Check both modes in a real browser;
-after a live mode switch the sidebar `divider="gray"` rules keep the old mode's colour
-until a reload, so reload before judging them. Restart the server after editing the file;
-theme changes do not hot-reload.
+- Keep both `[theme.dark]` and `[theme.light]`, because that pair is what offers System,
+  Light and Dark. Shared keys go in `[theme]` and `[theme.sidebar]`.
+- Leave `base` unset. Streamlit forces it per mode.
+- `baseFontSize`, `baseFontWeight`, `fontFaces`, `metricValueFontSize`/`Weight` and
+  `showSidebarBorder` are only accepted in `[theme]`. Streamlit logs and drops them
+  elsewhere.
+- Both halves keep the neutral hue (~266°), the accent hue (273.5°, the widest gap in
+  `PALETTE` in `nmv/grounding.py`) and the aurora hues. Only lightness and chroma move.
+- Do not lighten the dark ground towards Nord's `#2e3440` without re-running the trade:
+  the selected task needs OKLCH L ≤ 0.19.
+- Keep light chrome at or below L 0.942, so the document stays the brightest thing on
+  Grounding.
+- Do not swap either accent for a teal. On a dark ground it lands on `#2dd4bf`, which *is*
+  `PALETTE[6]`.
+- Check contrast on resolved colours, not config values, because Streamlit derives most
+  rendered colours. A change meant for one half must leave the other's resolved colours
+  unchanged.
+- Check both modes in a real browser. After a live mode switch the sidebar `divider="gray"`
+  rules keep the old mode's colour, so reload before judging them.
+- Restart the server after editing the file. Theme changes do not hot-reload.
+- A pick is stored per URL path, so a reload on `/grounding` not seeing a choice made after
+  loading `/` is Streamlit, not an app bug.
 
 For any non-trivial Streamlit work, invoke the `developing-with-streamlit` skill — it
 routes to version-matched reference docs bundled inside the installed package.
 
-## Measured baseline (bf16, M2 Max, 32 GB)
+## Measured baselines
 
-Load 3.4 s · prefill ~590 tok/s · decode 72–88 tok/s · peak 6.17 GB. Use
-`assets/sample-invoice.png` to reproduce; its PAID stamp sits at `(820, 1180, 1140, 1400)`,
-which grounding should hit within a few pixels.
+- **M2 Pro 16 GB, 8-bit NMV and 4-bit R7B:** both loaded 7.66 GB · peak 11.06 GB · a ceiling
+  page takes 31.2 s (prefill 267 tok/s, decode 59 tok/s).
+- **M2 Max 32 GB, bf16 NMV, before the move to 8-bit:** load 3.4 s · prefill ~590 tok/s ·
+  decode 72–88 tok/s · peak 6.17 GB.
+
+The full figures, and how to reproduce them, are in
+[`docs/performance.md`](docs/performance.md).
+
+## Documentation map
+
+Every fact has one home. Edit it there and link to it from anywhere else.
+
+| File | Owns |
+|---|---|
+| `README.md` | What the app is, quick start, the licence table |
+| `docs/privacy.md` | What is stored, logged and sent |
+| `docs/troubleshooting.md` | On-screen errors. Headings reuse the titles in `nmv/errors.py`. |
+| `docs/architecture.md` | How it works and why, the model's limits, accessibility |
+| `docs/performance.md` | Measured quality, memory and speed |
+| `evals/README.md` | How the quality numbers are made |
+| `CONTRIBUTING.md`, `RELEASING.md` | Development, tests, CI, and the steps before a bump |
+| `.streamlit/config.toml` | Theme numbers and trades, in comments |
+| `CLAUDE.md` | Rules and invariants, each with its reason |
+| `docs/plans/` | Records, not current truth |

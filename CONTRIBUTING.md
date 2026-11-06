@@ -62,8 +62,9 @@ Silicon runner. `uv sync --locked` fails the build if `uv.lock` has drifted from
 
 The tests have no Linux job: the lock installs there, but mlx's Linux wheel carries no
 backend unless installed with its `cpu` or `cuda` extra, so the tests could not import it.
-The one Linux job is `audit`, which checks the locked dependencies for known vulnerabilities
-and installs nothing project-specific.
+The one check on Linux is `audit`, which looks for known vulnerabilities in the locked
+dependencies and installs nothing project-specific. `release` runs there too, but only
+publishes.
 
 ## Releases
 

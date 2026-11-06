@@ -8,12 +8,27 @@ How the app works, and why it is built this way.
 streamlit_app.py          entry point and router
 app_pages/chat.py         multi-turn visual chat
 app_pages/grounding.py    detection with box overlay
+app_pages/documents.py    Ask documents: transcribe, ask, locate
 nmv/runtime.py            the MLX worker thread (read this first)
-nmv/model.py              loading, sampling, streaming
+nmv/model.py              North Micro Vision: loading, sampling, streaming
+nmv/reader.py             Command R7B: loading, context budget, streaming
+nmv/r7b_format.py         R7B's prompt and output format (no MLX import)
+nmv/prompts.py            every fixed prompt and its version
+nmv/domain.py             the document pipeline's data model
+nmv/documents.py          Ask documents' decisions, kept testable
+nmv/citations.py          citation tag parsing
+nmv/transcripts.py        the SQLite transcript store
 nmv/imaging.py            token budgeting and resizing (no MLX import)
 nmv/grounding.py          0–1000 box parsing and rendering
+nmv/render.py             makes model output safe to render
+nmv/errors.py             sorts exceptions into what the user can do
+nmv/trace.py              one run record per action, never content
+nmv/log.py                terminal logging, metadata only
+nmv/system.py             macOS memory status
 nmv/ui.py                 shared sidebar
-tests/                    resize/token invariants, worker-abandonment regression
+scripts/                  memory check and performance pass
+evals/                    eval sets, runners, metrics and the baseline
+tests/                    plain-script tests in tiers, run by tests/run.py
 ```
 
 ## How Ask documents works

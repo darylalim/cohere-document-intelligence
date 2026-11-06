@@ -193,7 +193,9 @@ first question, so swap growth across a model load no longer warns. Pressure sti
 
 ### Measured on an M2 Max (32 GB)
 
-Reproduce with `assets/sample-invoice.png`.
+These are the bf16 weights the app used before the move to 8-bit, so they are not the
+shipped pair. Reproduce with `assets/sample-invoice.png`. Its PAID stamp sits at
+`(820, 1180, 1140, 1400)`, which grounding should hit within a few pixels.
 
 | Metric | Value |
 |---|---|

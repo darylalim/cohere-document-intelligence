@@ -13,7 +13,7 @@ running locally beats shipping scans to an API.
 
 This app runs the **8-bit** conversion only
 (`mlx-community/North-Micro-Vision-Instruct-8bit`, ~3.2 GB), which leaves room for a second
-model on a 16 GB Mac.
+model on a 16 GB Mac: Command R7B, which answers the questions on Ask documents.
 
 ## Pages
 
@@ -52,7 +52,8 @@ citation to see it boxed on the page.
 
 ## Requirements
 
-- Apple Silicon Mac. 16 GB unified memory is enough; peak usage is ~4.5 GB.
+- Apple Silicon Mac with 16 GB of unified memory. With both models resident, peak usage is
+  about 11 GB.
 - Python 3.11–3.13 (the pinned venv uses 3.12).
 - [uv](https://docs.astral.sh/uv/).
 
@@ -82,6 +83,8 @@ uv run hf download mlx-community/c4ai-command-r7b-12-2024-4bit \
   --revision 2ae601b3d780410caacd2148c6c96e620144f22d
 ```
 
+An earlier version used the bf16 weights; `uv run hf cache rm model/mlx-community/North-Micro-Vision-Instruct-bf16` frees that space.
+
 ## Accessibility
 
 Every box is described in words and numbered to match its table row, every image has a
@@ -103,12 +106,18 @@ themes. Known gaps, and what is not yet checked, are in
 
 The app's own code is Apache-2.0 — see [`LICENSE`](LICENSE). Apache-2.0 rather than MIT
 for the patent grant (§3) and, more to the point here, for the explicit statement that no
-trademark rights travel with it (§6). *Cohere* and *North Micro Vision* are Cohere's
-marks; this is an unaffiliated project that runs their published checkpoint.
+trademark rights travel with it (§6). *Cohere*, *North Micro Vision* and *Command* are
+Cohere's marks; this is an unaffiliated project that runs their published checkpoints.
 
-No weights are vendored here: `uv sync` installs no checkpoint, and the ~3.2 GB arrives
-from the Hugging Face cache on first run. Both
-[CohereLabs/North-Micro-Vision-Instruct](https://huggingface.co/CohereLabs/North-Micro-Vision-Instruct)
-and the [mlx-community 8-bit conversion](https://huggingface.co/mlx-community/North-Micro-Vision-Instruct-8bit)
-this app loads are Apache-2.0 as well, so the two halves line up — but they are
-governed by their own model cards, not by this repository's `LICENSE`.
+No weights are vendored here: `uv sync` installs no checkpoint, and they arrive in the
+Hugging Face cache when first needed.
+
+| Part | Licence | Commercial use |
+|---|---|---|
+| App code (this repo) | Apache-2.0 | Yes |
+| [North Micro Vision 8-bit weights](https://huggingface.co/mlx-community/North-Micro-Vision-Instruct-8bit) | Apache-2.0 | Yes |
+| [Command R7B 4-bit weights](https://huggingface.co/mlx-community/c4ai-command-r7b-12-2024-4bit) | CC-BY-NC-4.0 + [C4AI licence agreement](https://cohere.com/c4ai-cc-by-nc-license) | No |
+
+Ask documents uses R7B, so it is non-commercial; Chat and Grounding use only North Micro
+Vision. The R7B download is not gated on the Hub, but its terms still apply. Each
+checkpoint's model card governs its weights, not this repository's `LICENSE`.
