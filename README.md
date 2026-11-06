@@ -108,6 +108,13 @@ A release that moves a model pin says so in its notes, with the download size, b
 update pulls new weights. `uv run hf cache rm <revision hash>` removes the old ones, and
 `uv run hf cache ls --revisions` lists what is cached.
 
+## Privacy
+
+Documents stay on this Mac. The only network traffic is downloading the weights, after which
+the app can run offline. Transcripts are saved to a local database so a slow transcription
+survives a restart. Turn that off, or clear them, on Ask documents. The app does not encrypt
+that file, so turn on FileVault. The details are in [`docs/privacy.md`](docs/privacy.md).
+
 ## Accessibility
 
 Every box is described in words and numbered to match its table row, every image has a
