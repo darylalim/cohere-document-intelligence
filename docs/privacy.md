@@ -42,9 +42,11 @@ The app logs to the terminal only, and keeps no log file. Lines hold metadata su
 timings, counts and IDs, never document text, file names, prompts or answers, and CI rejects
 a logging call that references them. `NMV_LOG_LEVEL` sets the level.
 
-One exception: an unexpected error also prints its traceback to the terminal, and an
-exception's message can quote whatever it was handling. The same text appears under
-**Details** on the page, so read it before pasting it into a bug report.
+An unexpected error prints a traceback to the terminal with the message left out, because a
+message can quote what it was handling. The full exception appears only under **Details** on
+the page, so read it before pasting it into a bug report. This covers the app's own logging.
+An error the app does not catch is logged by Streamlit, which prints it in full, still only to
+the terminal.
 
 `NMV_TRACE_FILE=<path>` is off by default. When set, each action appends a record of numbers,
 IDs and enum values to that file. See

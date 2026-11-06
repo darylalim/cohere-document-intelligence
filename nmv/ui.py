@@ -216,8 +216,9 @@ def show_failure(
     """
     failure = classify(exc)
     if first_report:
-        # The class only: an exception's message can carry a file name. Expected
-        # kinds get no traceback, and a run's own record already reports them.
+        # The class only: an exception's message can carry a file name, so the log
+        # handler drops it from tracebacks too. Expected kinds get no traceback, and a
+        # run's own record already reports them.
         if failure.kind == "internal":
             logger.error("%s: %s", failure.kind, type(exc).__name__, exc_info=exc)
         elif not run_id:

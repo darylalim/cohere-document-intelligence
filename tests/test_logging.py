@@ -72,4 +72,23 @@ last = output.getvalue().splitlines()[-1]
 check("it comes through nmv", "nmv.trace" in last and "kind=chat" in last, last)
 check("it is stamped with its own run", f"run={run.run_id}" in last, last)
 
+print("tracebacks")
+SECRET = "Invoice for Jane Roe.png"
+
+
+def fail() -> None:
+    raise ValueError(SECRET)
+
+
+output = fresh()
+try:
+    fail()
+except ValueError as error:
+    logging.getLogger("nmv.ui").error("internal", exc_info=error)
+    logging.getLogger("nmv.runtime").exception("worker failed")
+written = output.getvalue()
+check("exc_info leaves the message out", SECRET not in written, written)
+check("the frames stay", written.count("in fail") == 2, written)
+check("the class stays", written.count("ValueError, message left out") == 2, written)
+
 finish()
