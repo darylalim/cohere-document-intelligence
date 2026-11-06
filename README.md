@@ -77,6 +77,9 @@ run the app, and says what to fix if it cannot.
 
 An earlier version used the bf16 weights; `uv run hf cache rm model/mlx-community/North-Micro-Vision-Instruct-bf16` frees that space.
 
+Start the app when you need it and press Ctrl-C to quit. Do not run it as a login service:
+that would keep about 8 GB of models resident on a 16 GB Mac all day.
+
 The first launch pulls ~3.2 GB of weights into the Hugging Face cache. The app loads a
 fixed commit of the checkpoint rather than whatever `main` points at, so to fetch them
 ahead of time, ask for that same commit:
