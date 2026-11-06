@@ -34,9 +34,11 @@ uv run ruff check .                            # lint  (E, F, I, UP, B, SIM, C4)
 uv run ruff format .                           # format (line-length 90)
 uv run ty check                                # type check (targets 3.11)
 
-# prefetch the pinned weights (MODEL_REVISION in nmv/model.py)
+# prefetch the pinned weights (MODEL_REVISION in nmv/model.py, READER_REVISION in nmv/reader.py)
 uv run hf download mlx-community/North-Micro-Vision-Instruct-8bit \
   --revision 26e6b3aef507899fbf86057593d99fc12418e26f
+uv run hf download mlx-community/c4ai-command-r7b-12-2024-4bit \
+  --revision 2ae601b3d780410caacd2148c6c96e620144f22d
 ```
 
 ruff and ty are locked dev dependencies, so use `uv run ruff` / `uv run ty`, not the

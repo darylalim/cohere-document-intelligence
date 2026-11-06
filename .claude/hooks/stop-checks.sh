@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Stop: run the fast checks before Claude finishes a turn that touched Python.
+# Stop: run the fast checks before Claude finishes a turn that touched Python or docs.
 #
 # Only ty and the fast test tier. The mlx, ui and weights tiers are slower and
 # stay in CI and the plan's final checklist. Skipped when nothing under the app,
-# the theme config or the test fixtures is changed or untracked, and when this
+# the theme config, the test fixtures or the docs is changed or untracked, and when this
 # stop was already triggered by this hook (so a failure Claude cannot fix cannot
 # loop forever).
 set -uo pipefail
@@ -14,7 +14,7 @@ cd "$CLAUDE_PROJECT_DIR" || exit 0
 
 changed=$(
   { git diff --name-only HEAD; git ls-files --others --exclude-standard; } 2>/dev/null |
-    grep -E '^(nmv|app_pages|tests)/.*\.py$|^streamlit_app\.py$|^\.streamlit/config\.toml$|^tests/fixtures/'
+    grep -E '^(nmv|app_pages|tests)/.*\.py$|^streamlit_app\.py$|^\.streamlit/config\.toml$|^tests/fixtures/|\.md$|^docs/'
 )
 [[ -z "$changed" ]] && exit 0
 
@@ -35,6 +35,6 @@ if ! out=$(uv run python tests/run.py fast 2>&1); then
 fi
 [[ -z "$failures" ]] && exit 0
 
-printf 'Fast checks failed on the changed Python files. Fix them before finishing (or say plainly that they still fail):%s\n' \
+printf 'Fast checks failed on the changed files. Fix them before finishing (or say plainly that they still fail):%s\n' \
   "$failures" >&2
 exit 2

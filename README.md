@@ -65,6 +65,14 @@ uv run hf download mlx-community/North-Micro-Vision-Instruct-8bit \
   --revision 26e6b3aef507899fbf86057593d99fc12418e26f
 ```
 
+Ask documents also needs Command R7B (4.5 GB), which it offers to download on the page.
+To fetch that ahead of time too:
+
+```bash
+uv run hf download mlx-community/c4ai-command-r7b-12-2024-4bit \
+  --revision 2ae601b3d780410caacd2148c6c96e620144f22d
+```
+
 ## Accessibility
 
 Every box is described in words and numbered to match its table row, every image has a
