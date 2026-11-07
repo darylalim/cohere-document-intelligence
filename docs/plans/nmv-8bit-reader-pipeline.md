@@ -2822,8 +2822,8 @@ grep -rnE '^[^#]*(unsafe_allow_html=True|trust_remote_code=True)' nmv/ app_pages
 lsof -nP -iTCP:8501 -sTCP:LISTEN   # with the server running: only 127.0.0.1 / [::1]
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
-git check-ignore -q transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png && echo ignored   # must print "ignored"
-git check-ignore -q uv.lock .claude/settings.json .claude/hooks/pin-guard.sh assets/sample-invoice.png || echo tracked   # must print "tracked"
+for p in transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png; do git check-ignore -q "$p" || echo "NOT IGNORED: $p"; done   # must print nothing
+for p in uv.lock .claude/settings.json .claude/hooks/pin-guard.sh assets/sample-invoice.png; do git check-ignore -q "$p" && echo "IGNORED: $p"; done   # must print nothing
 ```
 
 Then confirm each milestone PR's CI run is green, including every step named in step 7's CI list.
@@ -2843,7 +2843,8 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   - The licence `st.info` and any `st.warning` are readable on their tints.
   - The "Save transcripts" toggle: confirm on/off from the button label as well
     as from the track.
-  - Greyed Locate buttons read as unavailable, with their caption.
+  - The disabled "source not found" citation pill reads as unavailable, and the
+    "Re-upload this page to locate it." caption is readable.
   - The Transcript expander (selected page), including a Markdown table,
     shows its border.
   - The page image under a drawn box. In Light it stays the brightest surface;
