@@ -172,4 +172,5 @@ Known gaps:
   states the save mode in text, so that setting never depends on the knob.
 - **Widget ARIA and live regions belong to Streamlit,** so the app cannot change them.
 
-Not yet checked: VoiceOver, keyboard-only use, reflow at 320 px, and an axe pass.
+An axe pass on all three pages found no serious or critical issues, and every page reflows
+at 320 px with no sideways scroll. Not yet checked: VoiceOver and keyboard-only use.
