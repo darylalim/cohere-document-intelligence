@@ -100,6 +100,10 @@ The absolute hit rate understates grounding, on both checkpoints alike:
   8-bit, including all four receipt targets. `parse_boxes` rejects these as degenerate,
   so they count as "no usable box", although three of the six land inside the truth.
 - **7 of 57 boxes are off target**, for example the whole column for a column heading.
+- **Under sampling, an empty result can be chance.** These runs are greedy, so they cannot
+  show it. On `assets/sample-invoice.png`, "Stamps and signatures" at the default
+  temperature of 0.7 returned `[]` in 1 of 7 runs, while a deterministic run hit the stamp.
+  Seven runs give no rate. The empty-result message on Grounding suggests **Deterministic**.
 
 ## Memory
 
@@ -133,10 +137,59 @@ and Command R7B 4-bit both resident. The GPU working-set limit reads 12.71 GB, s
 - **A first load near a fresh boot swaps about 1.1 GB.** On 2026-11-04, 18 minutes after
   boot with Chrome open and swap at 0, `tests/test_models_e2e.py` took it to 1,135 MB, with
   peak memory at 8.97 GB. Later runs of both models stayed flat or fell, to 936 MB. So
-  the growth is a one-off at first load, not sustained paging. Step 8 repeats this.
+  the growth is a one-off at first load, not sustained paging.
 - **Chat has the least headroom.** Each extra ceiling image adds about 0.45 GB, so a
   fourth would land near the bar and a fifth would pass it (an extrapolation, not
   measured).
+
+### The final re-check
+
+`scripts/memory_check.py` twice in a row on an M2 Pro 16 GB, 2026-11-06, code at `1714bf6`,
+with other heavy apps closed. It runs through the real worker, not a browser session. Figures
+are peak plus MLX's buffer cache, in GB, with the app's own 1 GiB cache limit.
+
+| Stage | Run 1 | Run 2 |
+|---|---|---|
+| Both models loaded | 7.66 | 7.66 |
+| Grounding at the ceiling | 9.77 | 9.77 |
+| Transcribing at the ceiling | 9.77 | 9.77 |
+| Question over one transcript | 9.83 | 9.83 |
+| Question at the reader's context limit (7,000 tokens) | 10.51 | 10.51 |
+| Chat, one ceiling image | 9.75 | 9.75 |
+| Chat, two ceiling images | 10.42 | 10.42 |
+| Chat, three ceiling images (11,327 tokens) | **11.16** | **11.06** |
+| Swap, start to end | 523 to 1,375 MB | 1,367 to 1,405 MB |
+
+- **Accepted as a pass, though the script prints `pass: false`.** The worst peak is 87.8% of
+  the 12.71 GB limit, under the 11.44 GB bar. The script fails on any swap growth, and the
+  bar is no sustained swap, so the maintainer accepted the result with this caveat on
+  2026-11-06.
+- **Swap grew in two places.** The reader's first load added 706 MB, the one-off described
+  above, and did not repeat in run 2. Chat with three ceiling images added 141 MB and then
+  78 MB, so that growth repeats. Every other stage stayed flat or fell. That chat can
+  raise "Memory is running short", which is the warning working as meant.
+- **Load times** from the warm cache were 2.2 s for North Micro Vision and 2.4 s for the
+  reader.
+- **Speed was not re-measured.** The script reports no tok/s, so the figures below date from
+  2026-11-04.
+
+### Out of memory
+
+Checked on the same Mac on 2026-11-06.
+
+- **An allocation too large to ever fit fails cleanly.** A 40 GB request raised
+  `[metal::malloc] Attempting to allocate`, which the app reports as "Ran out of GPU memory",
+  and the process carried on. The largest single buffer here is 9.53 GB.
+- **Filling memory gradually slows down before anything fails.** Holding 1 GiB more at each
+  step reached 15 GB active with no error. A pass over the data went from 0.01 s to 50 s and
+  swap reached 6.4 GB, and the check's own timeout then stopped it.
+- **The app behaved the same on 2026-11-07.** With both models loaded and the image
+  budget at its ceiling, Ask documents on the ten generated dense pages only slowed down.
+  No message and no error appeared before the run was stopped by hand. So the "Ran out of
+  GPU memory" message, Retry after it, and the worker surviving it are covered only by
+  `tests/test_errors.py`, not by a real run.
+- **`[METAL] Command buffer execution failed` was not reproduced,** so whether it reaches
+  Python or stops the process is still unknown.
 
 ## Speed
 
@@ -190,6 +243,19 @@ fell to 451 MB with no growth during any run, which matches the one-off above.
 In the app, the reader's first load took swap from 427 MB to 947 MB with pressure Normal,
 and it stayed flat on the follow-up. That used to raise "Memory is running short" on the
 first question, so swap growth across a model load no longer warns. Pressure still does.
+
+### Measured on an M2 Max (32 GB)
+
+These are the bf16 weights the app used before the move to 8-bit, so they are not the
+shipped pair. Reproduce with `assets/sample-invoice.png`. Its PAID stamp sits at
+`(820, 1180, 1140, 1400)`, which grounding should hit within a few pixels.
+
+| Metric | Value |
+|---|---|
+| Weight load (cached) | ~3.4 s |
+| Prefill | ~590 tok/s |
+| Decode | 72–88 tok/s |
+| Peak memory | 6.17 GB |
 
 ## Saving run records
 

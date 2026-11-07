@@ -8,6 +8,7 @@ from contextlib import suppress
 from dataclasses import asdict, dataclass
 
 import streamlit as st
+from PIL import Image
 from streamlit.delta_generator import DeltaGenerator
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
@@ -66,6 +67,17 @@ class SidebarSlots:
     stats: DeltaGenerator
     system: DeltaGenerator
     alert: DeltaGenerator
+
+
+def show_page_image(image: Image.Image, caption: str) -> None:
+    """A page at ``PAGE_IMAGE_WIDTH``, or narrower if its column is.
+
+    The limit is on a container because ``st.image(width=880)`` fixes the image at 880
+    px whatever the column: its wrapper shrinks to the image, so ``max-width: 100%``
+    never applies, and the page runs under the next column or off the window.
+    """
+    with st.container(width=PAGE_IMAGE_WIDTH):
+        st.image(image, caption=caption, width="stretch")
 
 
 def begin_run(kind: trace.Kind) -> trace.RunBuilder:
@@ -204,8 +216,9 @@ def show_failure(
     """
     failure = classify(exc)
     if first_report:
-        # The class only: an exception's message can carry a file name. Expected
-        # kinds get no traceback, and a run's own record already reports them.
+        # The class only: an exception's message can carry a file name, so the log
+        # handler drops it from tracebacks too. Expected kinds get no traceback, and a
+        # run's own record already reports them.
         if failure.kind == "internal":
             logger.error("%s: %s", failure.kind, type(exc).__name__, exc_info=exc)
         elif not run_id:
@@ -249,12 +262,14 @@ def explain_no_boxes(raw: str, truncated: bool, *, fixed_limit: bool = False) ->
             icon=":material/my_location:",
         )
     elif contains_json(raw):
-        # The model answered, and the answer is "nothing here matches": a correct
-        # result, not a failure, so this says nothing about sampling.
+        # The model answered, and the answer is "nothing here matches". That can be
+        # right, or chance under sampling (docs/performance.md), which a fixed_limit
+        # caller cannot be: Locate is greedy, so the toggle is no remedy there.
+        remedy = "" if fixed_limit else " With sampling on, **Deterministic** may help."
         st.info(
             "The model returned an empty result — it found nothing matching this "
             "instruction. Try different wording or another task preset, or raise "
-            "the image budget if the target is small.",
+            f"the image budget if the target is small.{remedy}",
             icon=":material/search_off:",
         )
     else:

@@ -16,7 +16,7 @@ from _check import check, finish  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from nmv.imaging import IMAGE_ERRORS, PIL_FORMATS, open_upload  # noqa: E402
-from nmv.render import safe_markdown  # noqa: E402
+from nmv.render import html_tables_to_markdown, safe_markdown  # noqa: E402
 
 print("config.toml")
 config = tomllib.loads((ROOT / ".streamlit/config.toml").read_text())
@@ -73,6 +73,70 @@ UNCHANGED = {
 }
 for name, source in UNCHANGED.items():
     check(name, safe_markdown(source) == source, repr(safe_markdown(source)))
+
+print("html_tables_to_markdown draws plain tables")
+TABLE = (
+    "Order\n<table> <thead> <tr> <th>Item</th> <th>Qty</th> </tr> </thead> <tbody> "
+    "<tr> <td>Pens</td> <td>12</td> </tr> </tbody> </table>\nTotal"
+)
+check(
+    "a table becomes rows",
+    html_tables_to_markdown(TABLE)
+    == "Order\n\n\n| Item | Qty |\n| --- | --- |\n| Pens | 12 |\n\n\nTotal",
+    repr(html_tables_to_markdown(TABLE)),
+)
+for name, source, wanted in [
+    ("a pipe stays in its cell", "<table><tr><td>a|b</td></tr></table>", "a\\|b"),
+    (
+        "a short row is padded",
+        "<table><tr><td>a</td><td>b</td></tr><tr><td>c</td></tr></table>",
+        "| c |  |",
+    ),
+    ("a line break is a space", "<table><tr><td>a<br>b</td></tr></table>", "| a b |"),
+    ("capitals count", "<TABLE><TR><TD>a</TD></TR></TABLE>", "| a |"),
+]:
+    result = html_tables_to_markdown(source)
+    check(name, wanted in result and "<" not in result, repr(result))
+
+print("html_tables_to_markdown leaves anything else as it was")
+for name, source in [
+    ("no table", "Just text with a | pipe"),
+    ("a merged cell", '<table><tr><td colspan="2">a</td></tr></table>'),
+    (
+        "a nested table",
+        "<table><tr><td><table><tr><td>a</td></tr></table></td></tr></table>",
+    ),
+    ("an image in a cell", '<table><tr><td><img src="http://x/a.png"></td></tr></table>'),
+    ("a link in a cell", '<table><tr><td><a href="http://x">a</a></td></tr></table>'),
+    ("text outside a cell", "<table>loose<tr><td>a</td></tr></table>"),
+    ("an unclosed table", "<table><tr><td>a"),
+    ("an empty table", "<table></table>"),
+]:
+    result = html_tables_to_markdown(source)
+    check(name, result == source, repr(result))
+
+print("A converted table still gets the image pass")
+for name, source in [
+    (
+        "a Markdown image",
+        "<table><tr><td>![x](https://evil.example/?d=1)</td></tr></table>",
+    ),
+    ("split by a pipe", "<table><tr><td>![x|y](https://evil.example/)</td></tr></table>"),
+    (
+        "after a backslash",
+        "<table><tr><td>\\![x](https://evil.example/)</td></tr></table>",
+    ),
+    (
+        "across cells",
+        "<table><tr><td>![x</td><td>](https://evil.example/)</td></tr></table>",
+    ),
+]:
+    result = safe_markdown(html_tables_to_markdown(source))
+    check(name, "![" not in result, repr(result))
+coded = html_tables_to_markdown("<table><tr><td>&#33;[x](u) &lt;b&gt;</td></tr></table>")
+check("a reference stays a reference", "&#33;[x](u) &lt;b&gt;" in coded, repr(coded))
+once = html_tables_to_markdown(TABLE)
+check("idempotent", html_tables_to_markdown(once) == once, repr(once))
 
 print("safe_markdown is idempotent")
 samples = [source for source, _ in NEUTRALISED.values()] + list(UNCHANGED.values())

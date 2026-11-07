@@ -25,12 +25,12 @@ from nmv.imaging import (
 )
 from nmv.model import RunStats, stream_reply, user_turn
 from nmv.ui import (
-    PAGE_IMAGE_WIDTH,
     begin_run,
     ensure_studio,
     explain_no_boxes,
     render_stats,
     show_failure,
+    show_page_image,
     sidebar,
 )
 
@@ -113,13 +113,13 @@ def _overlay_panel(image: Image.Image, file_id: str, boxes: list[Box], stem: str
     """
     show_labels = st.toggle("Show label text", value=True, key="grounding_labels")
     if not boxes:
-        st.image(image, caption="Your image, no boxes", width=PAGE_IMAGE_WIDTH)
+        show_page_image(image, "Your image, no boxes")
         return
     annotated, png_bytes = _render_overlay(image, file_id, tuple(boxes), show_labels)
     # st.image has no alt text, so a caption stands in: the table holds the detail.
     count = "1 box" if len(boxes) == 1 else f"{len(boxes)} boxes"
     alt = f"Your image with {count} drawn, numbered as in the table"
-    st.image(annotated, caption=alt, width=PAGE_IMAGE_WIDTH)
+    show_page_image(annotated, alt)
     st.download_button(
         "Download overlay",
         png_bytes,
@@ -230,7 +230,7 @@ if run:
 
 result = st.session_state.get("grounding_result")
 if result is None:
-    st.image(original, caption="Ready", width=PAGE_IMAGE_WIDTH)
+    show_page_image(original, "Ready")
     st.stop()
 
 boxes = result["boxes"]

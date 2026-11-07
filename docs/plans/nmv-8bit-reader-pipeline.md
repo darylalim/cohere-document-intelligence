@@ -1,5 +1,8 @@
 # Plan: NMV 8-bit + Command R7B document pipeline (16 GB Macs)
 
+> **Status:** Implemented in v0.3.0 (merged 2026-11-07). README, `CLAUDE.md` and `docs/`
+> are the current truth; this file is not maintained.
+
 Drafted 2026-10-18 for implementation in a fresh session. Target machine:
 MacBook Pro M2 Pro, 16 GB. Read `CLAUDE.md` first — every invariant there still
 applies, and step 7 lists the parts of it this plan changes.
@@ -21,8 +24,9 @@ state from here.
 - [x] **M0 · Foundations** (PR 2)
 - [x] **M1 · Feasibility** (PR 3) — decisions 1 and 2 recorded below
 - [x] **M2 · Working pipeline** (PR 4) — decision 8 recorded below
-- [ ] **M3 · Quality and polish** (PR 5)
-- [ ] **M4 · Docs and release** (PR 6) — decision 7 by the user
+- [x] **M3 · Quality and polish** (PR 5) — decision 3 recorded below
+- [x] **M4 · Docs and release** (PR 6) — decisions 5 and 6 recorded below; decision 7 by
+  the user
 - [ ] Later items, each only if the user asks
 
 ### Milestones — one PR each, every one leaving `main` working
@@ -87,8 +91,8 @@ Record each answer here, with the date, before moving past it.
 | 2 | Keep R7B, keep R7B with idle unload, or switch to Tiny Aya (which costs a citation redesign in M2)? | end of M1 | the M1 memory check, including its Chat worst case (+ 8b quality later, if Tiny Aya). **Decided 2026-11-03: keep R7B, no idle unload for now**, with the cache limit moved into M1 |
 | 3 | Cap the transcription budget? | M3 | step 5g.3's CER sweep. **Decided 2026-11-04: no cap, keep the full budget** (`docs/performance.md`). 2.0 MP met the CER bar but misread a digit and dropped a title, to save time paid once per page |
 | 4 | Push branches and open each PR | every milestone | — |
-| 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8 |
-| 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1. **2026-11-04: keep them for now**, asked again at the end of M2; ask again at the end of M4 |
+| 5 | Turn on private vulnerability reporting (repo setting) | M4 | step 5i.8. **Decided 2026-11-06: on** |
+| 6 | Delete the bf16 weights from the HF cache | after decision 1 | step 1. **2026-11-04: keep them for now.** **Decided 2026-11-07: delete.** Removed with the README's `hf cache rm` command, which freed 5.0 GB |
 | 7 | Release: bump `version` (by hand) | end of M4 | `RELEASING.md` |
 | 8 | When NMV answers Locate with a point, not a box: a message or an approximate marker? | M2, before step 5 | `docs/performance.md`: 6 of 57 targets, only 3 inside the truth. **Decided 2026-11-04: a message**, because a marker would be wrong about half the time |
 
@@ -2822,8 +2826,8 @@ grep -rnE '^[^#]*(unsafe_allow_html=True|trust_remote_code=True)' nmv/ app_pages
 lsof -nP -iTCP:8501 -sTCP:LISTEN   # with the server running: only 127.0.0.1 / [::1]
 grep -rnE --include='*.py' '^(from|import) mlx(_vlm|_lm)?\b' nmv/ app_pages/ streamlit_app.py   # must print nothing
 for f in nmv/*.py; do jq -n --arg f "$PWD/$f" '{tool_input:{file_path:$f}}' | .claude/hooks/pin-guard.sh; done   # must print nothing
-git check-ignore -q transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png && echo ignored   # must print "ignored"
-git check-ignore -q uv.lock .claude/settings.json .claude/hooks/pin-guard.sh assets/sample-invoice.png || echo tracked   # must print "tracked"
+for p in transcripts.db transcripts.db-wal transcripts.db-shm local/scan.png; do git check-ignore -q "$p" || echo "NOT IGNORED: $p"; done   # must print nothing
+for p in uv.lock .claude/settings.json .claude/hooks/pin-guard.sh assets/sample-invoice.png; do git check-ignore -q "$p" && echo "IGNORED: $p"; done   # must print nothing
 ```
 
 Then confirm each milestone PR's CI run is green, including every step named in step 7's CI list.
@@ -2843,7 +2847,8 @@ Then check in a real browser, restarting the server after the `nmv/` edits:
   - The licence `st.info` and any `st.warning` are readable on their tints.
   - The "Save transcripts" toggle: confirm on/off from the button label as well
     as from the track.
-  - Greyed Locate buttons read as unavailable, with their caption.
+  - The disabled "source not found" citation pill reads as unavailable, and the
+    "Re-upload this page to locate it." caption is readable.
   - The Transcript expander (selected page), including a Markdown table,
     shows its border.
   - The page image under a drawn box. In Light it stays the brightest surface;

@@ -13,7 +13,7 @@ running locally beats shipping scans to an API.
 
 This app runs the **8-bit** conversion only
 (`mlx-community/North-Micro-Vision-Instruct-8bit`, ~3.2 GB), which leaves room for a second
-model on a 16 GB Mac.
+model on a 16 GB Mac: Command R7B, which answers the questions on Ask documents.
 
 ## Pages
 
@@ -33,213 +33,122 @@ turns, so the page attached on turn one is still bound to that turn.*
 Single-shot detection with a bounding-box overlay, a table of parsed coordinates, and a
 PNG download. Turn on **Deterministic** for steadier boxes.
 
-![The Grounding page: the invoice's text block boxed, with both detections listed beside the overlay in 0-1000 grid and pixel coordinates](assets/screenshot-grounding.png)
+![The Grounding page: the invoice's text block boxed and numbered, with its row beside the overlay giving its position in words, 0-1000 grid and pixel coordinates](assets/screenshot-grounding.png)
 
-*Grounding on `assets/sample-invoice.png` — 2,145 visual tokens at 1248×1760. Row 2's
-pixel span `817, 1177, 1142, 1403` is the PAID stamp, further down the page than the crop
-shows.*
+*Grounding on `assets/sample-invoice.png` — 2,145 visual tokens at 1248×1760. Box `#1`
+matches row 1 of the table, and the "where" column describes it in words.*
 
-`assets/sample-invoice.png` is a synthetic invoice for exercising both pages.
+### Ask documents
+
+Upload page images, transcribe each one once with North Micro Vision, then ask questions
+across them. Command R7B answers from the transcripts and cites what it used. Pick a
+citation to see it boxed on the page.
+
+![The Ask documents page: a question about the invoice answered with two citations, and the selected citation boxed on the page beside the conversation](assets/screenshot-documents.png)
+
+*The selected citation, `$4,182.55`, is boxed on the page as `#1`.*
+
+`assets/sample-invoice.png` is a synthetic invoice for exercising all three pages.
 
 ## Requirements
 
-- Apple Silicon Mac. 16 GB unified memory is enough; peak usage is ~4.5 GB.
+- Apple Silicon Mac with 16 GB of unified memory. With both models resident, peak usage is
+  about 11 GB.
 - Python 3.11–3.13 (the pinned venv uses 3.12).
 - [uv](https://docs.astral.sh/uv/).
 
+It runs on your own Mac only. MLX needs Apple's GPU, so hosted platforms and Docker cannot
+run it.
+
 Measured quality and memory are in [`docs/performance.md`](docs/performance.md).
 
-## Setup
+## Quick start
 
 ```bash
-uv sync
-uv run streamlit run streamlit_app.py
+git clone --branch <latest release tag> https://github.com/darylalim/cohere-document-intelligence
+cd cohere-document-intelligence && uv run --no-project --python 3.12 scripts/doctor.py
+uv sync --locked && uv run streamlit run streamlit_app.py
 ```
 
-The first launch pulls ~3.2 GB of weights into the Hugging Face cache. The app loads a
-fixed commit of the checkpoint rather than whatever `main` points at, so to fetch them
-ahead of time, ask for that same commit:
+Take the tag from the [releases page](https://github.com/darylalim/cohere-document-intelligence/releases):
+a release tag is a commit that passed CI, which `main` may not be. uv provides the Python
+in `.python-version`, so no other install is needed. The second line checks this Mac can
+run the app, and says what to fix if it cannot.
+
+An earlier version used the bf16 weights; `uv run hf cache rm model/mlx-community/North-Micro-Vision-Instruct-bf16` frees that space.
+
+Start the app when you need it and press Ctrl-C to quit. Do not run it as a login service:
+that would keep about 8 GB of models resident on a 16 GB Mac all day.
+
+## Weights
+
+The first launch pulls ~3.2 GB of weights into the Hugging Face cache, and Ask documents
+offers to download Command R7B (4.5 GB) on the page. The app loads a fixed commit of each
+checkpoint rather than whatever `main` points at, so to fetch them ahead of time, ask for
+those same commits:
 
 ```bash
 uv run hf download mlx-community/North-Micro-Vision-Instruct-8bit \
   --revision 26e6b3aef507899fbf86057593d99fc12418e26f
+uv run hf download mlx-community/c4ai-command-r7b-12-2024-4bit \
+  --revision 2ae601b3d780410caacd2148c6c96e620144f22d
 ```
 
-## Things worth knowing
+If the internal disk is short, set `HF_HOME` to a folder on an external drive. Once the
+weights are cached the app can run offline; see
+[Network traffic](docs/privacy.md#network-traffic).
 
-### Token count scales with pixel area
+## Updating
 
-The encoder cuts an image into 16 px patches, merges each 2×2 block, and spends one
-language-model token per merged block. One token therefore covers 32×32 px:
-
-```text
-tokens = pixels / 1024
+```bash
+git fetch --tags && git checkout <new tag> && uv sync --locked
 ```
 
-The **Image budget** slider is the single biggest lever on prefill latency and KV-cache
-memory. Its ceiling is 3,868,706 px — 1654×2339, an A4 page at 200 dpi, the largest
-resolution Cohere trained on, and mlx-vlm's own default cap. Each edge snaps to a
-multiple of 32, and anything above the ceiling is scaled down to fit:
+A release that moves a model pin says so in its notes, with the download size, because that
+update pulls new weights. `uv run hf cache rm <revision hash>` removes the old ones, and
+`uv run hf cache ls --revisions` lists what is cached.
 
-| Input | Encoded | Tokens |
-|---|---|---:|
-| A4 scan @ 200 dpi (1654×2339) | 1632×2336 | 3,723 |
-| 1080p photo (1920×1080) | 1920×1088 | 2,040 |
-| 12 MP phone photo (4032×3024) | 2240×1696 | 3,710 |
+## Privacy
 
-The checkpoint's `preprocessor_config.json` advertises a far larger `size.longest_edge`
-of 16,777,216 px (16,384 tokens — double the 8K context the model was actually validated
-at for multimodal input). mlx-vlm never reads it: its processor only honours keys
-literally named `min_pixels`/`max_pixels`, which that file lacks. The effective budget is
-the sane one.
-
-### Grounding coordinates are resolution independent
-
-Boxes come back as `[x1, y1, x2, y2]` on a **0–1000** grid, not in pixels, so
-`x_px = x / 1000 * width` works against whichever rendering you like. That is why the
-overlay can be drawn on your full-resolution upload even though the encoder saw a
-downscaled copy — nothing has to be rescaled between the two.
-
-Two traps this codebase handles and you should keep handling:
-
-- **EXIF orientation.** Phone photos carry a rotation tag. Normalise it *before*
-  encoding, and draw boxes on that same normalised image — otherwise the model reads a
-  sideways page while the overlay is upright and every coordinate lands wrong.
-- **Bare arrays.** Despite being asked for labelled JSON, the model often replies with a
-  plain `[659, 671, 921, 799]`. `nmv/grounding.py` parses JSON, fenced blocks and loose
-  prose, and treats labels as optional.
-
-### MLX streams are thread-local — this shapes the whole architecture
-
-MLX binds each thread's default stream to that thread, and an array that has not been
-evaluated yet is work queued on one of those streams, so only that thread can evaluate
-it. mlx-vlm's `load()` evaluates the model's parameters but not the arrays it keeps under
-underscore names, and the text model's shared rotary `_inv_freq` table is one of them: it
-stays pending until the first forward pass reads it, so that pass has to run on the
-thread that loaded the model.
-
-Streamlit starts **a fresh ScriptRunner thread for each rerun the browser requests**, and
-`st.cache_resource` loads the model during the page's first render. So in a naive app the
-first reply, and every one after it, dies with:
-
-```text
-RuntimeError: There is no Stream(gpu, 1) in current thread.
-```
-
-`nmv/runtime.py` fixes this by running the import, the load and every later MLX call on
-one long-lived worker thread, streaming tokens back over a bounded queue. It also
-serialises GPU work across browser tabs, which matters because MLX generation is not
-reentrant.
-
-**The invariant:** mlx-vlm is imported only inside worker functions, never at module
-scope, so anything it queues at import time lands on the worker too. `nmv/imaging.py`
-therefore mirrors mlx-vlm's `smart_resize` as plain arithmetic instead of importing it;
-`tests/test_resize_parity.py` asserts the copy stays identical to upstream.
-
-### The model's own limits
-
-- No system prompts — Cohere notes it was not trained to follow them, so the app never
-  sends one. Task instructions go in the user turn.
-- Weak text-only reasoning (MMLU 0.504). No tool calling, no agentic workflows, limited
-  maths and code.
-- 8K context was validated for multimodal input, even though the LM backbone claims 128K.
-
-### Model output is untrusted
-
-A document can carry instructions the model follows. This app gives the model no
-tools, so injected instructions can only produce **wrong answers**, not actions:
-treat answers about untrusted documents accordingly. The one way such text could
-reach outside the app is a Markdown image, which a browser loads from any URL with
-no click, so every message on the page has images replaced with `[image: alt]` text
-first. Links are left alone, because they need a click.
+Documents stay on this Mac. The only network traffic is downloading the weights, after which
+the app can run offline. Transcripts are saved to a local database so a slow transcription
+survives a restart. Turn that off, or clear them, on Ask documents. The app does not encrypt
+that file, so turn on FileVault. The details are in [`docs/privacy.md`](docs/privacy.md).
 
 ## Accessibility
 
-Boxes drawn on an image say nothing to a screen reader, and colour alone cannot link a
-box to its row. So the app gives each one a text equivalent:
+Every box is described in words and numbered to match its table row, every image has a
+caption, and streaming can be turned off in the sidebar. Contrast floors are tested on both
+themes. Known gaps, and what was checked by hand, are in
+[`docs/architecture.md`](docs/architecture.md#accessibility).
 
-- **Every box is described in words,** such as "lower right · about 25% of the page
-  wide, 15% tall". Grounding shows this in the table's "where" column, and Ask documents
-  in the caption under a located page.
-- **Every box is numbered.** `#N` stays on the box and matches the table's `#` column,
-  even with "Show label text" off.
-- **Stream responses can be turned off** in the sidebar. A reply then appears once,
-  complete, with no moving text.
-- **Every image has a caption** in place of alt text, which `st.image` does not offer.
-- **Every alert says what to do next,** and citations name their page in text.
-- **Contrast floors are tested** on both themes by `tests/test_theme_contrast.py`. It
-  computes colours from the config, so it is a floor rather than proof of what renders.
+## Documentation
 
-Known gaps:
-
-- **The keyboard focus ring is 2.43:1** in both themes, under the 3:1 that WCAG
-  recommends. No single config value fixes it without undoing the accent's other
-  trades, and the app uses no custom CSS.
-- **The dark theme's toggle knob is 2.26:1** on its "on" track. The Transcribe button
-  states the save mode in text, so that setting never depends on the knob.
-- **Widget ARIA and live regions belong to Streamlit,** so the app cannot change them.
-
-Not yet checked: VoiceOver, keyboard-only use, reflow at 320 px, and an axe pass.
-
-## Layout
-
-```text
-streamlit_app.py          entry point and router
-app_pages/chat.py         multi-turn visual chat
-app_pages/grounding.py    detection with box overlay
-nmv/runtime.py            the MLX worker thread (read this first)
-nmv/model.py              loading, sampling, streaming
-nmv/imaging.py            token budgeting and resizing (no MLX import)
-nmv/grounding.py          0–1000 box parsing and rendering
-nmv/ui.py                 shared sidebar
-tests/                    resize/token invariants, worker-abandonment regression
-```
-
-## Development
-
-```bash
-uv run python tests/test_resize_parity.py
-uv run python tests/test_runtime_abandon.py
-uv run ruff check .
-uv run ruff format .
-uv run ty check
-```
-
-## CI and releases
-
-Every pull request and every push to `main` runs the checks above, plus a grep for
-module-scope MLX imports, on an Apple Silicon runner. There is no Linux job: the lock
-installs there, but mlx's Linux wheel carries no backend unless installed with its `cpu`
-or `cuda` extra, so neither test could import it. `uv sync --locked` fails the build if
-`uv.lock` has drifted from `pyproject.toml`.
-
-**Bumping `version` in `pyproject.toml` on `main` publishes a GitHub release.** Once CI is
-green the workflow tags that commit, builds notes from the commit subjects since the
-previous tag, and publishes — there is no draft to approve. It refuses a version that is
-not valid PEP 440 or that is not ahead of the highest existing tag, and marks a
-pre-release (`0.2.0rc1`, `0.3.0.dev1`) as such so it does not take the "Latest" badge.
-
-## Measured on an M2 Max (32 GB)
-
-Reproduce with `assets/sample-invoice.png`.
-
-| Metric | Value |
-|---|---|
-| Weight load (cached) | ~3.4 s |
-| Prefill | ~590 tok/s |
-| Decode | 72–88 tok/s |
-| Peak memory | 6.17 GB |
+- [Privacy](docs/privacy.md): what is stored, logged and sent
+- [Troubleshooting](docs/troubleshooting.md): what each on-screen error means
+- [Architecture](docs/architecture.md): how the app works, and the model's limits
+- [Performance](docs/performance.md): measured quality, memory and speed
+- [Evaluation](evals/README.md): how those measurements are made
+- [Contributing](CONTRIBUTING.md): development, tests and CI
+- [Releasing](RELEASING.md): the steps before a version bump
+- [Security](SECURITY.md): how to report a vulnerability, and the trust model
 
 ## License
 
 The app's own code is Apache-2.0 — see [`LICENSE`](LICENSE). Apache-2.0 rather than MIT
 for the patent grant (§3) and, more to the point here, for the explicit statement that no
-trademark rights travel with it (§6). *Cohere* and *North Micro Vision* are Cohere's
-marks; this is an unaffiliated project that runs their published checkpoint.
+trademark rights travel with it (§6). *Cohere*, *North Micro Vision* and *Command* are
+Cohere's marks; this is an unaffiliated project that runs their published checkpoints.
 
-No weights are vendored here: `uv sync` installs no checkpoint, and the ~3.2 GB arrives
-from the Hugging Face cache on first run. Both
-[CohereLabs/North-Micro-Vision-Instruct](https://huggingface.co/CohereLabs/North-Micro-Vision-Instruct)
-and the [mlx-community 8-bit conversion](https://huggingface.co/mlx-community/North-Micro-Vision-Instruct-8bit)
-this app loads are Apache-2.0 as well, so the two halves line up — but they are
-governed by their own model cards, not by this repository's `LICENSE`.
+No weights are vendored here: `uv sync` installs no checkpoint, and they arrive in the
+Hugging Face cache when first needed.
+
+| Part | Licence | Commercial use |
+|---|---|---|
+| App code (this repo) | Apache-2.0 | Yes |
+| [North Micro Vision 8-bit weights](https://huggingface.co/mlx-community/North-Micro-Vision-Instruct-8bit) | Apache-2.0 | Yes |
+| [Command R7B 4-bit weights](https://huggingface.co/mlx-community/c4ai-command-r7b-12-2024-4bit) | CC-BY-NC-4.0 + [C4AI licence agreement](https://cohere.com/c4ai-cc-by-nc-license) | No |
+
+Ask documents uses R7B, so it is non-commercial; Chat and Grounding use only North Micro
+Vision. The R7B download is not gated on the Hub, but its terms still apply. Each
+checkpoint's model card governs its weights, not this repository's `LICENSE`.

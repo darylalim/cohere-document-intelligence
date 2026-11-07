@@ -194,6 +194,15 @@ with patch("nmv.ui.st") as fake_st:
     drawn = str(fake_st.markdown.call_args)
     check("an answer draws once, without its tags", "Yes" in drawn and "<co" not in drawn)
     check("and without its plan", "plan" not in drawn, drawn)
+
+print("An empty result")
+with patch("nmv.ui.st") as fake_st:
+    ui.explain_no_boxes("[]", False)
+    check("names Deterministic", "Deterministic" in str(fake_st.info.call_args))
+    fake_st.reset_mock()
+    ui.explain_no_boxes("[]", False, fixed_limit=True)
+    drawn = str(fake_st.info.call_args)
+    check("but not on Locate, which is greedy", "Deterministic" not in drawn, drawn)
 with stubbed():
     app = page("chat.py").run()
     app.sidebar.toggle(key="stream_responses").set_value(False).run()
