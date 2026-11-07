@@ -183,6 +183,11 @@ Checked on the same Mac on 2026-11-06.
 - **Filling memory gradually slows down before anything fails.** Holding 1 GiB more at each
   step reached 15 GB active with no error. A pass over the data went from 0.01 s to 50 s and
   swap reached 6.4 GB, and the check's own timeout then stopped it.
+- **The app behaved the same on 2026-11-07.** With both models loaded and the image
+  budget at its ceiling, Ask documents on the ten generated dense pages only slowed down.
+  No message and no error appeared before the run was stopped by hand. So the "Ran out of
+  GPU memory" message, Retry after it, and the worker surviving it are covered only by
+  `tests/test_errors.py`, not by a real run.
 - **`[METAL] Command buffer execution failed` was not reproduced,** so whether it reaches
   Python or stops the process is still unknown.
 
