@@ -141,6 +141,10 @@ flowchart LR
 - Weak text-only reasoning (MMLU 0.504). No tool calling, no agentic workflows, limited
   maths and code.
 - 8K context was validated for multimodal input, even though the LM backbone claims 128K.
+- Some tables come back as HTML, though the prompt asks for Markdown. Ask documents' Transcript
+  redraws plain ones as Markdown for display only, so the stored text and what the reader
+  gets stay as the model wrote them. A table with merged cells still shows its tags, and so
+  does any table in a Chat reply.
 
 ## Accessibility
 

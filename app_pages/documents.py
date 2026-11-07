@@ -55,7 +55,7 @@ from nmv.reader import (
     reader_sampling,
     stream_answer,
 )
-from nmv.render import safe_markdown
+from nmv.render import html_tables_to_markdown, safe_markdown
 from nmv.ui import (
     MAX_PAGES,
     READING_WIDTH,
@@ -466,7 +466,7 @@ def _page_panel(
                     "image, then re-transcribe it.",
                     icon=":material/hide_image:",
                 )
-            st.markdown(safe_markdown(transcript.text))
+            st.markdown(safe_markdown(html_tables_to_markdown(transcript.text)))
             if st.button(
                 "Re-transcribe at the current budget",
                 icon=":material/refresh:",
