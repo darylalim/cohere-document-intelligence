@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import logging
 import os
+import traceback
+from typing import Any
 
 from nmv import trace
 
@@ -26,6 +28,15 @@ _LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 _MARKER = "_nmv_handler"
 
 
+class _Formatter(logging.Formatter):
+    """Tracebacks keep the class and the frames but not the message, which can quote a
+    file name or a page. The full exception stays under Details on the page."""
+
+    def formatException(self, ei: Any) -> str:  # noqa: N802
+        frames = "".join(traceback.format_tb(ei[2])).rstrip()
+        return f"{ei[0].__name__}, message left out\n{frames}"
+
+
 def setup() -> None:
     """Attach the handler once. ``streamlit_app.py`` reruns on every interaction, and
     a second handler would print every line twice."""
@@ -34,7 +45,7 @@ def setup() -> None:
         return
 
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter(FORMAT))
+    handler.setFormatter(_Formatter(FORMAT))
     # On the handler, because a logger's own filters skip its children's records.
     handler.addFilter(trace.RunFilter())
     setattr(handler, _MARKER, True)

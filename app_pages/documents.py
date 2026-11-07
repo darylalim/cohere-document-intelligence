@@ -55,10 +55,9 @@ from nmv.reader import (
     reader_sampling,
     stream_answer,
 )
-from nmv.render import safe_markdown
+from nmv.render import html_tables_to_markdown, safe_markdown
 from nmv.ui import (
     MAX_PAGES,
-    PAGE_IMAGE_WIDTH,
     READING_WIDTH,
     Inspection,
     begin_run,
@@ -71,6 +70,7 @@ from nmv.ui import (
     show_answer,
     show_failure,
     show_inspect,
+    show_page_image,
     show_reader_licence,
     sidebar,
 )
@@ -430,7 +430,7 @@ def _page_panel(
     # safe_markdown, so the model's span stays out of it, in the caption below.
     boxed = located is not None and located[0].boxes
     alt = f"Page {numbers[shown]} of {len(numbers)}" + (", box drawn" if boxed else "")
-    st.image(image, caption=alt, width=PAGE_IMAGE_WIDTH)
+    show_page_image(image, alt)
     if located is not None:
         result, raw, located_run = located
         found_at = [describe(box) for box in result.boxes]
@@ -466,7 +466,7 @@ def _page_panel(
                     "image, then re-transcribe it.",
                     icon=":material/hide_image:",
                 )
-            st.markdown(safe_markdown(transcript.text))
+            st.markdown(safe_markdown(html_tables_to_markdown(transcript.text)))
             if st.button(
                 "Re-transcribe at the current budget",
                 icon=":material/refresh:",
