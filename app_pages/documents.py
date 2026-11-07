@@ -7,6 +7,7 @@ tokens, and Transcribe and Locate ignore its sampling too: a transcript is cache
 and a box is a measurement, so neither may vary from click to click.
 """
 
+import hashlib
 import logging
 from dataclasses import replace
 from io import BytesIO
@@ -18,7 +19,7 @@ from streamlit.typing import UploadedFile
 
 from nmv import trace, transcripts
 from nmv.citations import parse
-from nmv.documents import best_transcript, match_line, natural_key
+from nmv.documents import best_transcript, first_per_page, match_line, natural_key
 from nmv.domain import Derivation, Grounding, Page, PageId, Transcript, Turn, page_id
 from nmv.grounding import describe, draw_boxes, parse_boxes
 from nmv.imaging import (
@@ -55,7 +56,7 @@ from nmv.reader import (
     reader_sampling,
     stream_answer,
 )
-from nmv.render import html_tables_to_markdown, safe_markdown
+from nmv.render import html_tables_to_markdown, safe_markdown, snippet_markdown
 from nmv.ui import (
     MAX_PAGES,
     READING_WIDTH,
@@ -209,11 +210,78 @@ def _transcribe(
     return outcome
 
 
+def _saved_transcript(page: PageId) -> Transcript | None:
+    """A search hit's text: the highest-budget transcript from this model and prompt.
+
+    Read from the store on every rerun rather than kept in session, so a page whose
+    transcripts are cleared leaves the documents too.
+    """
+    wanted = Derivation(
+        page, 0, MODEL_REVISION, TRANSCRIBE_PROMPT_VERSION, TRANSCRIBE_MAX_TOKENS
+    )
+    return best_transcript(transcripts.by_page(page), wanted)
+
+
+def _toggle_saved(widget: str, page: PageId, name: str) -> None:
+    if state[widget]:
+        state.ask_added[page] = name
+    else:
+        state.ask_added.pop(page, None)
+
+
+def _search_saved(busy: bool) -> None:
+    """Find saved transcripts and add their pages to the documents, as text only."""
+    query = st.text_input(
+        "Search saved documents",
+        key="ask_search",
+        icon=":material/search:",
+        placeholder="Words from a page you transcribed before",
+        disabled=busy,
+    )
+    if not query.strip():
+        return
+    hits = [
+        hit
+        for hit in first_per_page(transcripts.search(query, limit=20))
+        if _saved_transcript(hit.page) is not None
+    ]
+    if not hits:
+        st.caption("No saved transcript matches.")
+        return
+    full = len(state.ask_added) >= MAX_PAGES
+    with st.container(height=320 if len(hits) > 4 else "content"):
+        for hit in hits:
+            name = hit.filename or "Untitled page"
+            widget = f"ask_hit_{hit.page}"
+            # Set before the widget, so it follows removals made elsewhere.
+            state[widget] = hit.page in state.ask_added
+            st.checkbox(
+                # A widget label renders Markdown too, images included.
+                safe_markdown(f"{name} · saved {hit.created[:10]}"),
+                key=widget,
+                on_change=_toggle_saved,
+                args=(widget, hit.page, name),
+                disabled=busy or (full and not state[widget]),
+            )
+            st.caption(
+                snippet_markdown(
+                    hit.snippet, transcripts.MATCH_START, transcripts.MATCH_END
+                )
+            )
+    if full:
+        st.caption(f"Up to {MAX_PAGES} saved pages can be added.")
+
+
 def _reuse(
     found: dict[PageId, Transcript | None], by_id: dict[PageId, Page], budget: int
 ) -> str:
-    """The run record's ``store``: did every page come from this budget's transcript?"""
+    """The run record's ``store``: did every page come from this budget's transcript?
+
+    A saved page without its upload has no budget to compare, so it is left out.
+    """
     for page, transcript in found.items():
+        if by_id[page].image is None:
+            continue
         wanted = _transcribe_derivation(by_id[page], budget).key()
         if transcript is not None and transcript.derivation.key() != wanted:
             return "fallback-budget"
@@ -324,11 +392,18 @@ def _pick_citation(widget: str, entries: list[tuple[str, PageId]], view: str) ->
     st.rerun(panels)
 
 
-def _citations(index: int, turn: Turn, numbers: dict[PageId, int], view: str) -> None:
+def _citations(
+    index: int,
+    turn: Turn,
+    numbers: dict[PageId, int],
+    locatable: frozenset[PageId],
+    view: str,
+) -> None:
     if not turn.citations:
         st.caption("No page citations — check the answer against the pages.")
         return
     entries: list[tuple[str, PageId]] = []
+    text_only: list[tuple[str, PageId]] = []  # saved pages with no upload, so no image
     missing: list[str] = []
     unknown = 0
     for citation in turn.citations:
@@ -338,14 +413,20 @@ def _citations(index: int, turn: Turn, numbers: dict[PageId, int], view: str) ->
                 unknown += 1
             elif cited not in numbers:
                 missing.append(citation.span)
+            elif cited not in locatable:
+                if (citation.span, cited) not in text_only:
+                    text_only.append((citation.span, cited))
             elif (citation.span, cited) not in entries:
                 entries.append((citation.span, cited))
 
-    def label(entry: int) -> str:
-        span, cited = entries[entry]
+    def describe_entry(entry: tuple[str, PageId]) -> str:
+        span, cited = entry
         short = span if len(span) <= 40 else f"{span[:39]}…"
         # A widget label renders Markdown too, images included.
         return safe_markdown(f"p.{numbers[cited]}: “{short}”")
+
+    def label(entry: int) -> str:
+        return describe_entry(entries[entry])
 
     if entries:
         widget = f"ask_cite_{index}"
@@ -369,8 +450,38 @@ def _citations(index: int, turn: Turn, numbers: dict[PageId, int], view: str) ->
             # The pill says it all, and a screen reader still gets this label.
             label_visibility="collapsed",
         )
-    if missing:
+    if text_only:
+        st.pills(
+            "Citations on saved pages",
+            list(range(len(text_only))),
+            format_func=lambda entry: describe_entry(text_only[entry]),
+            key=f"ask_saved_{index}",
+            disabled=True,
+            # Each pill names its page and quote, and a screen reader still gets this.
+            label_visibility="collapsed",
+            wrap=True,
+        )
+    if missing or text_only:
         st.caption("Re-upload this page to locate it.")
+
+
+def _saved_page_panel(page: Page, transcript: Transcript | None) -> None:
+    """A search hit without its upload: the store keeps text, never page images."""
+    st.info(
+        f"**{safe_markdown(page.display_name)}** is saved text only, so there is no "
+        "image to show or locate citations on. Re-upload it to do both.",
+        icon=":material/text_snippet:",
+    )
+    with st.expander("Transcript", expanded=True):
+        if transcript is None:
+            st.caption("This transcript is no longer saved.")
+        else:
+            if transcript.empty:
+                st.warning(
+                    "This page looks empty, so it is not sent to the reader.",
+                    icon=":material/hide_image:",
+                )
+            st.markdown(safe_markdown(html_tables_to_markdown(transcript.text)))
 
 
 @st.fragment(key="page_panel")
@@ -402,7 +513,9 @@ def _page_panel(
         or first
     )
     page = by_id[shown]
-    assert page.image is not None
+    if page.image is None:
+        _saved_page_panel(page, found.get(shown) or _saved_transcript(shown))
+        return
     transcript = found.get(shown) or _usable_transcript(page, budget)
 
     image = page.image
@@ -481,6 +594,7 @@ for name, value in (
     ("ask_turns", []),
     ("ask_notes", {}),
     ("ask_held", {}),  # transcripts kept in session: save off, or the store failed
+    ("ask_added", {}),  # saved pages added from search: page id to display name
     ("ask_failed", []),
     ("locate_cache", {}),
     ("locate_target", None),
@@ -502,6 +616,9 @@ _prune_once()
 
 queue: list[PageId] = state.transcribe_queue
 busy = bool(queue)
+
+# Search reads the store whatever the save toggle says: off only stops writing.
+_search_saved(busy)
 
 with st.container(horizontal=True):
     uploads = st.file_uploader(
@@ -571,18 +688,42 @@ if not transcripts.available():
     )
 
 pages = _read_pages(list(uploads or []), budget)
+# Saved pages come after the uploads. An upload of the same page replaces its saved
+# text, which is what brings back its image and Locate.
+saved_found: dict[PageId, Transcript] = {}
+for saved_id, saved_name in list(state.ask_added.items()):
+    if any(page.id == saved_id for page in pages):
+        continue
+    saved_transcript = _saved_transcript(saved_id)
+    if saved_transcript is None:  # cleared, or pruned, since it was added
+        del state.ask_added[saved_id]
+        continue
+    saved_found[saved_id] = saved_transcript
+    size = (saved_transcript.width, saved_transcript.height)
+    pages.append(Page(saved_id, saved_name, size))
 by_id = {page.id: page for page in pages}
 numbers = {page.id: number for number, page in enumerate(pages, 1)}
+locatable = frozenset(page.id for page in pages if page.image is not None)
 digest = "-".join(page.id[:8] for page in pages)
+
+
+def _page_option(page: PageId) -> str:
+    kind = "" if page in locatable else " · saved text"
+    return f"p.{numbers[page]} · {by_id[page].display_name}{kind}"
+
 
 selected: list[PageId] = []
 if pages:
+    # Keyed on the labels, not just the pages. The browser matches a multiselect's
+    # values by label, so a label that changes under the same key (a saved page
+    # replaced by its upload loses "saved text") would silently empty the selection.
+    labels = hashlib.sha256("\n".join(map(_page_option, by_id)).encode()).hexdigest()
     selected = st.multiselect(
         "Pages to ask about",
         list(by_id),
         default=list(by_id),
-        format_func=lambda page: f"p.{numbers[page]} · {by_id[page].display_name}",
-        key=f"ask_selected_{digest}",
+        format_func=_page_option,
+        key=f"ask_selected_{labels[:16]}",
         disabled=busy,
     )
 
@@ -594,7 +735,12 @@ if selected and state.get("ask_signature") != selected:
         st.info("The pages changed, so this is a new conversation.")
     state.ask_signature = list(selected)
 
-found = {page: _usable_transcript(by_id[page], budget) for page in selected}
+found = {
+    page: saved_found[page]
+    if page in saved_found
+    else _usable_transcript(by_id[page], budget)
+    for page in selected
+}
 needed = [page for page, transcript in found.items() if transcript is None]
 sendable = [
     (page, transcript.text)
@@ -657,7 +803,7 @@ with conversation:
                 if turn.role == "assistant":
                     # Keyed by turn, so a callback can redraw just the one it cleared.
                     st.fragment(_citations, key=f"ask_cite_{index}")(
-                        index, turn, numbers, view_key
+                        index, turn, numbers, locatable, view_key
                     )
                     show_inspect("ask", turn.run_id)
 
@@ -665,7 +811,10 @@ with viewer:
     if pages:
         _page_panel(by_id, numbers, found, budget, busy, view_key)
     else:
-        st.info("Upload page images to begin.", icon=":material/description:")
+        st.info(
+            "Upload page images, or search saved documents, to begin.",
+            icon=":material/description:",
+        )
 
 question = st.chat_input(
     "Ask about the selected pages",

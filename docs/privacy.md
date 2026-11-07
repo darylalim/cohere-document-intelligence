@@ -35,6 +35,9 @@ Both are on Ask documents.
   another tab can still save a row afterwards, so the message says how many remain.
 - Deleted text is really removed: the store overwrites it, compacts the database and
   empties its write-ahead log, rather than only marking rows as gone.
+- **Search saved documents** reads the same store, with saving on or off, and writes
+  nothing. A page added from search leaves the conversation's documents once its
+  transcript is cleared.
 
 ## What is logged
 

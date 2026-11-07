@@ -9,7 +9,8 @@ import re
 from collections.abc import Iterable
 from difflib import SequenceMatcher
 
-from nmv.domain import Derivation, Transcript
+from nmv.domain import Derivation, PageId, Transcript
+from nmv.transcripts import Hit
 
 MATCH_THRESHOLD = 0.5
 _DECORATION = " \t|#*>-"
@@ -48,6 +49,18 @@ def match_line(span: str, transcript: str) -> str:
         if ratio > best_ratio:
             best, best_ratio = line, ratio
     return best
+
+
+def first_per_page(hits: Iterable[Hit]) -> list[Hit]:
+    """One hit per page, its best-ranked. A page saved at several budgets has a row
+    for each, and listing them all would offer the same page several times."""
+    seen: set[PageId] = set()
+    unique = []
+    for hit in hits:
+        if hit.page not in seen:
+            seen.add(hit.page)
+            unique.append(hit)
+    return unique
 
 
 def best_transcript(

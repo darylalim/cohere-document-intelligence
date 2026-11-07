@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from _check import check, finish  # noqa: E402
 
 from nmv import transcripts  # noqa: E402
+from nmv.documents import first_per_page  # noqa: E402
 from nmv.domain import Derivation, Transcript, page_id  # noqa: E402
 
 logging.disable(logging.CRITICAL)  # the failure cases log by design
@@ -214,13 +215,37 @@ check(
     "the hit reconnects to its page", hits[0].page == PAGE and hits[0].key == BASE.key()
 )
 check("the hit carries the file name", hits[0].filename == "bill.png")
-check("the match is marked", "**total**" in hits[0].snippet, hits[0].snippet)
+marked = f"{transcripts.MATCH_START}total{transcripts.MATCH_END}"
+check("the match is marked", marked in hits[0].snippet, hits[0].snippet)
 check("no match is empty", transcripts.search("absent") == [])
 check("a blank query is empty", transcripts.search("   ") == [])
 for query in ('AT&T "net 30', "total*", "a AND", "NEAR(", "col:x", "'; DROP TABLE x"):
     transcripts.search(query)
     check(f"{query!r} is not syntax", raw("SELECT count(*) FROM transcripts") == [(1,)])
 check("a quoted term still matches", len(transcripts.search("AT&T")) == 1)
+
+print("search ranks and dedupes")
+fresh_db()
+OTHER = page_id(b"other page")
+transcripts.put(
+    saved("Notes on shipping, packing, the weather and one total at the end"), "a.png"
+)
+transcripts.put(
+    Transcript(replace(BASE, page=OTHER), "total total total", "stop", 800, 1100),
+    "b.png",
+)
+check(
+    "the denser match ranks first",
+    [hit.filename for hit in transcripts.search("total")] == ["b.png", "a.png"],
+)
+check("the limit is honoured", len(transcripts.search("total", limit=1)) == 1)
+transcripts.put(saved("total again", resolved_px=500_000), "a-small.png")
+hits = transcripts.search("total")
+check("a page at two budgets is two rows", len(hits) == 3)
+unique = first_per_page(hits)
+check("first_per_page keeps one per page", {hit.page for hit in unique} == {OTHER, PAGE})
+check("in rank order", len(unique) == 2)
+check("and keeps the best-ranked row", unique[0] is hits[0])
 
 print("permissions")
 path = fresh_db()

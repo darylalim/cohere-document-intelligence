@@ -84,9 +84,17 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+# Around each match in a snippet. Control characters, so they cannot be confused
+# with Markdown the transcript itself contains; ``render.snippet_markdown`` turns
+# them into bold after escaping everything else.
+MATCH_START = "\x02"
+MATCH_END = "\x03"
+
+
 @dataclass(frozen=True)
 class Hit:
-    """A search result. ``snippet`` is model output with ``**`` around the match."""
+    """A search result. ``snippet`` is model output, with ``MATCH_START`` and
+    ``MATCH_END`` around each match."""
 
     key: str
     page: PageId
@@ -351,14 +359,14 @@ def search(query: str, limit: int = 20) -> list[Hit]:
         rows = db.execute(
             """
             SELECT t.key, t.page_id, t.filename, t.created,
-                   snippet(transcripts_fts, 0, '**', '**', '…', 12) AS snippet
+                   snippet(transcripts_fts, 0, ?, ?, '…', 12) AS snippet
             FROM transcripts_fts
             JOIN transcripts AS t ON t.id = transcripts_fts.rowid
             WHERE transcripts_fts MATCH ?
             ORDER BY bm25(transcripts_fts)
             LIMIT ?
             """,
-            (terms, limit),
+            (MATCH_START, MATCH_END, terms, limit),
         ).fetchall()
     return [
         Hit(
