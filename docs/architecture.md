@@ -49,6 +49,16 @@ flowchart TD
     locate --> overlay["Boxes drawn on the full-resolution page"]
 ```
 
+**Search saved documents** is the local stand-in for retrieval. It runs an SQLite FTS5
+query over the saved transcripts, with every term quoted so FTS5 syntax in it means
+nothing, and uses no model and no extra memory. A page added from search joins the
+documents as text only, because the store never keeps page images. Its citations are
+greyed out with "Re-upload this page to locate it." Uploading the same file (same bytes,
+so the same page id) replaces the text-only page with the upload, which brings back the
+image and Locate with nothing else to do. Saved pages go through the reader's context
+budget like uploads, and any that do not fit are named. Only transcripts from the current
+checkpoint, prompt and token limit are offered.
+
 ## Token count scales with pixel area
 
 The encoder cuts an image into 16 px patches, merges each 2×2 block, and spends one

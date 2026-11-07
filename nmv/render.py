@@ -244,3 +244,20 @@ def html_tables_to_markdown(text: str) -> str:
     if "<table" not in text.lower():
         return text
     return _HTML_TABLE.sub(_markdown_table, text)
+
+
+_MARKDOWN_PUNCTUATION = re.compile(r"([\\`*_{}\[\]()#+\-.!|<>~$&:=\"'])")
+
+
+def snippet_markdown(snippet: str, start: str, end: str) -> str:
+    """A search snippet as one line of inert text with its matches in bold.
+
+    A snippet is cut from the middle of a transcript, so the Markdown in it is
+    broken as often as not: a heading turns the whole caption into a title, half a
+    table is a stray pipe, and a ``$`` pairs with the next into LaTeX. Every
+    punctuation character is escaped, which leaves nothing that renders, images
+    included, and only the match markers become bold.
+    """
+    flat = " ".join(snippet.split())
+    escaped = _MARKDOWN_PUNCTUATION.sub(r"\\\1", flat)
+    return escaped.replace(start, "**").replace(end, "**")

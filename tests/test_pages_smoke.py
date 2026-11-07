@@ -527,4 +527,54 @@ check("no exception", not uncaught(app), str(app.exception))
 check("it says so", "cut off while planning" in text_of(app), text_of(app))
 check("nothing is stored", app.session_state["ask_turns"] == [])
 
+print("Ask documents: search saved documents")
+transcripts.clear()
+SAVED_PAGE = png("#0a5f3c")
+with stubbed():
+    app = page("documents.py").run()
+    app.file_uploader[0].set_value([("bill.png", SAVED_PAGE, "image/png")]).run()
+    button(app, "Transcribe").click().run()
+check("the page was saved", transcripts.usage()[0] == 1)
+
+with stubbed():
+    app = page("documents.py").run()  # a new session: no uploads
+    app.text_input(key="ask_search").input("total").run()
+    check("no exception searching", not uncaught(app), str(app.exception))
+    check("one hit", len(app.checkbox) == 1)
+    check("it names the file", "bill.png" in app.checkbox[0].label, app.checkbox[0].label)
+    check("the snippet marks the match", "**Total**" in text_of(app), text_of(app))
+    app.checkbox[0].check().run()
+    check("no exception adding", not uncaught(app), str(app.exception))
+    check("the page is selected", len(app.multiselect[0].value) == 1)
+    check("it says it is text only", "saved text only" in text_of(app), text_of(app))
+    check("nothing to transcribe", button(app, "Transcribe").disabled)
+    check("the question box opened", not app.chat_input[0].disabled)
+
+    app.chat_input[0].set_value("What is the total due?").run()
+    check("no exception asking", not uncaught(app), str(app.exception))
+    check("the answer joined", len(app.session_state["ask_turns"]) == 2)
+    greyed = app.button_group(key="ask_saved_1")
+    check("its citation is disabled", greyed.disabled)
+    check("no Locate pill", not [g for g in app.button_group if g.key == "ask_cite_1"])
+    check("it says why", "Re-upload this page to locate it." in text_of(app))
+
+    app.file_uploader[0].set_value([("again.png", SAVED_PAGE, "image/png")]).run()
+    check("no exception re-uploading", not uncaught(app), str(app.exception))
+    check("the conversation stays", len(app.session_state["ask_turns"]) == 2)
+    check("the page is still selected", len(app.multiselect[0].value) == 1)
+    check("Locate is back", not app.button_group(key="ask_cite_1").disabled)
+    check(
+        "the saved pill is gone",
+        not [g for g in app.button_group if g.key == "ask_saved_1"],
+    )
+
+    app.text_input(key="ask_search").input('AT&T "net 30').run()
+    check("a hostile query is no results", "No saved transcript matches." in text_of(app))
+
+    app.file_uploader[0].set_value([]).run()
+    transcripts.clear()
+    app.run()
+    check("a cleared page leaves the documents", app.session_state["ask_added"] == {})
+    check("and the viewer", "Upload page images" in text_of(app), text_of(app))
+
 finish()

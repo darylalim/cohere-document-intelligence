@@ -16,7 +16,11 @@ from _check import check, finish  # noqa: E402
 from PIL import Image  # noqa: E402
 
 from nmv.imaging import IMAGE_ERRORS, PIL_FORMATS, open_upload  # noqa: E402
-from nmv.render import html_tables_to_markdown, safe_markdown  # noqa: E402
+from nmv.render import (  # noqa: E402
+    html_tables_to_markdown,
+    safe_markdown,
+    snippet_markdown,
+)
 
 print("config.toml")
 config = tomllib.loads((ROOT / ".streamlit/config.toml").read_text())
@@ -180,5 +184,17 @@ check("the fixture carries an image", "![" in hostile and "<img" in hostile)
 rendered = safe_markdown(hostile)
 check("nothing in it can load", "![" not in rendered and "<img" not in rendered)
 check("its text survives", "Total due: $4,182.55" in rendered)
+
+print("search snippets")
+S, E = "\x02", "\x03"
+raw_snippet = f"# ACME\n| {S}Total{E} | $4 and $5 | ![x](https://e.example/)"
+snippet = snippet_markdown(raw_snippet, S, E)
+check("the match is bold", "**Total**" in snippet, snippet)
+check("nothing else is syntax", "# " not in snippet.replace("\\# ", ""), snippet)
+check("no image opener survives", "![" not in snippet, snippet)
+check("no bare dollar pairs into LaTeX", "$" not in snippet.replace("\\$", ""), snippet)
+check("one line", "\n" not in snippet)
+own_bold = snippet_markdown("**x**", S, E)
+check("a transcript's own bold is not a match", "**" not in own_bold, own_bold)
 
 finish()
