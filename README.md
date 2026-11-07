@@ -119,7 +119,7 @@ that file, so turn on FileVault. The details are in [`docs/privacy.md`](docs/pri
 
 Every box is described in words and numbered to match its table row, every image has a
 caption, and streaming can be turned off in the sidebar. Contrast floors are tested on both
-themes. Known gaps, and what is not yet checked, are in
+themes. Known gaps, and what was checked by hand, are in
 [`docs/architecture.md`](docs/architecture.md#accessibility).
 
 ## Documentation

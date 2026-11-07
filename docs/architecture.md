@@ -172,5 +172,11 @@ Known gaps:
   states the save mode in text, so that setting never depends on the knob.
 - **Widget ARIA and live regions belong to Streamlit,** so the app cannot change them.
 
-An axe pass on all three pages found no serious or critical issues, and every page reflows
-at 320 px with no sideways scroll. Not yet checked: VoiceOver and keyboard-only use.
+Checked by hand before the release:
+
+- **axe** found no serious or critical issues on any of the three pages.
+- **Reflow:** every page works at 320 px and at 200% zoom, with no sideways scroll.
+- **VoiceOver** reads a box's position from the table, reads the page caption when a
+  citation is opened, and reads a non-streamed answer once, in full.
+- **Keyboard only:** upload, transcribe, the save toggle, page pills and the Transcript
+  all work, and focus never gets trapped.
