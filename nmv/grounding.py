@@ -268,6 +268,15 @@ def contains_json(text: str) -> bool:
     return any(True for _ in _json_candidates(text))
 
 
+def _quad_extents(text: str):
+    """Width and height of every quad in a reply, or of a bare one."""
+    text = text or ""
+    bare = _BARE_QUAD.fullmatch(text)
+    for match in [bare] if bare else _QUAD.finditer(text):
+        x1, y1, x2, y2 = (float(value) for value in match.groups())
+        yield abs(x2 - x1), abs(y2 - y1)
+
+
 def is_point_answer(text: str) -> bool:
     """True when the reply holds a point, such as ``[852, 301, 852, 301]``.
 
@@ -276,13 +285,17 @@ def is_point_answer(text: str) -> bool:
     :func:`parse_boxes` rejects these as degenerate. Only about half land on their
     target, so nothing is drawn for one; this lets the page say why.
     """
-    text = text or ""
-    bare = _BARE_QUAD.fullmatch(text)
-    for match in [bare] if bare else _QUAD.finditer(text):
-        x1, y1, x2, y2 = (float(value) for value in match.groups())
-        if abs(x2 - x1) < 1.0 and abs(y2 - y1) < 1.0:
-            return True
-    return False
+    return any(wide < 1.0 and tall < 1.0 for wide, tall in _quad_extents(text))
+
+
+def is_line_answer(text: str) -> bool:
+    """True when the reply holds a line, flat on one axis only, such as
+    ``[412, 202, 412, 218]``.
+
+    :func:`parse_boxes` rejects these as degenerate too. Without this check the
+    page would call the reply an empty result, although the model gave a place.
+    """
+    return any((wide < 1.0) != (tall < 1.0) for wide, tall in _quad_extents(text))
 
 
 def _font(size: int) -> ImageFont.BaseImageFont:

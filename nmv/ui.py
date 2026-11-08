@@ -15,7 +15,7 @@ from streamlit.runtime.scriptrunner import get_script_run_ctx
 from nmv import runtime, system, trace, transcripts
 from nmv.citations import parse
 from nmv.errors import Failure, classify
-from nmv.grounding import contains_json, is_point_answer
+from nmv.grounding import contains_json, is_line_answer, is_point_answer
 from nmv.imaging import MAX_PIXELS, MEGAPIXEL, PIXELS_PER_TOKEN
 from nmv.model import (
     DEFAULT_TEMPERATURE,
@@ -241,8 +241,8 @@ def explain_no_boxes(raw: str, truncated: bool, *, fixed_limit: bool = False) ->
 
     Truncation comes first: a reply cut off at max tokens leaves a half-written
     array that decodes as nothing, and would otherwise be misread as prose. A point
-    comes before the JSON test, because it decodes as JSON. ``fixed_limit`` is for
-    callers that ignore the sidebar's max tokens, so the slider is no remedy.
+    or a line comes before the JSON test, because it decodes as JSON. ``fixed_limit``
+    is for callers that ignore the sidebar's max tokens, so the slider is no remedy.
     """
     if truncated:
         remedy = (
@@ -259,6 +259,13 @@ def explain_no_boxes(raw: str, truncated: bool, *, fixed_limit: bool = False) ->
         st.info(
             "The model could not locate this precisely: it gave a single point, not "
             "a box, so nothing is drawn. Raising the image budget can help.",
+            icon=":material/my_location:",
+        )
+    elif is_line_answer(raw):
+        st.info(
+            "The model could not locate this precisely: it gave a line with no width "
+            "or no height, not a box, so nothing is drawn. Raising the image budget "
+            "can help.",
             icon=":material/my_location:",
         )
     elif contains_json(raw):
