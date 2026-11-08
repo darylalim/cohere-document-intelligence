@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 
 from _check import check, finish  # noqa: E402
 
-from nmv.grounding import Box, is_point_answer, parse_boxes  # noqa: E402
+from nmv.grounding import Box, is_line_answer, is_point_answer, parse_boxes  # noqa: E402
 
 FIXTURES = ROOT / "tests/fixtures/grounding"
 
@@ -48,6 +48,14 @@ check("a real box is not a point", not is_point_answer("[[660, 672, 920, 798]]")
 check("a zero-width line is not a point", not is_point_answer("[[10, 10, 10, 900]]"))
 check("prose is not a point", not is_point_answer("I see [nothing] here"))
 check("no reply is not a point", not is_point_answer(""))
+check("a zero-width line is not a box", parse_boxes("[412, 202, 412, 218]") == [])
+check("a zero-width line is a line", is_line_answer("[412, 202, 412, 218]"))
+check("a zero-height line is a line", is_line_answer("[[10, 500, 900, 500]]"))
+check("a bare line is a line", is_line_answer("412,202,412,218\n"))
+check("a point is not a line", not is_line_answer("[[852, 301, 852, 301]]"))
+check("a real box is not a line", not is_line_answer("[[660, 672, 920, 798]]"))
+check("an empty list is not a line", not is_line_answer("[]"))
+check("prose is not a line", not is_line_answer("Pages 1,1,1,9 match"))
 
 pixels = stamp.to_pixels(1240, 1754)
 check(

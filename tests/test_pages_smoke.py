@@ -477,6 +477,24 @@ check(
     not next(iter(app.session_state["locate_cache"].values()))[0].boxes,
 )
 
+print("Ask documents: a line answer")
+
+
+def line_only(studio, messages, images, sampling, stats=None, rendered=None):
+    if stats is not None:
+        stats.finish_reason = "stop"
+    yield "[412, 202, 412, 218]"
+
+
+with stubbed(nmv__model__stream_reply=line_only):
+    app = page("documents.py").run()
+    app.file_uploader[0].set_value(("page.png", png("white"), "image/png")).run()
+    app.session_state["locate_target"] = ("$4,182.55", app.multiselect[0].value[0])
+    app.run()
+check("no exception", not uncaught(app), str(app.exception))
+check("it says a line", "gave a line" in text_of(app), text_of(app))
+check("not an empty result", "returned an empty result" not in text_of(app))
+
 print("Ask documents: a failing page does not stop the rest")
 calls: list[int] = []
 
