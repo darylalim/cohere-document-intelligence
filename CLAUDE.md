@@ -205,6 +205,7 @@ Ask documents, which calls `transcripts.clear()`.
 | `nmv/render.py` | Make untrusted model output safe to render as Markdown |
 | `nmv/system.py` | What macOS says about memory. **No MLX, no Streamlit.** Never raises. |
 | `nmv/imaging.py` | Token budgeting, `encode`/`prepare`, EXIF normalisation. **No MLX import.** |
+| `nmv/pdf.py` | Render PDF pages for Ask documents, under one lock. **No MLX, no Streamlit.** |
 | `nmv/grounding.py` | 0–1000 box parsing and PIL overlay rendering |
 | `nmv/ui.py` | Shared sidebar; returns `(budget, sampling, SidebarSlots)` |
 | `app_pages/*.py` | Page scripts — UI only, direct scripts with no `main()` |

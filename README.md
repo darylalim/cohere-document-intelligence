@@ -40,8 +40,9 @@ matches row 1 of the table, and the "where" column describes it in words.*
 
 ### Ask documents
 
-Upload page images, transcribe each one once with North Micro Vision, then ask questions
-across them. Command R7B answers from the transcripts and cites what it used. Pick a
+Upload a PDF or page images, transcribe each page once with North Micro Vision, then ask
+questions across them. A PDF's pages are rendered at 200 dpi, or at a scan's own
+resolution, and read from how they look, not from any text layer. Command R7B answers from the transcripts and cites what it used. Pick a
 citation to see it boxed on the page.
 
 ![The Ask documents page: a question about the invoice answered with two citations, and the selected citation boxed on the page beside the conversation](assets/screenshot-documents.png)
@@ -147,6 +148,7 @@ Hugging Face cache when first needed.
 |---|---|---|
 | App code (this repo) | Apache-2.0 | Yes |
 | [North Micro Vision 8-bit weights](https://huggingface.co/mlx-community/North-Micro-Vision-Instruct-8bit) | Apache-2.0 | Yes |
+| [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) and its bundled PDFium | Apache-2.0 / BSD-3-Clause | Yes |
 | [Command R7B 4-bit weights](https://huggingface.co/mlx-community/c4ai-command-r7b-12-2024-4bit) | CC-BY-NC-4.0 + [C4AI licence agreement](https://cohere.com/c4ai-cc-by-nc-license) | No |
 
 Ask documents uses R7B, so it is non-commercial; Chat and Grounding use only North Micro

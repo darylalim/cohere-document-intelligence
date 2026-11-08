@@ -575,6 +575,6 @@ with stubbed():
     transcripts.clear()
     app.run()
     check("a cleared page leaves the documents", app.session_state["ask_added"] == {})
-    check("and the viewer", "Upload page images" in text_of(app), text_of(app))
+    check("and the viewer", "Upload a PDF or page images" in text_of(app), text_of(app))
 
 finish()

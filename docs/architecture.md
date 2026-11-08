@@ -19,6 +19,7 @@ nmv/documents.py          Ask documents' decisions, kept testable
 nmv/citations.py          citation tag parsing
 nmv/transcripts.py        the SQLite transcript store
 nmv/imaging.py            token budgeting and resizing (no MLX import)
+nmv/pdf.py                renders PDF pages to images (no MLX import)
 nmv/grounding.py          0–1000 box parsing and rendering
 nmv/render.py             makes model output safe to render
 nmv/errors.py             sorts exceptions into what the user can do
@@ -39,6 +40,8 @@ sees the image, so a box always comes from a second pass over the page.
 ```mermaid
 flowchart TD
     upload["Upload pages"] --> normalize["Normalise EXIF orientation"]
+    pdf["Upload a PDF"] --> render["Render each page: 200 dpi, or a scan's own"]
+    render --> read
     normalize --> read["Read: NMV transcribes each page once"]
     read --> store[("Transcripts: on disk, or in memory with saving off")]
     store --> reason["Reason: R7B answers over the transcripts, with citations"]
@@ -46,8 +49,23 @@ flowchart TD
     reason --> answer["Answer with citations"]
     answer -- "pick a citation" --> locate["Locate: NMV boxes the cited text"]
     normalize --> locate
+    render --> locate
     locate --> overlay["Boxes drawn on the full-resolution page"]
 ```
+
+**A PDF is read as pictures of its pages.** Each page is rendered at 200 dpi, the
+resolution the encoder's ceiling was set from, and never above that ceiling's 3.9 MP, then
+takes the same path as an uploaded image. A scanned page, one image covering at least 90%
+of it, is rendered at that image's own density instead when that is lower. Upsampling a
+150 dpi scan to 200 dpi adds no detail and costs about 75% more tokens. On the sample
+invoice it also moved Locate's box for the total onto the PAID stamp, while the scan's own
+resolution reproduced the PNG's box. Any text layer is ignored on purpose: Locate boxes
+text by looking at the page, so the transcript must come from the same pixels. A page's id
+is its file's bytes plus its page number and a rendering version, so the same page in two
+uploads is the same page, and a change to the rendering never serves a transcript of the old
+one. Only the pages that fit the page limit are rendered, and the rest are named. PDFium is
+not thread-safe and Streamlit reruns on fresh threads, so `nmv/pdf.py` makes every PDFium
+call under one lock and closes each document before the call returns.
 
 **Search saved documents** is the local stand-in for retrieval. It runs an SQLite FTS5
 query over the saved transcripts, with every term quoted so FTS5 syntax in it means

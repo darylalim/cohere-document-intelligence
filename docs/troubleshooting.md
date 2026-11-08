@@ -35,7 +35,11 @@ An earlier version used the bf16 weights; `uv run hf cache rm model/mlx-communit
 ## That image could not be read
 
 The file is damaged or is not really the type its name says. Try another file. The app takes
-PNG, JPEG, WebP, BMP and TIFF up to 50 MB. A PDF has to be exported to images first.
+PNG, JPEG, WebP, BMP and TIFF up to 50 MB, and Ask documents also takes PDF. Chat and
+Grounding take images only, so export a PDF page as PNG for those.
+
+A PDF that "could not be read as a PDF" is damaged or has a password, which the app does not
+ask for. Remove the password and save the PDF again, or export its pages as PNG.
 
 ## Something went wrong
 
