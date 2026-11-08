@@ -22,6 +22,10 @@ documents, the Mac itself, and your network.
 - **Pinned checkpoints.** A checkpoint can run code, so each one is pinned to a reviewed Hub
   commit with no Python files, and the reader's download leaves `*.py` out. CI and the Claude
   Code hooks reject a pin that is not a full commit hash.
+- **Uploads are untrusted.** Images open only with the PNG, JPEG, WebP, BMP and TIFF
+  decoders, whatever their contents. PDFs go to PDFium, Chrome's PDF engine, in the build
+  pypdfium2 bundles, which has no JavaScript engine and no XFA forms. Rendering is capped at
+  the encoder's ceiling of 3.9 MP a page, and only the pages used are rendered.
 - **Model output is untrusted.** A document can carry instructions the model follows. The
   model has no tools, so that can produce wrong answers but not actions. Images in model
   output are replaced with text, and raw HTML rendering stays off.

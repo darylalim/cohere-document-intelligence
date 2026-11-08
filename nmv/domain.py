@@ -5,6 +5,7 @@ Three rules these types exist to enforce:
 1. **Identity comes from content; position is not identity.** A page is the hash
    of its upload bytes, never its upload order or file name, and ``page_id`` is
    the only thing that hashes them, so the store, the caches and the logs agree.
+   A PDF page adds its page number and rendering version to its file's bytes.
 2. **Every derived result records how it was made.** A result without a
    ``Derivation`` may not be cached or compared.
 3. **A citation number is not a page number.** The model cites positions in the
@@ -31,9 +32,17 @@ from nmv.grounding import Box
 PageId = NewType("PageId", str)
 
 
-def page_id(data: bytes) -> PageId:
-    """The one identity function: the sha256 of the original upload bytes."""
-    return PageId(hashlib.sha256(data).hexdigest())
+def page_id(data: bytes, part: str = "") -> PageId:
+    """The one identity function: the sha256 of the original upload bytes.
+
+    ``part`` names one page of a file that holds several, such as a PDF. Without
+    it the id is the plain hash, so every page image keeps the id it was saved
+    under. With it, a NUL separates the two, and no part is ever empty.
+    """
+    digest = hashlib.sha256(data)
+    if part:
+        digest.update(b"\0" + part.encode())
+    return PageId(digest.hexdigest())
 
 
 @dataclass(frozen=True)

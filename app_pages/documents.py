@@ -40,6 +40,8 @@ from nmv.model import (
     stream_reply,
     user_turn,
 )
+from nmv.pdf import PDF_ERRORS, PDF_REMEDY, PDF_TYPES, is_pdf
+from nmv.pdf import render as render_pdf
 from nmv.prompts import (
     LOCATE_MAX_TOKENS,
     LOCATE_PROMPT,
@@ -95,6 +97,18 @@ def _read_upload(_upload: UploadedFile, file_id: str) -> Page:
 
 
 @st.cache_data(show_spinner=False, max_entries=MAX_PAGES)
+def _read_pdf(_upload: UploadedFile, file_id: str, limit: int) -> tuple[list[Page], int]:
+    """The first ``limit`` pages of a PDF, and how many it has.
+
+    ``limit`` is the room left when the file is reached, so the page images held
+    across every cached file stay near ``MAX_PAGES``, as they do for image uploads.
+    """
+    rendered, total = render_pdf(_upload.getvalue(), limit)
+    pages = [Page(page.id, "", page.image.size, page.image) for page in rendered]
+    return pages, total
+
+
+@st.cache_data(show_spinner=False, max_entries=MAX_PAGES)
 def _encoded(
     _image: Image.Image, page: PageId, budget: int
 ) -> tuple[Image.Image, ImagePlan]:
@@ -117,27 +131,58 @@ def _prune_once() -> int:
 
 
 def _read_pages(uploads: list[UploadedFile], budget: int) -> list[Page]:
-    """Unique pages in natural order, saying what happened to every other file."""
+    """Unique pages in natural order, saying what happened to every other file.
+
+    A PDF's pages keep their own order, at the PDF's place among the files.
+    """
     pages: list[Page] = []
     numbers: dict[PageId, int] = {}
     skipped: list[str] = []
+
+    def add(page: Page, name: str) -> None:
+        try:
+            plan(*page.source_size, budget)  # refuses a page too elongated to encode
+        except IMAGE_ERRORS as error:
+            st.error(f"**{name}** — {error}", icon=":material/broken_image:")
+            return
+        if page.id in numbers:
+            st.caption(f"{name} is a duplicate of p.{numbers[page.id]}.")
+        elif len(pages) == MAX_PAGES:
+            skipped.append(name)
+        else:
+            pages.append(replace(page, display_name=name))
+            numbers[page.id] = len(pages)
+
     for upload in sorted(uploads, key=lambda item: natural_key(item.name)):
+        if is_pdf(upload.name):
+            try:
+                pdf_pages, total = _read_pdf(
+                    upload, upload.file_id, max(MAX_PAGES - len(pages), 1)
+                )
+            except PDF_ERRORS as error:
+                st.error(
+                    f"**{upload.name}** could not be read as a PDF. {error} {PDF_REMEDY}",
+                    icon=":material/broken_image:",
+                )
+                continue
+            if not total:
+                st.caption(f"{upload.name} has no pages.")
+            for number, page in enumerate(pdf_pages, 1):
+                add(page, f"{upload.name} page {number}")
+            if total > len(pdf_pages):
+                first = len(pdf_pages) + 1
+                rest = f"page {first}" if first == total else f"pages {first}–{total}"
+                skipped.append(f"{upload.name} {rest}")
+            continue
         try:
             page = _read_upload(upload, upload.file_id)
-            plan(*page.source_size, budget)  # refuses a page too elongated to encode
         except IMAGE_ERRORS as error:
             st.error(
                 f"**{upload.name}** — {error} {IMAGE_REMEDY}",
                 icon=":material/broken_image:",
             )
             continue
-        if page.id in numbers:
-            st.caption(f"{upload.name} is a duplicate of p.{numbers[page.id]}.")
-        elif len(pages) == MAX_PAGES:
-            skipped.append(upload.name)
-        else:
-            pages.append(replace(page, display_name=upload.name))
-            numbers[page.id] = len(pages)
+        add(page, upload.name)
     if skipped:
         st.warning(
             f"Only the first {MAX_PAGES} pages are used. Skipped: {', '.join(skipped)}. "
@@ -607,7 +652,7 @@ state.ask_answering = False  # after the callbacks, which read it from the last 
 st.title("Ask documents")
 st.caption(
     "Transcribe your pages once, ask about them, and follow each citation back to "
-    "the page. Page images only: PNG, JPEG, WebP, BMP or TIFF."
+    "the page. PDF, or page images in PNG, JPEG, WebP, BMP or TIFF."
 )
 
 budget, sampling, stats_slot = sidebar(reader=True)
@@ -622,8 +667,8 @@ _search_saved(busy)
 
 with st.container(horizontal=True):
     uploads = st.file_uploader(
-        "Page images",
-        type=IMAGE_TYPES,
+        "PDFs or page images",
+        type=[*PDF_TYPES, *IMAGE_TYPES],
         accept_multiple_files=True,
         key="ask_uploads",
         disabled=busy,
@@ -812,7 +857,7 @@ with viewer:
         _page_panel(by_id, numbers, found, budget, busy, view_key)
     else:
         st.info(
-            "Upload page images, or search saved documents, to begin.",
+            "Upload a PDF or page images, or search saved documents, to begin.",
             icon=":material/description:",
         )
 
