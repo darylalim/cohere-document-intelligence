@@ -114,6 +114,18 @@ Raw output goes to `evals/runs/`, which is git-ignored. A numbers-only summary g
   and no distractor is a clean answer, distractor and not correct is the step that was
   missed. Citation precision counts a citation to a page the comparison had to read
   but the answer is not on as off evidence, so set-v3's precision is a lower bound.
+
+  Three limits, seen in the first run (101565e):
+
+  - `gave_distractor` means little for `arithmetic`. A reply that shows its working
+    names the operands, and the distractor is one of them, so nearly every arithmetic
+    reply counts. Read it for `compare` and `chain` only.
+  - A match anywhere in the reply is credited, so a reply that states one answer and
+    works out another passes. delivery-01's first question did this on both sources.
+  - The gold text is not a ceiling for questions that turn on a table's columns. The
+    reference joins a row's cells with spaces, so an empty cell vanishes and a
+    statement's paid-in amount reads like a payment out. NMV writes a Markdown table
+    that keeps the empty cell, which is why the reader scored higher on NMV text.
 - **Locate:** for answerable questions, the box Locate draws for the first cited span, with
   a hit at IoU 0.5 or above. A centre hit means the box's centre is inside the truth.
   A point has no box, so it scores neither. Each reply is saved as `locate-q<N>.txt`.
