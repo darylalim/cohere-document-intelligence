@@ -1,0 +1,114 @@
+{
+  "id": "delivery-02",
+  "pages": [
+    "page-1.png",
+    "page-2.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "PURCHASE ORDER",
+      "bbox": [
+        613,
+        51,
+        848,
+        64
+      ]
+    },
+    {
+      "page": 1,
+      "target": "DELIVERY NOTE",
+      "bbox": [
+        613,
+        51,
+        814,
+        64
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Elmhurst Tutors\n14 Saltmarsh Lane, Tarnwick\nPURCHASE ORDER\nOrder no. PO-69807\nOrder date: 5 March 2026\nSupplier:\nHollowbrook Instruments\nDescription Qty ordered Unit price Amount\nBrass hinges, pair 360 $82.63 $29,746.80\nPacking crates, large 410 $15.97 $6,547.70\nPallet wrap, 500 mm 330 $24.14 $7,966.20\nCopper pipe, 2 m 550 $38.95 $21,422.50\nStainless fittings, box 190 $6.55 $1,244.50\nOrder total: $66,927.70",
+      "fields": [
+        "Elmhurst Tutors",
+        "Hollowbrook Instruments",
+        "PO-69807"
+      ]
+    },
+    {
+      "page": 1,
+      "reference": "Hollowbrook Instruments\nDELIVERY NOTE\nDelivery no. DN-3091\nDelivered: 19 March 2026\nAgainst order: PO-69807\nDeliver to: Elmhurst Tutors\nDescription Qty delivered\nStainless fittings, box 190\nPallet wrap, 500 mm 330\nBrass hinges, pair 309\nPacking crates, large 376\nCopper pipe, 2 m 550\nReceived in good order. Shortages to follow.\nReceived by: Pim Okafor",
+      "fields": [
+        "Hollowbrook Instruments",
+        "PO-69807"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "How many units of \"Packing crates, large\" are still to be delivered?",
+      "answer": "34",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "410",
+      "computed": true,
+      "pages": [
+        0,
+        1
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "Which item was delivered short by the most units?",
+      "answer": "Brass hinges, pair",
+      "kind": "text",
+      "skill": "compare",
+      "distractor": "Packing crates, large",
+      "computed": false,
+      "pages": [
+        0,
+        1
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "At the order's unit price, what are the undelivered \"Brass hinges, pair\" worth?",
+      "answer": "4,214.13",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "29,746.80",
+      "computed": true,
+      "pages": [
+        0,
+        1
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "What is the unit price of the item delivered short by the most units?",
+      "answer": "82.63",
+      "kind": "number",
+      "skill": "chain",
+      "distractor": "15.97",
+      "computed": false,
+      "pages": [
+        0,
+        1
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          698,
+          270,
+          750,
+          281
+        ]
+      }
+    },
+    {
+      "q": "On what date will the missing items be delivered?",
+      "answer": null
+    }
+  ]
+}

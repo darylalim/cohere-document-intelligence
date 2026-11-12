@@ -1,0 +1,101 @@
+{
+  "id": "contract-01",
+  "pages": [
+    "page-1.png",
+    "page-2.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "SERVICES AGREEMENT",
+      "bbox": [
+        73,
+        51,
+        389,
+        66
+      ]
+    },
+    {
+      "page": 1,
+      "target": "Termination",
+      "bbox": [
+        73,
+        585,
+        174,
+        594
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "SERVICES AGREEMENT\nThis Agreement is made between Sundial Row Clinic (the Client) and Vellacott Tool & Die (the Supplier), and takes\neffect on 1 February 2026.\nMonthly fee: $2,563.72\nInitial term: 36 months\n1. Events beyond control\nNeither party shall be liable for any failure to perform caused by events beyond its reasonable control, provided that it gives\nprompt written notice and takes all reasonable steps to resume performance. For the purposes of clause 1 the reference period is\n7 weeks, the responsible office is Linden, and the file reference is H369/16.\n2. Variation\nNo variation of this Agreement shall be effective unless it is made in writing and signed by an authorised representative of each\nparty, and no failure to exercise a right shall operate as a waiver of that right. For the purposes of clause 2 the reference period is\n15 weeks, the responsible office is Harrowfield, and the file reference is D416/36.\n3. Intellectual property\nAll intellectual property created by the Supplier in the course of the Services shall remain with the Supplier, and the Client is\ngranted a non-exclusive licence to use it for its internal business purposes. For the purposes of clause 3 the reference period is 13\nweeks, the responsible office is Tarnwick, and the file reference is D455/57.\n4. Insurance\nThe Supplier shall maintain adequate insurance against its liabilities under this Agreement and shall produce evidence of that\ninsurance on request, not more than once in any period of twelve months. For the purposes of clause 4 the reference period is 28\nweeks, the responsible office is Tarnwick, and the file reference is G572/81.\n5. Notices\nAny notice under this Agreement shall be delivered by hand or sent by recorded post to the address stated above, and shall be\ndeemed received on the second working day after posting. For the purposes of clause 5 the reference period is 19 weeks, the\nresponsible office is Moorgate, and the file reference is C977/93.\n6. Access and co-operation\nThe Client shall provide access to its premises and records at such times as the Supplier may reasonably request, and shall ensure\nthat its staff give all co-operation needed for the Services to proceed on schedule. For the purposes of clause 6 the reference\nperiod is 9 weeks, the responsible office is Tarnwick, and the file reference is A717/60.\n7. Standard of service\nThe Supplier shall carry out the Services with reasonable care and skill and in accordance with the Schedule, and shall keep the\nClient informed of any matter likely to delay the Services by more than five working days. For the purposes of clause 7 the\nreference period is 11 weeks, the responsible office is Saltmarsh, and the file reference is C297/31.\n8. Confidentiality\nEach party shall keep confidential all information of a commercial nature which it receives from the other, and shall use that\ninformation only for the purpose of performing its obligations under this Agreement. For the purposes of clause 8 the reference\nperiod is 3 weeks, the responsible office is Linden, and the file reference is D558/91.\n9. Events beyond control\nNeither party shall be liable for any failure to perform caused by events beyond its reasonable control, provided that it gives\nprompt written notice and takes all reasonable steps to resume performance. For the purposes of clause 9 the reference period is\n26 weeks, the responsible office is Tarnwick, and the file reference is A723/41.\n10. Variation\nNo variation of this Agreement shall be effective unless it is made in writing and signed by an authorised representative of each\nparty, and no failure to exercise a right shall operate as a waiver of that right. For the purposes of clause 10 the reference period is\n34 weeks, the responsible office is Linden, and the file reference is E806/85.",
+      "fields": [
+        "Sundial Row Clinic",
+        "Vellacott Tool & Die",
+        "$2,563.72"
+      ]
+    },
+    {
+      "page": 1,
+      "reference": "11. Intellectual property\nAll intellectual property created by the Supplier in the course of the Services shall remain with the Supplier, and the Client is\ngranted a non-exclusive licence to use it for its internal business purposes. For the purposes of clause 11 the reference period is\n23 weeks, the responsible office is Saltmarsh, and the file reference is F655/56.\n12. Insurance\nThe Supplier shall maintain adequate insurance against its liabilities under this Agreement and shall produce evidence of that\ninsurance on request, not more than once in any period of twelve months. For the purposes of clause 12 the reference period is 32\nweeks, the responsible office is Moorgate, and the file reference is A933/22.\n13. Notices\nAny notice under this Agreement shall be delivered by hand or sent by recorded post to the address stated above, and shall be\ndeemed received on the second working day after posting. For the purposes of clause 13 the reference period is 21 weeks, the\nresponsible office is Linden, and the file reference is G358/40.\n14. Access and co-operation\nThe Client shall provide access to its premises and records at such times as the Supplier may reasonably request, and shall ensure\nthat its staff give all co-operation needed for the Services to proceed on schedule. For the purposes of clause 14 the reference\nperiod is 29 weeks, the responsible office is Saltmarsh, and the file reference is H696/42.\n15. Standard of service\nThe Supplier shall carry out the Services with reasonable care and skill and in accordance with the Schedule, and shall keep the\nClient informed of any matter likely to delay the Services by more than five working days. For the purposes of clause 15 the\nreference period is 11 weeks, the responsible office is Port Selwyn, and the file reference is F268/16.\n16. Confidentiality\nEach party shall keep confidential all information of a commercial nature which it receives from the other, and shall use that\ninformation only for the purpose of performing its obligations under this Agreement. For the purposes of clause 16 the reference\nperiod is 19 weeks, the responsible office is Linden, and the file reference is B835/16.\n17. Events beyond control\nNeither party shall be liable for any failure to perform caused by events beyond its reasonable control, provided that it gives\nprompt written notice and takes all reasonable steps to resume performance. For the purposes of clause 17 the reference period\nis 40 weeks, the responsible office is Tarnwick, and the file reference is E637/89.\nTermination\nEither party may terminate on 90 days written notice.\nSigned for Vellacott Tool & Die:\nName: Ilse Warrender, Director",
+      "fields": [
+        "Either party may terminate on 90 days written notice."
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What is the longest reference period in the agreement, in weeks?",
+      "answer": "40",
+      "kind": "number",
+      "skill": "compare",
+      "distractor": "34",
+      "computed": false,
+      "pages": [
+        1
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "Which office is responsible for the clause with the longest reference period?",
+      "answer": "Tarnwick",
+      "kind": "text",
+      "skill": "chain",
+      "distractor": "Linden",
+      "computed": false,
+      "pages": [
+        1
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "What is the file reference of the clause with the shortest reference period?",
+      "answer": "D558/91",
+      "kind": "text",
+      "skill": "chain",
+      "distractor": "H369/16",
+      "computed": false,
+      "pages": [
+        0
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "What is the total fee over the initial term?",
+      "answer": "92,293.92",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "2,563.72",
+      "computed": true,
+      "pages": [
+        0
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "What is the reference period for clause 22?",
+      "answer": null
+    }
+  ]
+}

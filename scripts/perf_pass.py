@@ -76,7 +76,8 @@ def _prose(sheet: Sheet, numbered, rng: random.Random) -> None:
     while y < A4_200_DPI[1] - MARGIN - 200:
         number, (heading, clause) = next(numbered)
         sheet.text(MARGIN, y, f"{number}. {heading}", 28)
-        y = sheet.wrap(MARGIN, y + 38, width, f"{clause} {particulars(rng, number)}", 26)
+        sentence = particulars(rng, number, heading, 0).sentence()
+        y = sheet.wrap(MARGIN, y + 38, width, f"{clause} {sentence}", 26)
         y += 20
 
 

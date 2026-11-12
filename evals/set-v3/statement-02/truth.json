@@ -1,0 +1,110 @@
+{
+  "id": "statement-02",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Closing balance: $14,535.81",
+      "bbox": [
+        658,
+        656,
+        927,
+        671
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Sundial Row Clinic",
+      "bbox": [
+        185,
+        371,
+        319,
+        380
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Wrenfield Mutual Savings\nCurrent account statement, April 2026\nAccount holder: Maren Oskalde\nAccount number: 59-5059-521\nOpening balance: $17,054.77\nDate Details Paid out Paid in Balance\n01 Apr Port Selwyn Transit $436.28  $16,618.49\n02 Apr Linden Grocers $331.48  $16,287.01\n03 Apr Port Selwyn Transit $220.40  $16,066.61\n04 Apr Pellworth Bakery $405.44  $15,661.17\n08 Apr Thistlebank Farm Shop $188.25  $15,472.92\n09 Apr Tarnwick Water Board $270.03  $15,202.89\n11 Apr Sundial Row Clinic $362.83  $14,840.06\n14 Apr Rent, Flat 4 Moorgate $239.65  $14,600.41\n16 Apr Ferncombe Energy $9.60  $14,590.81\n17 Apr Marrowgate Cycles $786.53  $13,804.28\n18 Apr Linden Grocers $355.11  $13,449.17\n20 Apr Rent, Flat 4 Moorgate $188.90  $13,260.27\n21 Apr Tarnwick Water Board $20.75  $13,239.52\n23 Apr Linden Grocers $612.10  $12,627.42\n24 Apr Linden Grocers $530.80  $12,096.62\n26 Apr Salary, Corvane Holdings  $3,364.31 $15,460.93\n27 Apr Tarnwick Water Board $281.86  $15,179.07\n29 Apr Ferncombe Energy $643.26  $14,535.81\nClosing balance: $14,535.81",
+      "fields": [
+        "Maren Oskalde",
+        "59-5059-521",
+        "$17,054.77",
+        "$14,535.81"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "What was the largest single payment out?",
+      "answer": "786.53",
+      "kind": "number",
+      "skill": "compare",
+      "distractor": "643.26",
+      "computed": false,
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          607,
+          439,
+          669,
+          449
+        ]
+      }
+    },
+    {
+      "q": "By how much did the balance change between the opening and closing balances?",
+      "answer": "2,518.96",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "14,535.81",
+      "computed": true,
+      "pages": [
+        0
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "How much was paid to Ferncombe Energy in total?",
+      "answer": "652.86",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "9.60",
+      "computed": true,
+      "pages": [
+        0
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "What was the balance straight after the first payment to Sundial Row Clinic?",
+      "answer": "14,840.06",
+      "kind": "number",
+      "skill": "chain",
+      "distractor": "362.83",
+      "computed": false,
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          843,
+          371,
+          927,
+          381
+        ]
+      }
+    },
+    {
+      "q": "How much interest was paid in to this account?",
+      "answer": null
+    }
+  ]
+}

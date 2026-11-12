@@ -1,0 +1,111 @@
+{
+  "id": "invoice-02",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $9,657.15",
+      "bbox": [
+        73,
+        243,
+        294,
+        259
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Label roll, thermal",
+      "bbox": [
+        73,
+        468,
+        201,
+        478
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Talleres Montecalvo\n87 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 5685-33\nDate: 26 November 2026\nBill to:\nHostal Peñaverde\nTotal due: $9,657.15\nDescription Qty Unit price Amount\nPacking crates, large 5 $197.49 $987.45\nPallet wrap, 500 mm 4 $323.75 $1,295.00\nCalibration certificate 10 $27.67 $276.70\nLabel roll, thermal 7 $477.50 $3,342.50\nCourier service, zone 3 5 $297.10 $1,485.50\nReplacement filter set 12 $55.04 $660.48\nSubtotal: $8,047.63\nTax: $1,609.52\nPayment terms: 60 days from the invoice date\nPAID",
+      "fields": [
+        "Talleres Montecalvo",
+        "Hostal Peñaverde",
+        "5685-33",
+        "9,657.15",
+        "Payment terms: 60 days from the invoice date"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "Which line item has the highest amount?",
+      "answer": "Label roll, thermal",
+      "kind": "text",
+      "skill": "compare",
+      "distractor": "Courier service, zone 3",
+      "computed": false,
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          468,
+          201,
+          478
+        ]
+      }
+    },
+    {
+      "q": "How much more is the \"Label roll, thermal\" line than the \"Calibration certificate\" line?",
+      "answer": "3,065.80",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "3,342.50",
+      "computed": true,
+      "pages": [
+        0
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "On what date is payment due?",
+      "answer": "25 January 2027",
+      "kind": "date",
+      "skill": "date",
+      "distractor": "26 November 2026",
+      "computed": true,
+      "pages": [
+        0
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "What is the unit price of the item with the largest quantity?",
+      "answer": "55.04",
+      "kind": "number",
+      "skill": "chain",
+      "distractor": "477.50",
+      "computed": false,
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          698,
+          515,
+          750,
+          526
+        ]
+      }
+    },
+    {
+      "q": "What late-payment fee applies after the due date?",
+      "answer": null
+    }
+  ]
+}

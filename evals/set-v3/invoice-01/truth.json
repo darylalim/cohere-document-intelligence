@@ -1,0 +1,111 @@
+{
+  "id": "invoice-01",
+  "pages": [
+    "page-1.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "Total due: $6,458.30",
+      "bbox": [
+        706,
+        483,
+        927,
+        499
+      ]
+    },
+    {
+      "page": 0,
+      "target": "Packing crates, large",
+      "bbox": [
+        73,
+        328,
+        222,
+        339
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Hollowbrook Instruments\n53 Harrow Quay, Port Selwyn\nINVOICE\nInvoice no. 4933-33\nDate: 8 March 2026\nBill to:\nElmhurst Tutors\nDescription Qty Unit price Amount\nPacking crates, large 10 $231.94 $2,319.40\nReplacement filter set 6 $314.36 $1,886.16\nPallet wrap, 500 mm 11 $35.88 $394.68\nInspection visit 3 $260.56 $781.68\nSubtotal: $5,381.92\nTax: $1,076.38\nTotal due: $6,458.30\nPayment terms: 30 days from the invoice date\nPAID",
+      "fields": [
+        "Hollowbrook Instruments",
+        "Elmhurst Tutors",
+        "4933-33",
+        "6,458.30",
+        "Payment terms: 30 days from the invoice date"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "Which line item has the highest amount?",
+      "answer": "Packing crates, large",
+      "kind": "text",
+      "skill": "compare",
+      "distractor": "Replacement filter set",
+      "computed": false,
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          73,
+          328,
+          222,
+          339
+        ]
+      }
+    },
+    {
+      "q": "How much more is the \"Packing crates, large\" line than the \"Pallet wrap, 500 mm\" line?",
+      "answer": "1,924.72",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "2,319.40",
+      "computed": true,
+      "pages": [
+        0
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "On what date is payment due?",
+      "answer": "7 April 2026",
+      "kind": "date",
+      "skill": "date",
+      "distractor": "8 March 2026",
+      "computed": true,
+      "pages": [
+        0
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "What is the unit price of the item with the largest quantity?",
+      "answer": "35.88",
+      "kind": "number",
+      "skill": "chain",
+      "distractor": "231.94",
+      "computed": false,
+      "pages": [
+        0
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          698,
+          375,
+          750,
+          385
+        ]
+      }
+    },
+    {
+      "q": "What late-payment fee applies after the due date?",
+      "answer": null
+    }
+  ]
+}

@@ -89,8 +89,10 @@ def locate(
     studio, folder: Path, truth: dict, case: dict, citation, pages: list, saved: Path
 ) -> dict:
     """Box the first cited span as the app does, on the page it cites."""
-    page = case["cited"][0]
     wanted = truth_box(truth, case["q"])
+    if wanted is None:  # a computed answer, or one the generator gave no box
+        return {}
+    page = case["cited"][0]
     if page == INVENTED or page != wanted["page"]:
         return {"located": False, "locate_hit": False, "locate_centre": False}
     original = normalize(Image.open(folder / truth["pages"][page]))
@@ -110,7 +112,7 @@ def locate(
     }
 
 
-def truth_box(truth: dict, question: str) -> dict:
+def truth_box(truth: dict, question: str) -> dict | None:
     return next(q["answer_bbox"] for q in truth["qa"] if q["q"] == question)
 
 
@@ -127,6 +129,7 @@ def score(truth: dict, question: dict, answer, stats, seconds, pages) -> tuple:
         "thinking_tokens": answer.thinking_tokens,
         "action_channel": START_ACTION in answer.raw,
         "truncated": stats.truncated,
+        "pages_dropped": len(pages) - len(answer.sent_pages),
         "prompt_tokens": stats.prompt_tokens,
         "generated_tokens": stats.generation_tokens,
         "seconds": round(seconds, 2),
@@ -139,6 +142,13 @@ def score(truth: dict, question: dict, answer, stats, seconds, pages) -> tuple:
             "recall": recall,
             "off_evidence": sum(page not in question["pages"] for page in cited),
         }
+        if "skill" in question:  # set-v3: what the question takes, and the wrong turn
+            case |= {
+                "skill": question["skill"],
+                "gave_distractor": answer_found(
+                    question["distractor"], question["kind"], clean
+                ),
+            }
     else:
         known = [(q["answer"], q["kind"]) for q in truth["qa"] if q["answer"] is not None]
         case |= {"refused": correct_refusal(clean, known, cited), "off_evidence": 0}
@@ -178,6 +188,29 @@ def summarise(cases: list[dict]) -> dict:
         "action_channel": sum(c["action_channel"] for c in cases),
         "with_thinking": sum(c["thinking_tokens"] > 0 for c in cases),
         "truncated": sum(c["truncated"] for c in cases),
+        "pages_dropped": sum(c["pages_dropped"] > 0 for c in cases),
+        **by_skill(answerable),
+    }
+
+
+def by_skill(answerable: list[dict]) -> dict:
+    """Per skill: answered, correct, and how often the reply gave the distractor, the
+    answer one step short. Empty for sets without skills, so their summary is as
+    before."""
+    skills = sorted({c["skill"] for c in answerable if "skill" in c})
+    if not skills:
+        return {}
+    table = {}
+    for skill in skills:
+        mine = [c for c in answerable if c.get("skill") == skill]
+        table[skill] = {
+            "questions": len(mine),
+            "correct": sum(c["correct"] for c in mine),
+            "gave_distractor": sum(c["gave_distractor"] for c in mine),
+        }
+    return {
+        "gave_distractor": sum(c.get("gave_distractor", False) for c in answerable),
+        "by_skill": table,
     }
 
 

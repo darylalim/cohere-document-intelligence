@@ -1,0 +1,114 @@
+{
+  "id": "delivery-01",
+  "pages": [
+    "page-1.png",
+    "page-2.png"
+  ],
+  "boxes": [
+    {
+      "page": 0,
+      "target": "PURCHASE ORDER",
+      "bbox": [
+        613,
+        51,
+        848,
+        64
+      ]
+    },
+    {
+      "page": 1,
+      "target": "DELIVERY NOTE",
+      "bbox": [
+        613,
+        51,
+        814,
+        64
+      ]
+    }
+  ],
+  "text": [
+    {
+      "page": 0,
+      "reference": "Northwick Glassworks\n14 Saltmarsh Lane, Tarnwick\nPURCHASE ORDER\nOrder no. PO-29421\nOrder date: 12 March 2026\nSupplier:\nDunmarrow Cold Storage\nDescription Qty ordered Unit price Amount\nPallet wrap, 500 mm 300 $9.58 $2,874.00\nStainless fittings, box 510 $89.35 $45,568.50\nLabel roll, thermal 390 $87.63 $34,175.70\nCopper pipe, 2 m 480 $32.86 $15,772.80\nReplacement filter set 490 $64.28 $31,497.20\nOrder total: $129,888.20",
+      "fields": [
+        "Northwick Glassworks",
+        "Dunmarrow Cold Storage",
+        "PO-29421"
+      ]
+    },
+    {
+      "page": 1,
+      "reference": "Dunmarrow Cold Storage\nDELIVERY NOTE\nDelivery no. DN-2391\nDelivered: 17 March 2026\nAgainst order: PO-29421\nDeliver to: Northwick Glassworks\nDescription Qty delivered\nStainless fittings, box 490\nCopper pipe, 2 m 403\nLabel roll, thermal 390\nPallet wrap, 500 mm 300\nReplacement filter set 490\nReceived in good order. Shortages to follow.\nReceived by: Pim Okafor",
+      "fields": [
+        "Dunmarrow Cold Storage",
+        "PO-29421"
+      ]
+    }
+  ],
+  "qa": [
+    {
+      "q": "How many units of \"Stainless fittings, box\" are still to be delivered?",
+      "answer": "20",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "510",
+      "computed": true,
+      "pages": [
+        0,
+        1
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "Which item was delivered short by the most units?",
+      "answer": "Copper pipe, 2 m",
+      "kind": "text",
+      "skill": "compare",
+      "distractor": "Stainless fittings, box",
+      "computed": false,
+      "pages": [
+        0,
+        1
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "At the order's unit price, what are the undelivered \"Copper pipe, 2 m\" worth?",
+      "answer": "2,530.22",
+      "kind": "number",
+      "skill": "arithmetic",
+      "distractor": "15,772.80",
+      "computed": true,
+      "pages": [
+        0,
+        1
+      ],
+      "answer_bbox": null
+    },
+    {
+      "q": "What is the unit price of the item delivered short by the most units?",
+      "answer": "32.86",
+      "kind": "number",
+      "skill": "chain",
+      "distractor": "89.35",
+      "computed": false,
+      "pages": [
+        0,
+        1
+      ],
+      "answer_bbox": {
+        "page": 0,
+        "bbox": [
+          698,
+          342,
+          750,
+          352
+        ]
+      }
+    },
+    {
+      "q": "On what date will the missing items be delivered?",
+      "answer": null
+    }
+  ]
+}

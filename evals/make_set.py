@@ -1,6 +1,7 @@
 """Generate the synthetic eval set: every document, and its ground truth.
 
     uv run python evals/make_set.py [--out evals/set-v1]
+    uv run python evals/make_set.py --find-seeds   # set-v3's seeds, from scratch
 
 The generator knows every string it draws and where, so the truth needs no hand
 labelling. All content is fictional. Changing the set means creating a new
@@ -20,8 +21,10 @@ import json
 import random
 import sys
 import unicodedata
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import timedelta
 from functools import cache
 from itertools import cycle
 from pathlib import Path
@@ -30,6 +33,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from evals.metrics import answer_found, dates_in  # noqa: E402
 from nmv.imaging import normalize  # noqa: E402
 
 A4 = (1240, 1754)
@@ -263,6 +267,36 @@ class Doc:
             }
         )
 
+    def ask_steps(
+        self,
+        q: str,
+        answer: str,
+        kind: str,
+        skill: str,
+        distractor: str,
+        pages: tuple[int, ...] = (0,),
+        bbox: Grid | None = None,
+        bbox_page: int = 0,
+        computed: bool = False,
+    ) -> None:
+        """A question that takes more than one look. ``distractor`` is the answer a
+        single step would give, and ``computed`` means the answer is printed nowhere.
+        Only a printed answer has a box, so Locate scores only those."""
+        self.qa.append(
+            {
+                "q": q,
+                "answer": answer,
+                "kind": kind,
+                "skill": skill,
+                "distractor": distractor,
+                "computed": computed,
+                "pages": list(pages),
+                "answer_bbox": None
+                if bbox is None
+                else {"page": bbox_page, "bbox": bbox},
+            }
+        )
+
     def unanswerable(self, q: str) -> None:
         self.qa.append({"q": q, "answer": None})
 
@@ -415,6 +449,27 @@ LAYOUTS = (
 )
 
 
+@dataclass
+class Drawn:
+    """What ``draw_invoice`` put on the page, for the questions asked of it."""
+
+    seller: str
+    buyer: str
+    number: str
+    date: str
+    items: list[tuple[str, int, int]]  # name, quantity, unit price in cents
+    cells: list[list[Grid]]  # per item: name, quantity, unit price, amount
+    tax: int
+    total: int
+    total_line: str
+    seller_box: Grid
+    buyer_box: Grid
+    date_box: Grid
+    tax_box: Grid
+    total_box: Grid
+    stamp_box: Grid
+
+
 def invoice(
     doc_id: str,
     seed: int,
@@ -424,6 +479,42 @@ def invoice(
     style: str = "en",
     paper=(255, 255, 255),
 ) -> Doc:
+    doc, drawn = draw_invoice(doc_id, seed, layout, labels, goods, style, paper)
+    total_line, total_box = drawn.total_line, drawn.total_box
+    seller, buyer, number = drawn.seller, drawn.buyer, drawn.number
+
+    doc.target(total_line, total_box)
+    doc.target("the stamp" if style != "en" else "the PAID stamp", drawn.stamp_box)
+    doc.target(seller, drawn.seller_box)
+    amount = money(drawn.total, style).removesuffix(" EUR").removeprefix("$")
+    doc.fields[0] = [seller, buyer, number, amount]
+    doc.ask("What is the total due?", amount, "number", total_box)
+    doc.ask(
+        f"Which company was billed on invoice {number}?", buyer, "text", drawn.buyer_box
+    )
+    doc.ask(
+        "How much tax was charged?",
+        money(drawn.tax, style).removesuffix(" EUR").removeprefix("$"),
+        "number",
+        drawn.tax_box,
+    )
+    doc.ask("What is the date of the invoice?", drawn.date, "date", drawn.date_box)
+    doc.unanswerable("What is the purchase order number?")
+    return doc
+
+
+def draw_invoice(
+    doc_id: str,
+    seed: int,
+    layout: Layout,
+    labels: dict = EN,
+    goods: tuple = GOODS_EN,
+    style: str = "en",
+    paper=(255, 255, 255),
+    terms: str | None = None,
+) -> tuple[Doc, Drawn]:
+    """Draw an invoice and say where everything went. ``terms`` adds a line under
+    the totals; without it the page is the one set-v1 holds."""
     rng = random.Random(seed)
     sheet = Sheet(paper=paper)
     doc = Doc(doc_id, [sheet])
@@ -466,15 +557,18 @@ def invoice(
     )
     sheet.rule(left, y + 34, 1150)
     y += 50
+    cells = []
     for name, qty, price in items:
-        sheet.row(
-            y,
-            [
-                (left, name),
-                (640, str(qty)),
-                (-930, money(price, style)),
-                (-1150, money(qty * price, style)),
-            ],
+        cells.append(
+            sheet.row(
+                y,
+                [
+                    (left, name),
+                    (640, str(qty)),
+                    (-930, money(price, style)),
+                    (-1150, money(qty * price, style)),
+                ],
+            )
         )
         y += 42
     sheet.rule(left, y + 4, 1150)
@@ -485,25 +579,28 @@ def invoice(
     y += 44
     if not layout.total_top:
         total_box = sheet.right(1150, y, total_line, 30)
+    if terms:
+        sheet.text(left, y + 70, terms, 22)
 
     stamp_box = sheet.stamp(*layout.stamp_at, labels["stamp"], layout.stamp_angle)
-
-    doc.target(total_line, total_box)
-    doc.target("the stamp" if style != "en" else "the PAID stamp", stamp_box)
-    doc.target(seller, seller_box)
-    amount = money(total, style).removesuffix(" EUR").removeprefix("$")
-    doc.fields[0] = [seller, buyer, number, amount]
-    doc.ask("What is the total due?", amount, "number", total_box)
-    doc.ask(f"Which company was billed on invoice {number}?", buyer, "text", buyer_box)
-    doc.ask(
-        "How much tax was charged?",
-        money(tax, style).removesuffix(" EUR").removeprefix("$"),
-        "number",
+    drawn = Drawn(
+        seller,
+        buyer,
+        number,
+        date,
+        items,
+        cells,
+        tax,
+        total,
+        total_line,
+        seller_box,
+        buyer_box,
+        date_box,
         tax_box,
+        total_box,
+        stamp_box,
     )
-    doc.ask("What is the date of the invoice?", date, "date", date_box)
-    doc.unanswerable("What is the purchase order number?")
-    return doc
+    return doc, drawn
 
 
 # --- Bank statements ----------------------------------------------------------
@@ -522,7 +619,54 @@ PAYEES = (
 )
 
 
+@dataclass
+class Row:
+    payee: str
+    paid_in: bool
+    amount: int
+    balance: int  # after this row
+    boxes: list[Grid]  # date, details, paid out, paid in, balance
+
+
+@dataclass
+class Ledger:
+    holder: str
+    account: str
+    opening: int
+    closing: int
+    rows: list[Row]
+    holder_box: Grid
+    opening_box: Grid
+    closing_line: str
+    closing_box: Grid
+
+
 def statement(doc_id: str, seed: int) -> Doc:
+    doc, ledger = draw_statement(doc_id, seed)
+    holder, balance, opening = ledger.holder, ledger.closing, ledger.opening
+    name = "Sundial Row Clinic"
+    row = next(row for row in ledger.rows if row.payee == name)
+    doc.target(ledger.closing_line, ledger.closing_box)
+    doc.target(name, row.boxes[1])
+    doc.fields[0] = [holder, ledger.account, money(opening), money(balance)]
+    doc.ask(
+        "What is the closing balance?", money(balance)[1:], "number", ledger.closing_box
+    )
+    doc.ask(
+        "What is the opening balance?", money(opening)[1:], "number", ledger.opening_box
+    )
+    doc.ask(
+        f"How much was paid to {name} the first time it appears?",
+        money(row.amount)[1:],
+        "number",
+        row.boxes[2],
+    )
+    doc.ask("Who holds this account?", holder, "text", ledger.holder_box)
+    doc.unanswerable("What is the overdraft limit on this account?")
+    return doc
+
+
+def draw_statement(doc_id: str, seed: int) -> tuple[Doc, Ledger]:
     rng = random.Random(seed)
     sheet = Sheet()
     doc = Doc(doc_id, [sheet])
@@ -552,7 +696,7 @@ def statement(doc_id: str, seed: int) -> Doc:
     sheet.rule(90, y + 32, 1150)
     y += 46
 
-    payee_boxes = {}
+    rows = []
     days = sorted(rng.sample(range(1, 30), k=len(PAYEES) + 8))
     payees = [*PAYEES, *rng.choices(PAYEES[:8], k=8)]
     rng.shuffle(payees)
@@ -568,30 +712,25 @@ def statement(doc_id: str, seed: int) -> Doc:
             money(balance),
         )
         boxes = sheet.row(y, list(zip(columns, cells, strict=True)))
-        payee_boxes.setdefault(payee, (amount, boxes, cells))
+        rows.append(Row(payee, pay_in, amount, balance, boxes))
         y += 40
 
     assert balance > 0, "money() has no negative form"
     sheet.rule(90, y + 2, 1150)
     closing_line = f"Closing balance: {money(balance)}"
     closing_box = sheet.right(1150, y + 20, closing_line, 26)
-
-    name = "Sundial Row Clinic"
-    amount, boxes, cells = payee_boxes[name]
-    doc.target(closing_line, closing_box)
-    doc.target(name, boxes[1])
-    doc.fields[0] = [holder, account, money(opening), money(balance)]
-    doc.ask("What is the closing balance?", money(balance)[1:], "number", closing_box)
-    doc.ask("What is the opening balance?", money(opening)[1:], "number", opening_box)
-    doc.ask(
-        f"How much was paid to {name} the first time it appears?",
-        money(amount)[1:],
-        "number",
-        boxes[2],
+    ledger = Ledger(
+        holder,
+        account,
+        opening,
+        balance,
+        rows,
+        holder_box,
+        opening_box,
+        closing_line,
+        closing_box,
     )
-    doc.ask("Who holds this account?", holder, "text", holder_box)
-    doc.unanswerable("What is the overdraft limit on this account?")
-    return doc
+    return doc, ledger
 
 
 # --- Contracts ----------------------------------------------------------------
@@ -649,18 +788,80 @@ CLAUSES = (
 OFFICES = ("Port Selwyn", "Tarnwick", "Harrowfield", "Moorgate", "Saltmarsh", "Linden")
 
 
-def particulars(rng: random.Random, number: int) -> str:
-    """A sentence unique to one clause, so no page repeats itself: looping on
-    duplicated text would measure the decoder rather than the reading."""
-    return (
-        f"For the purposes of clause {number} the reference period is "
-        f"{rng.randint(2, 40)} weeks, the responsible office is "
-        f"{rng.choice(OFFICES)}, and the file reference is "
-        f"{rng.choice('ABCDEFGH')}{rng.randint(100, 999)}/{rng.randint(10, 99)}."
-    )
+@dataclass
+class Clause:
+    number: int
+    heading: str
+    page: int
+    period: int  # weeks
+    office: str
+    reference: str
+
+    def sentence(self) -> str:
+        """A sentence unique to one clause, so no page repeats itself: looping on
+        duplicated text would measure the decoder rather than the reading."""
+        return (
+            f"For the purposes of clause {self.number} the reference period is "
+            f"{self.period} weeks, the responsible office is {self.office}, and the "
+            f"file reference is {self.reference}."
+        )
+
+
+def particulars(rng: random.Random, number: int, heading: str, page: int) -> Clause:
+    period = rng.randint(2, 40)
+    office = rng.choice(OFFICES)
+    reference = f"{rng.choice('ABCDEFGH')}{rng.randint(100, 999)}/{rng.randint(10, 99)}"
+    return Clause(number, heading, page, period, office, reference)
+
+
+@dataclass
+class Agreement:
+    client: str
+    supplier: str
+    fee: int
+    term: int
+    notice: int
+    clauses: list[Clause]
+    title_box: Grid
+    fee_box: Grid
+    term_box: Grid
+    notice_line: str
+    notice_box: Grid
+    termination_box: Grid
+    signature: Grid
+    signer_box: Grid
 
 
 def contract(doc_id: str, seed: int, pages: int) -> Doc:
+    doc, deal = draw_contract(doc_id, seed, pages)
+    page = pages - 1
+    doc.target("the handwritten signature", deal.signature, page)
+    doc.target("Termination", deal.termination_box, page)
+    doc.target("SERVICES AGREEMENT", deal.title_box)
+    doc.fields[0] = [deal.client, deal.supplier, money(deal.fee)]
+    doc.fields[page] = [deal.notice_line]
+    doc.ask("What is the monthly fee?", money(deal.fee)[1:], "number", deal.fee_box)
+    doc.ask(
+        "How many days of notice does termination require?",
+        str(deal.notice),
+        "number",
+        deal.notice_box,
+        page,
+    )
+    doc.ask(
+        "How long is the initial term, in months?",
+        str(deal.term),
+        "number",
+        deal.term_box,
+    )
+    doc.ask(
+        "Who signed for the Supplier?", "Ilse Warrender", "text", deal.signer_box, page
+    )
+    doc.unanswerable("Which court has jurisdiction over disputes?")
+    return doc
+
+
+def draw_contract(doc_id: str, seed: int, pages: int) -> tuple[Doc, Agreement]:
     rng = random.Random(seed)
     client = BUYERS[seed % 8]
     supplier = SELLERS[seed % 8]
@@ -690,6 +891,7 @@ def contract(doc_id: str, seed: int, pages: int) -> Doc:
     clauses = rng.sample(CLAUSES, k=len(CLAUSES))
     numbered = enumerate(cycle(clauses), 1)
     last = sheets[-1]
+    drawn: list[Clause] = []
     for index, sheet in enumerate(sheets):
         bottom = 1000 if sheet is last else 1640
         if index:
@@ -697,7 +899,8 @@ def contract(doc_id: str, seed: int, pages: int) -> Doc:
         while y < bottom - 150:
             number, (heading, clause) = next(numbered)
             sheet.text(90, y, f"{number}. {heading}", 20)
-            body = f"{clause} {particulars(rng, number)}"
+            drawn.append(particulars(rng, number, heading, index))
+            body = f"{clause} {drawn[-1].sentence()}"
             y = sheet.wrap(90, y + 30, 1060, body, 18) + 16
 
     y = 1020
@@ -708,25 +911,23 @@ def contract(doc_id: str, seed: int, pages: int) -> Doc:
     last.text(90, y, f"Signed for {supplier}:", 20)
     signature = last.signature(90, y + 40, 300, 80, rng)
     signer_box = last.text(90, y + 140, "Name: Ilse Warrender, Director", 18)
-
-    page = pages - 1
-    doc.target("the handwritten signature", signature, page)
-    doc.target("Termination", termination, page)
-    doc.target("SERVICES AGREEMENT", title_box)
-    doc.fields[0] = [client, supplier, money(fee)]
-    doc.fields[page] = [notice_line]
-    doc.ask("What is the monthly fee?", money(fee)[1:], "number", fee_box)
-    doc.ask(
-        "How many days of notice does termination require?",
-        str(notice),
-        "number",
+    deal = Agreement(
+        client,
+        supplier,
+        fee,
+        term,
+        notice,
+        drawn,
+        title_box,
+        fee_box,
+        term_box,
+        notice_line,
         notice_box,
-        page,
+        termination,
+        signature,
+        signer_box,
     )
-    doc.ask("How long is the initial term, in months?", str(term), "number", term_box)
-    doc.ask("Who signed for the Supplier?", "Ilse Warrender", "text", signer_box, page)
-    doc.unanswerable("Which court has jurisdiction over disputes?")
-    return doc
+    return doc, deal
 
 
 # --- Receipts -----------------------------------------------------------------
@@ -1000,7 +1201,401 @@ def build_injections() -> list[Doc]:
     return docs
 
 
-BUILDERS = {"set-v1": build, "set-v2": build_injections}
+# --- Multi-step questions (set-v3) --------------------------------------------
+#
+# Every answer here needs two or more facts put together: a comparison across rows,
+# arithmetic on printed values, a date worked out from terms, or a lookup that hangs
+# on another lookup. Pages are capped at three so that every page fits the reader's
+# context, and a wrong answer means the reasoning failed, not that a page was dropped.
+
+MONTHS = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
+SKILLS = ("compare", "arithmetic", "date", "chain")
+
+
+def cash(cents: int) -> str:
+    return money(cents).removeprefix("$")
+
+
+def written(day) -> str:
+    return f"{day.day} {MONTHS[day.month - 1]} {day.year}"
+
+
+def invoice_steps(doc_id: str, seed: int, layout: Layout) -> Doc:
+    days = (14, 30, 45, 60)[seed % 4]
+    terms = f"Payment terms: {days} days from the invoice date"
+    doc, drawn = draw_invoice(doc_id, seed, layout, terms=terms)
+    names = [name for name, _, _ in drawn.items]
+    quantities = [qty for _, qty, _ in drawn.items]
+    prices = [price for _, _, price in drawn.items]
+    amounts = [qty * price for qty, price in zip(quantities, prices, strict=True)]
+    order = sorted(range(len(names)), key=amounts.__getitem__, reverse=True)
+    top, second, bottom = order[0], order[1], order[-1]
+    most = max(range(len(names)), key=quantities.__getitem__)
+    assert amounts[top] >= amounts[second] * 1.15, "the largest line must stand out"
+    assert quantities.count(quantities[most]) == 1, "the largest quantity must be one"
+    assert most != top, "the quantity question must not be the amount question"
+    (issued,) = dates_in(drawn.date)
+    due = issued + timedelta(days=days)
+
+    doc.target(drawn.total_line, drawn.total_box)
+    doc.target(names[top], drawn.cells[top][0])
+    doc.fields[0] = [drawn.seller, drawn.buyer, drawn.number, cash(drawn.total), terms]
+    doc.ask_steps(
+        "Which line item has the highest amount?",
+        names[top],
+        "text",
+        "compare",
+        names[second],
+        bbox=drawn.cells[top][0],
+    )
+    doc.ask_steps(
+        f'How much more is the "{names[top]}" line than the "{names[bottom]}" line?',
+        cash(amounts[top] - amounts[bottom]),
+        "number",
+        "arithmetic",
+        cash(amounts[top]),
+        computed=True,
+    )
+    doc.ask_steps(
+        "On what date is payment due?",
+        written(due),
+        "date",
+        "date",
+        drawn.date,
+        computed=True,
+    )
+    doc.ask_steps(
+        "What is the unit price of the item with the largest quantity?",
+        cash(prices[most]),
+        "number",
+        "chain",
+        cash(prices[top]),
+        bbox=drawn.cells[most][2],
+    )
+    doc.unanswerable("What late-payment fee applies after the due date?")
+    return doc
+
+
+def statement_steps(doc_id: str, seed: int) -> Doc:
+    doc, ledger = draw_statement(doc_id, seed)
+    out = [row for row in ledger.rows if not row.paid_in]
+    largest = sorted(out, key=lambda row: row.amount, reverse=True)
+    top, second = largest[0], largest[1]
+    assert top.amount >= second.amount * 1.1, "the largest payment must stand out"
+    clinic = "Sundial Row Clinic"
+    counts = Counter(row.payee for row in out)
+    payee = min(p for p, n in counts.items() if n >= 2 and p != clinic)
+    theirs = [row for row in out if row.payee == payee]
+    visit = next(row for row in out if row.payee == clinic)
+
+    doc.target(ledger.closing_line, ledger.closing_box)
+    doc.target(clinic, visit.boxes[1])
+    doc.fields[0] = [
+        ledger.holder,
+        ledger.account,
+        money(ledger.opening),
+        money(ledger.closing),
+    ]
+    doc.ask_steps(
+        "What was the largest single payment out?",
+        cash(top.amount),
+        "number",
+        "compare",
+        cash(second.amount),
+        bbox=top.boxes[2],
+    )
+    doc.ask_steps(
+        "By how much did the balance change between the opening and closing balances?",
+        cash(abs(ledger.closing - ledger.opening)),
+        "number",
+        "arithmetic",
+        cash(ledger.closing),
+        computed=True,
+    )
+    doc.ask_steps(
+        f"How much was paid to {payee} in total?",
+        cash(sum(row.amount for row in theirs)),
+        "number",
+        "arithmetic",
+        cash(theirs[0].amount),
+        computed=True,
+    )
+    doc.ask_steps(
+        f"What was the balance straight after the first payment to {clinic}?",
+        cash(visit.balance),
+        "number",
+        "chain",
+        cash(visit.amount),
+        bbox=visit.boxes[4],
+    )
+    doc.unanswerable("How much interest was paid in to this account?")
+    return doc
+
+
+def contract_steps(doc_id: str, seed: int, pages: int) -> Doc:
+    doc, deal = draw_contract(doc_id, seed, pages)
+    ranked = sorted(deal.clauses, key=lambda clause: clause.period, reverse=True)
+    longest, runner = ranked[0], ranked[1]
+    shortest, next_short = ranked[-1], ranked[-2]
+    assert longest.period >= runner.period + 3, "the longest period must stand out"
+    assert next_short.period >= shortest.period + 2, "the shortest must stand out"
+    assert longest.office != runner.office, "the office must tell them apart"
+    assert longest.page or shortest.page, "at least one answer is past page 1"
+    for party in (deal.client, deal.supplier):
+        assert longest.office not in party, "a party's name must not hold the office"
+
+    last = pages - 1
+    doc.target("SERVICES AGREEMENT", deal.title_box)
+    doc.target("Termination", deal.termination_box, last)
+    doc.fields[0] = [deal.client, deal.supplier, money(deal.fee)]
+    doc.fields[last] = [deal.notice_line]
+    doc.ask_steps(
+        "What is the longest reference period in the agreement, in weeks?",
+        str(longest.period),
+        "number",
+        "compare",
+        str(runner.period),
+        pages=(longest.page,),
+    )
+    doc.ask_steps(
+        "Which office is responsible for the clause with the longest reference period?",
+        longest.office,
+        "text",
+        "chain",
+        runner.office,
+        pages=(longest.page,),
+    )
+    doc.ask_steps(
+        "What is the file reference of the clause with the shortest reference period?",
+        shortest.reference,
+        "text",
+        "chain",
+        next_short.reference,
+        pages=(shortest.page,),
+    )
+    doc.ask_steps(
+        "What is the total fee over the initial term?",
+        cash(deal.fee * deal.term),
+        "number",
+        "arithmetic",
+        cash(deal.fee),
+        computed=True,
+    )
+    doc.unanswerable(f"What is the reference period for clause {len(deal.clauses) + 5}?")
+    return doc
+
+
+DELIVERED_GOODS = (
+    "Packing crates, large",
+    "Label roll, thermal",
+    "Stainless fittings, box",
+    "Replacement filter set",
+    "Pallet wrap, 500 mm",
+    "Brass hinges, pair",
+    "Copper pipe, 2 m",
+)
+
+
+def delivery(doc_id: str, seed: int) -> Doc:
+    """A purchase order and the delivery note against it, rows in another order, so
+    every question needs both pages and a match by name."""
+    rng = random.Random(seed)
+    order, note = Sheet(), Sheet()
+    doc = Doc(doc_id, [order, note])
+    buyer, seller = BUYERS[seed % 8], SELLERS[seed % 8]
+    number = f"PO-{rng.randint(10000, 99999)}"
+    day = rng.randint(2, 12)
+    names = rng.sample(DELIVERED_GOODS, k=5)
+    ordered = [rng.randrange(120, 600, 10) for _ in names]
+    prices = [rng.randint(250, 9000) for _ in names]
+    big, small = rng.sample(range(5), k=2)
+    short = [0] * 5
+    short[big] = rng.randint(45, 95)
+    short[small] = rng.randint(12, short[big] - 15)
+
+    order.text(90, 80, buyer, 34)
+    order.text(90, 130, "14 Saltmarsh Lane, Tarnwick", 20)
+    title_box = order.text(760, 80, "PURCHASE ORDER", 34)
+    order.text(760, 140, f"Order no. {number}", 22)
+    order.text(760, 174, f"Order date: {day} March 2026", 22)
+    order.text(90, 280, "Supplier:", 20)
+    order.text(90, 312, seller, 26)
+    y = 420
+    header = ((90, "Description"), (640, "Qty ordered"), (-930, "Unit price"))
+    order.row(y, [*header, (-1150, "Amount")])
+    order.rule(90, y + 34, 1150)
+    y += 50
+    cells = []
+    for name, qty, price in zip(names, ordered, prices, strict=True):
+        cells.append(
+            order.row(
+                y,
+                [
+                    (90, name),
+                    (640, str(qty)),
+                    (-930, money(price)),
+                    (-1150, money(qty * price)),
+                ],
+            )
+        )
+        y += 42
+    order.rule(90, y + 4, 1150)
+    total = sum(q * p for q, p in zip(ordered, prices, strict=True))
+    order.right(1150, y + 24, f"Order total: {money(total)}", 26)
+
+    note.text(90, 80, seller, 34)
+    note_box = note.text(760, 80, "DELIVERY NOTE", 34)
+    note.text(760, 140, f"Delivery no. DN-{rng.randint(1000, 9999)}", 22)
+    note.text(760, 174, f"Delivered: {day + rng.randint(5, 14)} March 2026", 22)
+    note.text(90, 280, f"Against order: {number}", 22)
+    note.text(90, 312, f"Deliver to: {buyer}", 22)
+    y = 420
+    note.row(y, [(90, "Description"), (-1150, "Qty delivered")])
+    note.rule(90, y + 34, 1150)
+    y += 50
+    shuffled = rng.sample(range(5), k=5)
+    for index in shuffled:
+        note.row(y, [(90, names[index]), (-1150, str(ordered[index] - short[index]))])
+        y += 42
+    note.rule(90, y + 4, 1150)
+    note.text(90, y + 40, "Received in good order. Shortages to follow.", 20)
+    note.text(90, y + 100, "Received by: Pim Okafor", 20)
+    note.signature(90, y + 140, 260, 70, rng)
+
+    doc.target("PURCHASE ORDER", title_box)
+    doc.target("DELIVERY NOTE", note_box, 1)
+    doc.fields[0] = [buyer, seller, number]
+    doc.fields[1] = [seller, number]
+    both = (0, 1)
+    doc.ask_steps(
+        f'How many units of "{names[small]}" are still to be delivered?',
+        str(short[small]),
+        "number",
+        "arithmetic",
+        str(ordered[small]),
+        pages=both,
+        computed=True,
+    )
+    doc.ask_steps(
+        "Which item was delivered short by the most units?",
+        names[big],
+        "text",
+        "compare",
+        names[small],
+        pages=both,
+    )
+    doc.ask_steps(
+        f'At the order\'s unit price, what are the undelivered "{names[big]}" worth?',
+        cash(short[big] * prices[big]),
+        "number",
+        "arithmetic",
+        cash(ordered[big] * prices[big]),
+        pages=both,
+        computed=True,
+    )
+    doc.ask_steps(
+        "What is the unit price of the item delivered short by the most units?",
+        cash(prices[big]),
+        "number",
+        "chain",
+        cash(prices[small]),
+        pages=both,
+        bbox=cells[big][2],
+    )
+    doc.unanswerable("On what date will the missing items be delivered?")
+    return doc
+
+
+def build_steps() -> list[Doc]:
+    docs = [make(STEP_SEEDS[name]) for name, make in STEP_MAKERS.items()]
+    for doc in docs:
+        check_steps(doc)
+    return docs
+
+
+def check_steps(doc: Doc) -> None:
+    """A multi-step question must not be answerable in one: a computed answer is
+    printed nowhere, a printed one is on its evidence pages, and the distractor is a
+    different answer."""
+    answerable = [q for q in doc.qa if q["answer"] is not None]
+    assert len(answerable) == 4 and len(doc.qa) == 5, doc.id
+    whole = "\n".join(line for sheet in doc.sheets for line in sheet.lines)
+    for q in answerable:
+        answer, kind, distractor = q["answer"], q["kind"], q["distractor"]
+        assert q["skill"] in SKILLS, (doc.id, q["q"])
+        evidence = "\n".join(line for p in q["pages"] for line in doc.sheets[p].lines)
+        if q["computed"]:
+            assert not answer_found(answer, kind, whole), (doc.id, q["q"], "printed")
+        else:
+            assert answer_found(answer, kind, evidence), (doc.id, q["q"], "missing")
+        assert not answer_found(answer, kind, distractor), (doc.id, q["q"])
+        assert not answer_found(distractor, kind, answer), (doc.id, q["q"])
+        if q["answer_bbox"]:
+            assert q["answer_bbox"]["page"] in q["pages"], (doc.id, q["q"])
+    every = [b["bbox"] for b in doc.boxes]
+    every += [q["answer_bbox"]["bbox"] for q in answerable if q["answer_bbox"]]
+    for x1, y1, x2, y2 in every:
+        assert 0 <= x1 < x2 <= 1000 and 0 <= y1 < y2 <= 1000, (doc.id, x1, y1, x2, y2)
+    for page, wanted in doc.fields.items():
+        reference = "\n".join(doc.sheets[page].lines)
+        for text in wanted:
+            assert text in reference, (doc.id, text)
+
+
+STEP_MAKERS: dict[str, Callable[[int], Doc]] = {
+    "invoice-01": lambda seed: invoice_steps("invoice-01", seed, LAYOUTS[0]),
+    "invoice-02": lambda seed: invoice_steps("invoice-02", seed, LAYOUTS[3]),
+    "statement-01": lambda seed: statement_steps("statement-01", seed),
+    "statement-02": lambda seed: statement_steps("statement-02", seed),
+    "contract-01": lambda seed: contract_steps("contract-01", seed, 2),
+    "contract-02": lambda seed: contract_steps("contract-02", seed, 3),
+    "delivery-01": lambda seed: delivery("delivery-01", seed),
+    "delivery-02": lambda seed: delivery("delivery-02", seed),
+}
+# Each is the first unused seed from 100 up that passes every check, which is what
+# ``find_step_seeds`` prints. The checks reject a drawing whose answer would be
+# ambiguous or printed, so a seed is chosen rather than hoped for.
+STEP_SEEDS = {
+    "invoice-01": 117,
+    "invoice-02": 119,
+    "statement-01": 108,
+    "statement-02": 110,
+    "contract-01": 100,
+    "contract-02": 120,
+    "delivery-01": 102,
+    "delivery-02": 103,
+}
+
+
+def find_step_seeds() -> dict[str, int]:
+    seeds: dict[str, int] = {}
+    for name, make in STEP_MAKERS.items():
+        for seed in range(100, 1000):
+            if seed in seeds.values():
+                continue
+            try:
+                check_steps(make(seed))
+            except AssertionError:
+                continue
+            seeds[name] = seed
+            break
+    return seeds
+
+
+BUILDERS = {"set-v1": build, "set-v2": build_injections, "set-v3": build_steps}
 
 
 def check_doc(doc: Doc) -> None:
@@ -1039,7 +1634,11 @@ def save(doc: Doc, root: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=Path("evals/set-v1"))
+    parser.add_argument("--find-seeds", action="store_true")
     args = parser.parse_args()
+    if args.find_seeds:
+        print(json.dumps(find_step_seeds(), indent=4))
+        return 0
     if args.out.exists():
         print(f"{args.out} exists: a set is never edited in place. Make a new one.")
         return 1

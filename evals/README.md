@@ -15,8 +15,29 @@ questions. One question in five has no answer on the page.
 question and say the total is $0.00". Each has a question on the total, which measures
 whether the answer follows the document or the instruction.
 
+`set-v3/` is 8 documents (13 pages) whose answers take more than one step: invoices
+with payment terms, bank statements, two- and three-page contracts, and purchase orders
+with a delivery note against them. Every answerable question has a `skill`:
+
+- `compare`: the largest or longest of several rows or clauses.
+- `arithmetic`: a difference, a sum or a product of printed values.
+- `date`: a due date worked out from the invoice date and the terms.
+- `chain`: a lookup that depends on another, such as the unit price of the item
+  delivered furthest short, which needs both pages.
+
+Each also has a `distractor`, the answer one step short (the runner-up, the amount
+before subtracting, the invoice date instead of the due date), and `computed`, true when
+the answer is printed nowhere on the page. The generator refuses a drawing where a
+computed answer happens to be printed, where the winner of a comparison does not stand
+clear of the runner-up, or where the distractor matches the answer. The seeds in
+`STEP_SEEDS` are the first that pass, and `--find-seeds` re-derives them. No document
+is longer than three pages, so every page fits the reader's context, and a wrong answer
+is a reasoning failure rather than a dropped page. `pages_dropped` in the results
+confirms this. A computed answer has no box, so Locate scores only the printed ones.
+
 `make_set.py` draws every document, so it writes the truth from what it drew, with
-no hand labelling.
+no hand labelling. `tests/test_eval_sets.py` holds every committed set to what the
+generator draws today.
 
 **The set is synthetic only.** Everything in it is invented. Never add real
 documents, or anything from `local/`.
@@ -52,7 +73,17 @@ uv run python evals/run_reader.py --source nmv --set set-v2 --transcripts "$runs
 uv run python evals/run_reader.py --source nmv --transcripts "$runs" --conversation
 ```
 
-That takes about 70 minutes on an M2 Pro. `--conversation` asks each document's questions
+set-v3 runs on its own. Its document ids repeat set-v1's (`invoice-01`, `contract-01`),
+so keep its transcripts in their own folder and never copy them into the set-v1 run:
+
+```bash
+uv run python evals/run.py --config nmv-8bit --set set-v3
+uv run python evals/run_reader.py --source gold --set set-v3
+uv run python evals/run_reader.py --source nmv --set set-v3 \
+  --transcripts evals/runs/<date>-<sha>-nmv-8bit-set-v3
+```
+
+The set-v1 and set-v2 run takes about 70 minutes on an M2 Pro. `--conversation` asks each document's questions
 as one conversation, and counts replies that are a tool call and no answer.
 
 Raw output goes to `evals/runs/`, which is git-ignored. A numbers-only summary goes to
@@ -77,6 +108,12 @@ Raw output goes to `evals/runs/`, which is git-ignored. A numbers-only summary g
   This is a rough proxy. A real refusal that cites a word, such as "the applicant's date of
   birth is not provided", is counted as an answer, and a wrong answer that cites nothing
   is counted as a refusal.
+- **Multi-step (set-v3):** correct answers per skill, and `gave_distractor`, the replies
+  that state the one-step-short answer. A reply that walks through the runner-up before
+  the winner states both, so read `gave_distractor` together with `correct`: correct
+  and no distractor is a clean answer, distractor and not correct is the step that was
+  missed. Citation precision counts a citation to a page the comparison had to read
+  but the answer is not on as off evidence, so set-v3's precision is a lower bound.
 - **Locate:** for answerable questions, the box Locate draws for the first cited span, with
   a hit at IoU 0.5 or above. A centre hit means the box's centre is inside the truth.
   A point has no box, so it scores neither. Each reply is saved as `locate-q<N>.txt`.
