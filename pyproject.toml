@@ -1,6 +1,6 @@
 [project]
 name = "cohere-document-intelligence"
-version = "0.4.0"
+version = "0.5.0"
 description = "Streamlit app for reading documents locally on Apple Silicon with Cohere North Micro Vision (8-bit) and Command R7B (4-bit) via MLX"
 readme = "README.md"
 license = "Apache-2.0"
