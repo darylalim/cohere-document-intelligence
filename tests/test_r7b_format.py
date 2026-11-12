@@ -123,4 +123,18 @@ cut.feed("<|START_RESPONSE|>Half")
 check("cut off in the response ends there", cut.phase is Phase.RESPONSE)
 check("an empty stream yields nothing", list(stream_phases([])) == [])
 
+print("a prompt that opens the plan")
+import nmv.r7b_format as r7b_format  # noqa: E402
+
+r7b_format.OPENING = r7b_format.START_THINKING
+planned = ["Add the", " two.<|END_THINKING|><|START_RESPONSE|>It is 20.<|END_RESPONSE|>"]
+check(
+    "the unmarked start is thinking", text_of(planned, Phase.THINKING) == "Add the two."
+)
+check("the response follows it", text_of(planned, Phase.RESPONSE) == "It is 20.")
+acted = ["Plan.<|END_THINKING|><|START_ACTION|>[{}]<|END_ACTION|>"]
+check("an action after the plan shows nothing", text_of(acted, Phase.RESPONSE) == "")
+r7b_format.OPENING = r7b_format.START_RESPONSE
+check("the default opens the response", PhaseParser().phase is Phase.IDLE)
+
 finish()

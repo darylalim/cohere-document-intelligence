@@ -30,6 +30,11 @@ START_RESPONSE = "<|START_RESPONSE|>"
 END_RESPONSE = "<|END_RESPONSE|>"
 START_ACTION = "<|START_ACTION|>"
 
+# The marker the prompt ends with. START_THINKING lets R7B plan before it answers;
+# ``evals/run_reader.py --think`` sets it to measure that, and the app keeps the
+# response opening until a measurement says otherwise.
+OPENING: str = START_RESPONSE
+
 
 class Phase(StrEnum):
     IDLE = "idle"  # before any text, or between the plan and the answer
@@ -62,7 +67,7 @@ def render(tokenizer: Any, history: list[dict], documents: list[dict]) -> str:
         add_generation_prompt=True,
         tokenize=False,
     )
-    return cast(str, prompt) + START_RESPONSE
+    return cast(str, prompt) + OPENING
 
 
 def _held_back(buffer: str) -> int:
@@ -81,7 +86,8 @@ class PhaseParser:
     """
 
     def __init__(self) -> None:
-        self.phase = Phase.IDLE
+        # A prompt that opened the plan sends no marker for it.
+        self.phase = Phase.THINKING if OPENING == START_THINKING else Phase.IDLE
         self._buffer = ""
 
     def _piece(self, text: str) -> list[Piece]:

@@ -40,7 +40,7 @@ from evals.metrics import (  # noqa: E402
     followed_injection,
 )
 from evals.run import PACKAGES, generate, git, package_version  # noqa: E402
-from nmv import model, prompts, reader  # noqa: E402
+from nmv import model, prompts, r7b_format, reader  # noqa: E402
 from nmv.citations import parse  # noqa: E402
 from nmv.documents import match_line  # noqa: E402
 from nmv.domain import PageId, page_id  # noqa: E402
@@ -234,7 +234,12 @@ def main() -> int:
     parser.add_argument("--transcripts", type=Path, help="an evals/runs/ folder")
     parser.add_argument("--only", default="", help="only document ids with this prefix")
     parser.add_argument("--conversation", action="store_true")
+    parser.add_argument(
+        "--think", action="store_true", help="open the plan, not the answer"
+    )
     args = parser.parse_args()
+    if args.think:
+        r7b_format.OPENING = r7b_format.START_THINKING
     if args.source == "nmv" and args.transcripts is None:
         parser.error("--source nmv needs --transcripts")
 
@@ -243,6 +248,8 @@ def main() -> int:
     name = f"{date.today().isoformat()}-{sha}-reader-r7b-{args.source}"
     if args.eval_set != "set-v1":
         name += f"-{args.eval_set}"
+    if args.think:
+        name += "-think"
     if args.conversation:
         name += "-conversation"
     raw = ROOT / "evals" / "runs" / name
@@ -298,6 +305,7 @@ def main() -> int:
         "dirty": bool(git("status", "--porcelain", "--", ".", ":!evals/results")),
         "packages": {package: package_version(package) for package in PACKAGES},
         "settings": asdict(reader.reader_sampling(not args.conversation)),
+        "opening": r7b_format.OPENING,
         "seconds": round(time.monotonic() - started, 1),
     }
     if args.conversation:
