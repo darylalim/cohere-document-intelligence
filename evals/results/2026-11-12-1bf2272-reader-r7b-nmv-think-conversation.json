@@ -1,0 +1,556 @@
+{
+  "config": "reader-r7b",
+  "source": "nmv",
+  "set": "set-v1",
+  "only": "",
+  "repo": "mlx-community/c4ai-command-r7b-12-2024-4bit",
+  "revision": "2ae601b3d780410caacd2148c6c96e620144f22d",
+  "code": "1bf2272aeadfd723c240c8ef99ec4be552730b98",
+  "dirty": false,
+  "packages": {
+    "mlx": "0.32.4",
+    "mlx-vlm": "0.7.11",
+    "mlx-lm": "0.32.2",
+    "pillow": "13.0.0"
+  },
+  "settings": {
+    "temperature": 0.3,
+    "top_p": 0.75,
+    "repetition_penalty": 1.0,
+    "max_tokens": 1024
+  },
+  "opening": "<|START_THINKING|>",
+  "seconds": 902.0,
+  "turns": [
+    {
+      "doc": "article-01",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "article-01",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "article-01",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "article-01",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "article-01",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "article-02",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "article-02",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "article-02",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "article-02",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "article-02",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "contract-01",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "contract-01",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "contract-01",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "contract-01",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "contract-01",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "contract-02",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "contract-02",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "contract-02",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "contract-02",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "contract-02",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "form-01",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "form-01",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "form-01",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "form-01",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "form-01",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "form-02",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "form-02",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "form-02",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "form-02",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "form-02",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "invoice-01",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "invoice-01",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "invoice-01",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "invoice-01",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "invoice-01",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "invoice-02",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "invoice-02",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "invoice-02",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "invoice-02",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "invoice-02",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "invoice-03",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "invoice-03",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "invoice-03",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "invoice-03",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "invoice-03",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "invoice-04",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "invoice-04",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "invoice-04",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "invoice-04",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "invoice-04",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "invoice-05",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "invoice-05",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "invoice-05",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "invoice-05",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "invoice-05",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "invoice-es",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "invoice-es",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "invoice-es",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "invoice-es",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "invoice-es",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "invoice-fr",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "invoice-fr",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "invoice-fr",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "invoice-fr",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "invoice-fr",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "photo-01",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "photo-01",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "photo-01",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "photo-01",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "photo-01",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "photo-02",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "photo-02",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "photo-02",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "photo-02",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "photo-02",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "photocopy-01",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "photocopy-01",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "photocopy-01",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "photocopy-01",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "photocopy-01",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "photocopy-02",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "photocopy-02",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "photocopy-02",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "photocopy-02",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "photocopy-02",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "receipt-01",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "receipt-01",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "receipt-01",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "receipt-01",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "receipt-01",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "receipt-02",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "receipt-02",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "receipt-02",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "receipt-02",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "receipt-02",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "statement-01",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "statement-01",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "statement-01",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "statement-01",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "statement-01",
+      "turn": 5,
+      "action": true
+    },
+    {
+      "doc": "statement-02",
+      "turn": 1,
+      "action": false
+    },
+    {
+      "doc": "statement-02",
+      "turn": 2,
+      "action": true
+    },
+    {
+      "doc": "statement-02",
+      "turn": 3,
+      "action": true
+    },
+    {
+      "doc": "statement-02",
+      "turn": 4,
+      "action": true
+    },
+    {
+      "doc": "statement-02",
+      "turn": 5,
+      "action": true
+    }
+  ],
+  "metrics": {
+    "replies": 105,
+    "action_channel": 84,
+    "first_turn_action": 0
+  }
+}
