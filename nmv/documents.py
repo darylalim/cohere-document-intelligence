@@ -6,8 +6,9 @@ Pure: no MLX, no Streamlit.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from difflib import SequenceMatcher
+from typing import Protocol, TypeVar
 
 from nmv.domain import Derivation, PageId, Transcript
 from nmv.transcripts import Hit
@@ -15,6 +16,45 @@ from nmv.transcripts import Hit
 MATCH_THRESHOLD = 0.5
 _DECORATION = " \t|#*>-"
 _SPAN_EDGES = " \t\n.,;:!?"
+
+
+class _File(Protocol):
+    @property
+    def name(self) -> str: ...
+    @property
+    def size(self) -> int: ...
+
+
+F = TypeVar("F", bound=_File)
+
+
+def carry_uploads(
+    widget: Sequence[F], chosen: Sequence[F], kept: Sequence[F]
+) -> tuple[list[F], list[F]]:
+    """The files the user chose and the files kept from before, after this run.
+
+    The uploader forgets its files when the user visits another page, and it has no
+    ``persist_state``. ``chosen`` is what the user last picked, recorded by the
+    uploader's ``on_change``, which a page switch does not fire. So an empty widget
+    with files still chosen means the page switch emptied it: those files are kept.
+    A kept file the user uploads again is dropped from ``kept``, so it is not listed
+    twice. Same name and size is taken as the same file; a near miss only means the
+    page ids match and the page list names it a duplicate.
+    """
+    carried = list(kept)
+    current = list(chosen)
+    if not widget and current:
+        carried += current
+        current = []
+    uploaded = {(file.name, file.size) for file in widget}
+    seen: set[tuple[str, int]] = set()
+    unique = []
+    for file in carried:
+        ident = (file.name, file.size)
+        if ident not in uploaded and ident not in seen:
+            seen.add(ident)
+            unique.append(file)
+    return current, unique
 
 
 def natural_key(name: str) -> list[tuple[int, int, str]]:

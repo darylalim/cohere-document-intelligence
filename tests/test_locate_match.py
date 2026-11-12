@@ -1,17 +1,23 @@
-"""The pure decisions behind Ask documents: page order, Locate's text, fallbacks.
+"""The pure decisions behind Ask documents: page order, Locate's text, fallbacks,
+and the uploads a page switch would lose.
 
 Run:  uv run python tests/test_locate_match.py
 """
 
 import sys
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from _check import check, finish  # noqa: E402
 
-from nmv.documents import best_transcript, match_line, natural_key  # noqa: E402
+from nmv.documents import (  # noqa: E402
+    best_transcript,
+    carry_uploads,
+    match_line,
+    natural_key,
+)
 from nmv.domain import Derivation, Transcript, page_id  # noqa: E402
 
 print("match_line")
@@ -68,5 +74,46 @@ for name, change in {
     "another page": {"page": page_id(b"q")},
 }.items():
     check(f"{name} is never served", best_transcript([made(**change)], wanted) is None)
+
+print("carry_uploads")
+
+
+@dataclass(frozen=True)
+class File:
+    name: str
+    size: int = 10
+
+
+a, b, c = File("a.pdf"), File("b.png"), File("c.png")
+check("nothing to carry", carry_uploads([], [], []) == ([], []))
+check("files in the widget are left alone", carry_uploads([a], [a], []) == ([a], []))
+check(
+    "a page switch moves the chosen files to kept",
+    carry_uploads([], [a, b], []) == ([], [a, b]),
+)
+check(
+    "removing every file keeps nothing",  # on_change has already emptied chosen
+    carry_uploads([], [], []) == ([], []),
+)
+check(
+    "kept files stay alongside new uploads",
+    carry_uploads([c], [c], [a, b]) == ([c], [a, b]),
+)
+check(
+    "a second switch adds to what was kept",
+    carry_uploads([], [c], [a, b]) == ([], [a, b, c]),
+)
+check(
+    "a kept file uploaded again is not listed twice",
+    carry_uploads([File("a.pdf")], [File("a.pdf")], [a, b]) == ([File("a.pdf")], [b]),
+)
+check(
+    "same name, other size is another file",
+    carry_uploads([File("a.pdf", 99)], [File("a.pdf", 99)], [a])[1] == [a],
+)
+check(
+    "a file kept twice is listed once",
+    carry_uploads([], [a], [a]) == ([], [a]),
+)
 
 finish()

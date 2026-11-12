@@ -19,7 +19,13 @@ from streamlit.typing import UploadedFile
 
 from nmv import trace, transcripts
 from nmv.citations import parse
-from nmv.documents import best_transcript, first_per_page, match_line, natural_key
+from nmv.documents import (
+    best_transcript,
+    carry_uploads,
+    first_per_page,
+    match_line,
+    natural_key,
+)
 from nmv.domain import Derivation, Grounding, Page, PageId, Transcript, Turn, page_id
 from nmv.grounding import describe, draw_boxes, parse_boxes
 from nmv.imaging import (
@@ -407,6 +413,16 @@ def _locate(page: Page, span: str, transcript: Transcript | None, budget: int):
     return state.locate_cache[key]
 
 
+def _record_uploads() -> None:
+    """What the user chose. A page switch empties the uploader without calling this,
+    which is how :func:`carry_uploads` tells the two apart."""
+    state.ask_chosen = list(state.ask_uploads or [])
+
+
+def _forget_kept() -> None:
+    state.ask_kept = []
+
+
 def _new_conversation() -> None:
     state.ask_turns = []
     state.ask_notes = {}
@@ -641,6 +657,8 @@ for name, value in (
     ("ask_held", {}),  # transcripts kept in session: save off, or the store failed
     ("ask_added", {}),  # saved pages added from search: page id to display name
     ("ask_failed", []),
+    ("ask_chosen", []),  # the uploader's files as the user last chose them
+    ("ask_kept", []),  # files a page switch emptied from the uploader
     ("locate_cache", {}),
     ("locate_target", None),
     ("transcribe_queue", []),
@@ -672,6 +690,7 @@ with st.container(horizontal=True):
         accept_multiple_files=True,
         key="ask_uploads",
         disabled=busy,
+        on_change=_record_uploads,
     )
     save = st.toggle(
         "Save transcripts",
@@ -732,7 +751,21 @@ if not transcripts.available():
         icon=":material/database_off:",
     )
 
-pages = _read_pages(list(uploads or []), budget)
+state.ask_chosen, state.ask_kept = carry_uploads(
+    uploads or [], state.ask_chosen, state.ask_kept
+)
+if state.ask_kept:
+    with st.container(horizontal=True, vertical_alignment="center"):
+        names = ", ".join(file.name for file in state.ask_kept)
+        st.caption(f"Kept from before you left this page: {names}.")
+        st.button(
+            "Remove kept files",
+            icon=":material/close:",
+            disabled=busy,
+            on_click=_forget_kept,
+        )
+
+pages = _read_pages([*state.ask_kept, *(uploads or [])], budget)
 # Saved pages come after the uploads. An upload of the same page replaces its saved
 # text, which is what brings back its image and Locate.
 saved_found: dict[PageId, Transcript] = {}
@@ -773,7 +806,7 @@ if pages:
     )
 
 # Earlier turns' citations index the old document list. An empty selection is left
-# out, because the uploader forgets its files when the user visits another page.
+# out, so removing every page does not end the conversation on its own.
 if selected and state.get("ask_signature") != selected:
     if state.ask_turns and "ask_signature" in state:
         _new_conversation()
