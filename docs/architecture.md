@@ -77,6 +77,14 @@ image and Locate with nothing else to do. Saved pages go through the reader's co
 budget like uploads, and any that do not fit are named. Only transcripts from the current
 checkpoint, prompt and token limit are offered.
 
+**Uploads survive a page switch.** Streamlit's uploader forgets its files when you visit
+another page, and unlike the sidebar widgets it has no `persist_state`. Its `on_change`
+records what you chose, and a page switch empties the widget without calling it, so an
+empty uploader with files still recorded means a switch: those files are kept in the
+session and listed as "Kept from before you left this page", with a button to remove
+them. Files you remove yourself call `on_change` and stay removed. The decision is
+`carry_uploads` in `nmv/documents.py`.
+
 ## Token count scales with pixel area
 
 The encoder cuts an image into 16 px patches, merges each 2×2 block, and spends one
