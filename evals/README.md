@@ -140,13 +140,23 @@ Raw output goes to `evals/runs/`, which is git-ignored. A numbers-only summary g
   on NMV text, against 0.94 for both without the calculator, and none of the 61
   calculator citations was left unmapped. (The first run, 4ab83fa, gave the same answers
   but left 11 gold and 8 NMV answers uncited.) set-v1 on NMV text holds at 77 and
-  `report.py --against baseline` raises no flag. It does not ship yet, for two reasons:
+  `report.py --against baseline` raises no flag, so it passes all three of its gates
+  (set-v3 above 16 with arithmetic up, no raw tool call, no set-v1 regression against
+  the baseline). Two costs remain:
 
-  - set-v1 on gold falls from 78 to 76. Two of gold's three new misses never called
-    the calculator: opening the plan changed them.
+  - set-v1 on gold falls from 78 to 76. This is accepted as the cost of opening the
+    plan, because the baseline is the NMV run and nothing there changed. Of the three
+    new misses, invoice-05's billed company was never right: both runs name the
+    letterhead, and the earlier answer only scored because it also mentioned the
+    client. invoice-03's billed company (the letterhead again) and article-02's
+    second-column heading are real, and both stay wrong with `--think` alone, so the
+    plan causes them, not the calculator or the `tool_use` template. The gold reference
+    flattens article-02's columns, and NMV text gets that question wrong in both runs.
+    form-01's ticked contact method is newly right.
   - It is slower: 2.4 times on set-v3 and 1.4 to 1.6 times on set-v1. 13 of 32
     set-v3 questions had to be made to answer, and in conversation 81 of 105 turns
-    first asked for the document tool. Date questions stay at 0 of 2.
+    first asked for the document tool. Date questions stay at 0 of 2. Whether that
+    speed is worth it on the Ask page is still to decide.
 - **Locate:** for answerable questions, the box Locate draws for the first cited span, with
   a hit at IoU 0.5 or above. A centre hit means the box's centre is inside the truth.
   A point has no box, so it scores neither. Each reply is saved as `locate-q<N>.txt`.
