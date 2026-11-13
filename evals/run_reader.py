@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from collections.abc import Callable
@@ -93,6 +94,9 @@ class ToolUse:
     calculations: list[list] = field(default_factory=list)  # [expression, result]
     forced: bool = False  # made to answer from its plan
     log: list[str] = field(default_factory=list)  # every round's raw text
+    # Per calculator call, in the template's numbering (call k is ``sources[k - 1]``):
+    # the document positions every plan up to and including its round cited.
+    sources: list[tuple[int, ...]] = field(default_factory=list)
 
 
 def actions(raw: str) -> list[dict] | None:
@@ -128,8 +132,11 @@ def ask(
         return answer, stats, seconds, used
     turns = list(history)
     thinking = answer.thinking_tokens
+    planned: dict[int, None] = {}  # document positions the plans cited, in order
     while (calls := actions(answer.raw)) is not None:
         plan = answer.raw.split(END_THINKING)[0]
+        for citation in parse(plan)[1]:
+            planned |= dict.fromkeys(citation.doc_indices)
         usable = bool(calls) and all(
             call.get("tool_name") == calculator.NAME for call in calls
         )
@@ -153,6 +160,7 @@ def ask(
             )
             result = calculator.calculate(expression)
             used.calculations.append([expression, result])
+            used.sources.append(tuple(planned))
             name = f"calc-{used.rounds}-{number}"
             arguments = {"expression": expression if isinstance(expression, str) else ""}
             tool_calls.append(
@@ -173,6 +181,39 @@ def ask(
         used.log.append(answer.raw)
     answer.thinking_tokens = max(answer.thinking_tokens, thinking)
     return answer, stats, seconds, used
+
+
+_CLOSING = re.compile(r"</co:([^<>]*)>")
+_GROUP = re.compile(r"(\d+):\[([\d,\s]*)\]")
+
+
+def resolve(response: str, sources: list[tuple[int, ...]]) -> tuple[str, int, int]:
+    """Point calculator citations at the documents behind them.
+
+    R7B cites a computed figure as the calculator's result, ``k:[0]`` for call ``k``,
+    which ``parse`` drops as not a document. Each becomes ``0:[...]``, the positions
+    the plans up to that call cited, so the answer is credited with the pages its
+    inputs came from. A call whose plans cited nothing, or an id no call had, stays as
+    it was and is dropped. Returns the text, the groups mapped, and those left.
+    """
+    mapped = unmapped = 0
+
+    def group(match: re.Match) -> str:
+        nonlocal mapped, unmapped
+        call = int(match[1]) if len(match[1]) <= 9 else 0
+        if call == 0:
+            return match[0]
+        positions = sources[call - 1] if call <= len(sources) else ()
+        if not positions:
+            unmapped += 1
+            return match[0]
+        mapped += 1
+        return f"0:[{','.join(map(str, positions))}]"
+
+    def closing(match: re.Match) -> str:
+        return "</co:" + _GROUP.sub(group, match[1]) + ">"
+
+    return _CLOSING.sub(closing, response), mapped, unmapped
 
 
 def cited_pages(citations: list, answer: reader.Answer, pages: list) -> list[int]:
@@ -217,8 +258,18 @@ def truth_box(truth: dict, question: str) -> dict | None:
     return next(q["answer_bbox"] for q in truth["qa"] if q["q"] == question)
 
 
-def score(truth: dict, question: dict, answer, stats, seconds, pages) -> tuple:
-    clean, citations = parse(answer.response)
+def score(
+    truth: dict,
+    question: dict,
+    answer,
+    stats,
+    seconds,
+    pages,
+    sources: list[tuple[int, ...]] | None = None,
+) -> tuple:
+    """``sources`` is ``ToolUse.sources`` when the calculator was declared."""
+    response, mapped, unmapped = resolve(answer.response, sources or [])
+    clean, citations = parse(response)
     cited = cited_pages(citations, answer, pages)
     answerable = question["answer"] is not None
     case = {
@@ -235,6 +286,8 @@ def score(truth: dict, question: dict, answer, stats, seconds, pages) -> tuple:
         "generated_tokens": stats.generation_tokens,
         "seconds": round(seconds, 2),
     }
+    if sources is not None:
+        case |= {"calculator_cites": mapped, "calculator_cites_unmapped": unmapped}
     if answerable:
         precision, recall = citation_scores(cited, question["pages"])
         case |= {
@@ -304,6 +357,10 @@ def tool_counts(cases: list[dict]) -> dict:
         "used_calculator": sum(c["tool_rounds"] > 0 for c in cases),
         "calculations": sum(len(c["calculations"]) for c in cases),
         "forced_answers": sum(c["forced"] for c in cases),
+        "calculator_cites": sum(c.get("calculator_cites", 0) for c in cases),
+        "calculator_cites_unmapped": sum(
+            c.get("calculator_cites_unmapped", 0) for c in cases
+        ),
     }
 
 
@@ -409,7 +466,10 @@ def main() -> int:
             answer, stats, seconds, used = ask(loaded, history, pages, True)
             log = "\n[next round]\n".join(used.log)
             (out / f"q{number}.txt").write_text(log, encoding="utf-8")
-            case, citations = score(truth, question, answer, stats, seconds, pages)
+            sources = used.sources if r7b_format.TOOLS else None
+            case, citations = score(
+                truth, question, answer, stats, seconds, pages, sources
+            )
             if r7b_format.TOOLS:
                 case |= {
                     "tool_rounds": used.rounds,

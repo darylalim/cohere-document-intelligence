@@ -173,6 +173,34 @@ check(
     used.calculations[0][1].startswith("error"),
 )
 
+print("calculator citations, mapped to the plans' pages")
+cited = "Plan <co>4</co: 0:[1]> and <co>1</co: 0:[0,1]>.<|END_THINKING|>"
+seen, once = scripted(
+    cited + calc(1)[len("Plan 1.<|END_THINKING|>") :],
+    "Nothing new.<|END_THINKING|>" + calc(2)[len("Plan 2.<|END_THINKING|>") :],
+    ANSWER,
+)
+answer, _, _, used = run_reader.ask(None, question, [], True, once)
+check("each call keeps what the plans cited so far", used.sources == [(1, 0), (1, 0)])
+
+text, mapped, unmapped = run_reader.resolve(
+    "It is <co>5</co: 1:[0]>, <co>6</co: 0:[2],2:[0]> and <co>7</co: 3:[0]>.",
+    [(1, 0), ()],
+)
+check(
+    "a result citation becomes the plan's pages",
+    text == "It is <co>5</co: 0:[1,0]>, <co>6</co: 0:[2],2:[0]> and <co>7</co: 3:[0]>.",
+)
+check("counts mapped and left", (mapped, unmapped) == (1, 2))
+check(
+    "document citations are untouched",
+    run_reader.resolve("<co>a</co: 0:[3]>", [])[1:] == (0, 0),
+)
+check(
+    "a huge id is not an int() bomb",
+    run_reader.resolve(f"<co>a</co: {'9' * 5000}:[0]>", [(1,)])[1] == 0,
+)
+
 r7b_format.TOOLS = []
 r7b_format.OPENING = r7b_format.START_RESPONSE
 seen, once = scripted(calc(1))

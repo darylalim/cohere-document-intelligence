@@ -134,7 +134,13 @@ Raw output goes to `evals/runs/`, which is git-ignored. A numbers-only summary g
 
   - A computed answer cites the calculator's result (`1:[0]`), not the page, and the
     parser keeps only document citations, so 11 gold and 8 NMV set-v3 answers cite
-    nothing and citation recall falls from 0.94 to 0.61 and 0.73.
+    nothing and citation recall falls from 0.94 to 0.61 and 0.73. The runner now
+    rewrites a citation of call `k` as the document positions every plan up to that
+    call cited, in `resolve()`; `calculator_cites` counts those, and
+    `calculator_cites_unmapped` the ones whose plans cited nothing. The app's parser
+    is unchanged. Replayed over 4ab83fa's saved rounds, this leaves no set-v3 answer
+    uncited and recall at 0.91 on gold and 0.94 on NMV text, with no new off-evidence
+    page. Those are replays, not a run.
   - set-v1 on NMV text holds at 77, but `report.py --against baseline` flags one
     answer that lost its citations, and gold falls from 78 to 76. Two of gold's three
     new misses never called the calculator: opening the plan changed them.
