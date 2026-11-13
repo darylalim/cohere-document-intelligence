@@ -74,12 +74,18 @@ def sent_pages(truth: dict, source: str, transcripts: Path | None) -> list:
     return pages
 
 
+REUSE_CACHE = False  # --reuse-cache: keep R7B's KV cache between calls
+
+
 def ask_once(loaded, history: list[dict], pages: list, deterministic: bool):
     stats = model.RunStats()
     answer = reader.Answer()
     sampling = reader.reader_sampling(deterministic)
     started = time.monotonic()
-    list(reader.stream_answer(loaded, history, pages, sampling, stats, answer))
+    stream = reader.stream_answer(
+        loaded, history, pages, sampling, stats, answer, reuse_cache=REUSE_CACHE
+    )
+    list(stream)
     return answer, stats, time.monotonic() - started
 
 
@@ -101,9 +107,10 @@ class ToolUse:
     timings: list[dict] = field(default_factory=list)
 
 
-def timing(step: str, stats, seconds: float) -> dict:
+def timing(step: str, stats, seconds: float, cached: int = 0) -> dict:
     """Where one call's time went. Prefill and decode come from mlx's own rates;
-    the rest of ``seconds`` is rendering, the queue and the stream around them."""
+    the rest of ``seconds`` is rendering, the queue and the stream around them.
+    ``prompt_tokens`` are the ones prefilled; ``cached_tokens`` a reused cache held."""
     prompt_rate, decode_rate = stats.prompt_tps, stats.generation_tps
     prefill = stats.prompt_tokens / prompt_rate if prompt_rate else 0.0
     decode = stats.generation_tokens / decode_rate if decode_rate else 0.0
@@ -111,9 +118,11 @@ def timing(step: str, stats, seconds: float) -> dict:
         "step": step,
         "seconds": round(seconds, 2),
         "prompt_tokens": stats.prompt_tokens,
+        "cached_tokens": cached,
         "generated_tokens": stats.generation_tokens,
         "prefill_seconds": round(prefill, 2),
         "decode_seconds": round(decode, 2),
+        "peak_gb": round(stats.peak_memory, 2),  # mlx's peak since the process began
     }
 
 
@@ -146,7 +155,7 @@ def ask(
     used = ToolUse()
     answer, stats, seconds = once(loaded, history, pages, deterministic)
     used.log.append(answer.raw)
-    used.timings.append(timing("first", stats, seconds))
+    used.timings.append(timing("first", stats, seconds, answer.cached_tokens))
     if not r7b_format.TOOLS:
         return answer, stats, seconds, used
     turns = list(history)
@@ -167,7 +176,7 @@ def ask(
             finally:
                 r7b_format.OPENING = opening
             seconds += more
-            used.timings.append(timing("forced", stats, more))
+            used.timings.append(timing("forced", stats, more, answer.cached_tokens))
             used.forced = True
             used.log.append("[made to answer]\n" + answer.raw)
             break
@@ -197,7 +206,7 @@ def ask(
         ]
         answer, stats, more = once(loaded, turns, pages, deterministic)
         seconds += more
-        used.timings.append(timing("tool", stats, more))
+        used.timings.append(timing("tool", stats, more, answer.cached_tokens))
         thinking += answer.thinking_tokens
         used.log.append(answer.raw)
     answer.thinking_tokens = max(answer.thinking_tokens, thinking)
@@ -364,6 +373,9 @@ def summarise(cases: list[dict]) -> dict:
         "with_thinking": sum(c["thinking_tokens"] > 0 for c in cases),
         "truncated": sum(c["truncated"] for c in cases),
         "pages_dropped": sum(c["pages_dropped"] > 0 for c in cases),
+        "peak_gb": max(
+            (t["peak_gb"] for c in cases for t in c.get("timings", [])), default=None
+        ),
         **tool_counts(cases),
         **by_skill(answerable),
     }
@@ -442,7 +454,14 @@ def main() -> int:
         action="store_true",
         help="declare the calculator, and open the plan so R7B can call it",
     )
+    parser.add_argument(
+        "--reuse-cache",
+        action="store_true",
+        help="keep R7B's KV cache between calls, prefilling only what is new",
+    )
     args = parser.parse_args()
+    global REUSE_CACHE
+    REUSE_CACHE = args.reuse_cache
     if args.think or args.calculator:
         r7b_format.OPENING = r7b_format.START_THINKING
     if args.calculator:
@@ -459,6 +478,8 @@ def main() -> int:
         name += "-calculator"
     elif args.think:
         name += "-think"
+    if args.reuse_cache:
+        name += "-reuse"
     if args.conversation:
         name += "-conversation"
     raw = ROOT / "evals" / "runs" / name
@@ -528,6 +549,7 @@ def main() -> int:
         "opening": r7b_format.OPENING,
         "tools": [tool["function"]["name"] for tool in r7b_format.TOOLS],
         "max_tool_rounds": MAX_TOOL_ROUNDS,
+        "reuse_cache": args.reuse_cache,
         "seconds": round(time.monotonic() - started, 1),
     }
     if args.conversation:

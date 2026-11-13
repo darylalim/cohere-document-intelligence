@@ -14,7 +14,7 @@ from __future__ import annotations
 import gc
 import logging
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import streamlit as st
@@ -49,6 +49,11 @@ class ContextExceeded(ValueError):
 class Reader:
     model: Any
     tokenizer: Any
+    # Kept between answers only when ``stream_answer`` is asked to reuse it: the KV
+    # cache and the token ids it holds, in order. Both are touched only on the
+    # worker, inside ``produce``, so the cache's arrays never change threads.
+    prompt_cache: Any = None
+    cached_ids: list[int] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -214,11 +219,59 @@ class Answer:
     raw: str = ""  # everything decoded, plan included, for Inspect
     thinking_tokens: int = 0
     phase: Phase = Phase.IDLE
+    cached_tokens: int = 0  # prompt tokens a reused cache already held
 
     @property
     def cut_off_planning(self) -> bool:
         """True when decoding ended before any answer. Store nothing as history."""
         return not self.response.strip()
+
+
+def _common_prefix(held: list[int], wanted: list[int]) -> int:
+    """How many leading tokens two id lists share."""
+    for index, (a, b) in enumerate(zip(held, wanted, strict=False)):
+        if a != b:
+            return index
+    return min(len(held), len(wanted))
+
+
+def _reuse(reader: Reader, ids: list[int]) -> tuple[Any, int]:
+    """The cache to decode ``ids`` with, and how many of them it already holds.
+    Worker only. At least one token is always left to prefill, since generation
+    starts from the last prompt token's logits."""
+    from mlx_lm.models.cache import (
+        can_trim_prompt_cache,
+        make_prompt_cache,
+        trim_prompt_cache,
+    )
+
+    cache, held = reader.prompt_cache, reader.cached_ids
+    keep = min(_common_prefix(held, ids), len(ids) - 1)
+    if cache is not None and keep > 0:
+        if keep == len(held):
+            return cache, keep
+        # R7B's sliding-window layers can only trim while under their window.
+        if can_trim_prompt_cache(cache):
+            trim_prompt_cache(cache, len(held) - keep)
+            reader.cached_ids = held[:keep]
+            return cache, keep
+    reader.prompt_cache, reader.cached_ids = make_prompt_cache(reader.model), []
+    return reader.prompt_cache, 0
+
+
+def _settle(reader: Reader, known: list[int]) -> None:
+    """Make ``cached_ids`` say exactly what the cache holds after a generation.
+    mlx-lm feeds each token into the cache before yielding it, and may have fed
+    one more, so the cache's own offset is the count to trust. Worker only."""
+    from mlx_lm.models.cache import can_trim_prompt_cache, trim_prompt_cache
+
+    offset = reader.prompt_cache[0].offset
+    if offset > len(known):
+        if not can_trim_prompt_cache(reader.prompt_cache):
+            reader.prompt_cache, reader.cached_ids = None, []
+            return
+        trim_prompt_cache(reader.prompt_cache, offset - len(known))
+    reader.cached_ids = known[:offset]
 
 
 def stream_answer(
@@ -228,11 +281,18 @@ def stream_answer(
     sampling: ReaderSampling,
     stats: RunStats | None = None,
     answer: Answer | None = None,
+    reuse_cache: bool = False,
 ) -> Iterator[Piece]:
     """Yield the plan and the answer as ``Piece``s.
 
     ``answer.sent_pages`` is what the citations index, so the page stores it on
     the ``Turn``. Without it, a dropped page shifts every later citation.
+
+    ``reuse_cache`` keeps the KV cache on ``reader`` and prefills only the tokens
+    after the longest prefix it already holds, so a follow-up that extends the last
+    prompt skips re-reading the pages. ``stats.prompt_tokens`` then counts only the
+    tokens prefilled, and ``answer.cached_tokens`` the rest. Off, nothing is kept.
+    A repetition penalty would see only the prefilled tokens, so leave it at 1.0.
     """
     answer = answer if answer is not None else Answer()
     tokenizer = reader.tokenizer
@@ -275,20 +335,37 @@ def stream_answer(
         # A repetition penalty is a logits processor in mlx-lm; make_sampler has no
         # such argument, so never splat Sampling.as_kwargs() in here.
         penalty = sampling.repetition_penalty
-        for chunk in stream_generate(
-            reader.model,
-            tokenizer,
-            prompt,
-            max_tokens=sampling.max_tokens,
-            sampler=make_sampler(temp=sampling.temperature, top_p=sampling.top_p),
-            logits_processors=(
-                make_logits_processors(repetition_penalty=penalty)
-                if penalty != 1.0
-                else None
-            ),
-        ):
-            if not emit(chunk):  # consumer walked away, so stop decoding
-                return
+        feed: str | list[int] = prompt
+        extra: dict[str, Any] = {}
+        known: list[int] = []
+        if reuse_cache:
+            known = list(tokenizer.encode(prompt))
+            cache, kept = _reuse(reader, known)
+            answer.cached_tokens = kept
+            feed, extra["prompt_cache"] = known[kept:], cache
+        try:
+            for chunk in stream_generate(
+                reader.model,
+                tokenizer,
+                feed,
+                max_tokens=sampling.max_tokens,
+                sampler=make_sampler(temp=sampling.temperature, top_p=sampling.top_p),
+                logits_processors=(
+                    make_logits_processors(repetition_penalty=penalty)
+                    if penalty != 1.0
+                    else None
+                ),
+                **extra,
+            ):
+                known.append(chunk.token)
+                if not emit(chunk):  # consumer walked away, so stop decoding
+                    return
+        except BaseException:
+            reader.prompt_cache, reader.cached_ids = None, []  # state unknown
+            raise
+        finally:
+            if reuse_cache and reader.prompt_cache is not None:
+                _settle(reader, known)
 
     parser = PhaseParser()
 
