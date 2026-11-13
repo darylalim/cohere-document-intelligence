@@ -161,6 +161,11 @@ answer, _, _, used = run_reader.ask(None, question, [], True, once)
 check("two rounds at most", used.rounds == 2 and used.forced)
 check("four calls to R7B", len(seen) == 4)
 check("every round is logged", len(used.log) == 4)
+check(
+    "every call is timed, by step",
+    [t["step"] for t in used.timings] == ["first", "tool", "tool", "forced"],
+)
+check("a zero rate times nothing", used.timings[0]["prefill_seconds"] == 0.0)
 
 seen, once = scripted("Plan.<|END_THINKING|><|START_ACTION|>[not json", "It is 5.")
 answer, _, _, used = run_reader.ask(None, question, [], True, once)

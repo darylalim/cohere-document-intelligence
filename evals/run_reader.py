@@ -97,6 +97,24 @@ class ToolUse:
     # Per calculator call, in the template's numbering (call k is ``sources[k - 1]``):
     # the document positions every plan up to and including its round cited.
     sources: list[tuple[int, ...]] = field(default_factory=list)
+    # One per call to R7B: "first", "tool" (after a result) or "forced".
+    timings: list[dict] = field(default_factory=list)
+
+
+def timing(step: str, stats, seconds: float) -> dict:
+    """Where one call's time went. Prefill and decode come from mlx's own rates;
+    the rest of ``seconds`` is rendering, the queue and the stream around them."""
+    prompt_rate, decode_rate = stats.prompt_tps, stats.generation_tps
+    prefill = stats.prompt_tokens / prompt_rate if prompt_rate else 0.0
+    decode = stats.generation_tokens / decode_rate if decode_rate else 0.0
+    return {
+        "step": step,
+        "seconds": round(seconds, 2),
+        "prompt_tokens": stats.prompt_tokens,
+        "generated_tokens": stats.generation_tokens,
+        "prefill_seconds": round(prefill, 2),
+        "decode_seconds": round(decode, 2),
+    }
 
 
 def actions(raw: str) -> list[dict] | None:
@@ -128,6 +146,7 @@ def ask(
     used = ToolUse()
     answer, stats, seconds = once(loaded, history, pages, deterministic)
     used.log.append(answer.raw)
+    used.timings.append(timing("first", stats, seconds))
     if not r7b_format.TOOLS:
         return answer, stats, seconds, used
     turns = list(history)
@@ -148,6 +167,7 @@ def ask(
             finally:
                 r7b_format.OPENING = opening
             seconds += more
+            used.timings.append(timing("forced", stats, more))
             used.forced = True
             used.log.append("[made to answer]\n" + answer.raw)
             break
@@ -177,6 +197,7 @@ def ask(
         ]
         answer, stats, more = once(loaded, turns, pages, deterministic)
         seconds += more
+        used.timings.append(timing("tool", stats, more))
         thinking += answer.thinking_tokens
         used.log.append(answer.raw)
     answer.thinking_tokens = max(answer.thinking_tokens, thinking)
@@ -476,6 +497,7 @@ def main() -> int:
                     "calculations": used.calculations,
                     "forced": used.forced,
                 }
+            case["timings"] = used.timings
             if studio is not None and case["answerable"] and citations:
                 saved = out / f"locate-q{number}.txt"
                 case |= locate(
