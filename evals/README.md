@@ -126,6 +126,20 @@ Raw output goes to `evals/runs/`, which is git-ignored. A numbers-only summary g
     reference joins a row's cells with spaces, so an empty cell vanishes and a
     statement's paid-in amount reads like a payment out. NMV writes a Markdown table
     that keeps the empty cell, which is why the reader scored higher on NMV text.
+- **Calculator (`--calculator`, eval only):** `used_calculator`, `calculations` and
+  `forced_answers`, the questions R7B was made to answer from its plan after calling
+  another tool, an unreadable call or a third round. The first run (4ab83fa) lifted
+  set-v3 from 12 to 19 of 32 on gold and from 16 to 19 on NMV text, with no raw tool call
+  in any conversation reply. It does not ship yet, for three reasons:
+
+  - A computed answer cites the calculator's result (`1:[0]`), not the page, and the
+    parser keeps only document citations, so 11 gold and 8 NMV set-v3 answers cite
+    nothing and citation recall falls from 0.94 to 0.61 and 0.73.
+  - set-v1 on NMV text holds at 77, but `report.py --against baseline` flags one
+    answer that lost its citations, and gold falls from 78 to 76. Two of gold's three
+    new misses never called the calculator: opening the plan changed them.
+  - It is slower: 2.3 times on set-v3 and 1.4 to 1.6 times on set-v1. In conversation
+    81 of 105 turns first asked for the document tool and had to be made to answer.
 - **Locate:** for answerable questions, the box Locate draws for the first cited span, with
   a hit at IoU 0.5 or above. A centre hit means the box's centre is inside the truth.
   A point has no box, so it scores neither. Each reply is saved as `locate-q<N>.txt`.
