@@ -137,4 +137,27 @@ check("an action after the plan shows nothing", text_of(acted, Phase.RESPONSE) =
 r7b_format.OPENING = r7b_format.START_RESPONSE
 check("the default opens the response", PhaseParser().phase is Phase.IDLE)
 
+print("tool results answer their own call")
+result = (
+    '<|START_TOOL_RESULT|>[{{"tool_call_id": "{}", "results": {{}}}}]<|END_TOOL_RESULT|>'
+)
+prompt = (
+    "Preamble quoting <|START_TOOL_RESULT|> and <|END_TOOL_RESULT|>."
+    + r7b_format._DOCUMENT_CALL
+    + result.format(0)  # the documents
+    + "call 1"
+    + result.format(0)  # the template's number for call 1
+    + "call 2"
+    + result.format(1)
+)
+fixed = r7b_format._renumber_results(prompt)
+check("the documents stay 0", result.format(0) in fixed.split("call 1")[0])
+check("the first result is call 1", fixed.split("call 1")[1].startswith(result.format(1)))
+check("the second result is call 2", fixed.endswith(result.format(2)))
+check("the preamble is untouched", fixed.startswith("Preamble quoting <|START_TOOL"))
+check(
+    "no documents, no change",
+    r7b_format._renumber_results("x" + result.format(0)) == "x" + result.format(0),
+)
+
 finish()

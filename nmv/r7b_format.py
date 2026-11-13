@@ -20,6 +20,7 @@ still caught if one comes, because that JSON must not reach the page or the hist
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Iterator
 from enum import StrEnum
 from typing import Any, NamedTuple, cast
@@ -29,11 +30,16 @@ END_THINKING = "<|END_THINKING|>"
 START_RESPONSE = "<|START_RESPONSE|>"
 END_RESPONSE = "<|END_RESPONSE|>"
 START_ACTION = "<|START_ACTION|>"
+END_ACTION = "<|END_ACTION|>"
 
 # The marker the prompt ends with. START_THINKING lets R7B plan before it answers;
 # ``evals/run_reader.py --think`` sets it to measure that, and the app keeps the
 # response opening until a measurement says otherwise.
 OPENING: str = START_RESPONSE
+# Tools R7B may call, in the template's function format. Empty means the ``rag``
+# template, which declares none. Anything here switches to ``tool_use``, which is
+# ``rag`` without the line that empties the list. Only the evals set it so far.
+TOOLS: list[dict] = []
 
 
 class Phase(StrEnum):
@@ -62,12 +68,40 @@ def render(tokenizer: Any, history: list[dict], documents: list[dict]) -> str:
     prompt = tokenizer.apply_chat_template(
         history,
         documents=documents,
-        chat_template="rag",
+        chat_template="tool_use" if TOOLS else "rag",
+        tools=TOOLS or None,
         enable_citations=True,
         add_generation_prompt=True,
         tokenize=False,
     )
+    if TOOLS and documents:
+        prompt = _renumber_results(cast(str, prompt))
     return cast(str, prompt) + OPENING
+
+
+_RESULT_BLOCK = re.compile(r"<\|START_TOOL_RESULT\|>.*?<\|END_TOOL_RESULT\|>", re.DOTALL)
+_RESULT_ID = re.compile(r'("tool_call_id": ")(\d+)(")')
+# The documents' own call. The preamble names the tool too, but never in this form.
+_DOCUMENT_CALL = '"tool_name": "direct-injected-document", "parameters": {}}'
+
+
+def _renumber_results(prompt: str) -> str:
+    """Give each tool result the id of the call it answers.
+
+    The template numbers calls after the injected documents, which are call 0, but
+    numbers results by counting calls alone, so the first result says it is call 0:
+    the documents. Every result block after the documents' own moves up by one. The
+    preamble quotes the result marker, so blocks are counted from the documents'
+    call, not from the top.
+    """
+    anchor = prompt.find(_DOCUMENT_CALL)
+    if anchor == -1:
+        return prompt
+    blocks = [b for b in _RESULT_BLOCK.finditer(prompt) if b.start() > anchor]
+    for block in reversed(blocks[1:]):
+        fixed = _RESULT_ID.sub(lambda m: f"{m[1]}{int(m[2]) + 1}{m[3]}", block[0])
+        prompt = prompt[: block.start()] + fixed + prompt[block.end() :]
+    return prompt
 
 
 def _held_back(buffer: str) -> int:

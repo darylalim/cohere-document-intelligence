@@ -21,7 +21,8 @@ import argparse
 import json
 import sys
 import time
-from dataclasses import asdict
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
 from datetime import date
 from pathlib import Path
 
@@ -30,6 +31,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from evals import calculator  # noqa: E402
 from evals.metrics import (  # noqa: E402
     IOU_HIT,
     answer_found,
@@ -46,7 +48,13 @@ from nmv.documents import match_line  # noqa: E402
 from nmv.domain import PageId, page_id  # noqa: E402
 from nmv.grounding import parse_boxes  # noqa: E402
 from nmv.imaging import MAX_PIXELS, encode, normalize  # noqa: E402
-from nmv.r7b_format import START_ACTION  # noqa: E402
+from nmv.r7b_format import (  # noqa: E402
+    END_ACTION,
+    END_THINKING,
+    START_ACTION,
+    START_RESPONSE,
+    START_THINKING,
+)
 
 INVENTED = -1  # a citation to a position that was never sent
 
@@ -65,13 +73,106 @@ def sent_pages(truth: dict, source: str, transcripts: Path | None) -> list:
     return pages
 
 
-def ask(loaded, history: list[dict], pages: list, deterministic: bool):
+def ask_once(loaded, history: list[dict], pages: list, deterministic: bool):
     stats = model.RunStats()
     answer = reader.Answer()
     sampling = reader.reader_sampling(deterministic)
     started = time.monotonic()
     list(reader.stream_answer(loaded, history, pages, sampling, stats, answer))
     return answer, stats, time.monotonic() - started
+
+
+MAX_TOOL_ROUNDS = 2
+
+
+@dataclass
+class ToolUse:
+    """What the calculator loop did for one question."""
+
+    rounds: int = 0
+    calculations: list[list] = field(default_factory=list)  # [expression, result]
+    forced: bool = False  # made to answer from its plan
+    log: list[str] = field(default_factory=list)  # every round's raw text
+
+
+def actions(raw: str) -> list[dict] | None:
+    """The tool calls in a reply, ``None`` if it answered, ``[]`` if unreadable."""
+    start = raw.find(START_ACTION)
+    if start == -1:
+        return None
+    body = raw[start + len(START_ACTION) :].split(END_ACTION)[0]
+    try:
+        calls = json.loads(body)
+    except ValueError:
+        return []
+    if not isinstance(calls, list):
+        return []
+    return [call for call in calls if isinstance(call, dict)]
+
+
+def ask(
+    loaded,
+    history: list[dict],
+    pages: list,
+    deterministic: bool,
+    once: Callable = ask_once,
+):
+    """One answer. With the calculator declared, R7B may plan and call it up to
+    ``MAX_TOOL_ROUNDS`` times; any other call, or one more round, and it is made to
+    answer from its plan, as the prompt reopened at the response. ``once`` is one
+    call to R7B, which the tests replace with scripted replies."""
+    used = ToolUse()
+    answer, stats, seconds = once(loaded, history, pages, deterministic)
+    used.log.append(answer.raw)
+    if not r7b_format.TOOLS:
+        return answer, stats, seconds, used
+    turns = list(history)
+    thinking = answer.thinking_tokens
+    while (calls := actions(answer.raw)) is not None:
+        plan = answer.raw.split(END_THINKING)[0]
+        usable = bool(calls) and all(
+            call.get("tool_name") == calculator.NAME for call in calls
+        )
+        if not usable or used.rounds == MAX_TOOL_ROUNDS:
+            opening = r7b_format.OPENING
+            r7b_format.OPENING = START_THINKING + plan + END_THINKING + START_RESPONSE
+            try:
+                answer, stats, more = once(loaded, turns, pages, deterministic)
+            finally:
+                r7b_format.OPENING = opening
+            seconds += more
+            used.forced = True
+            used.log.append("[made to answer]\n" + answer.raw)
+            break
+        used.rounds += 1
+        tool_calls, results = [], []
+        for number, call in enumerate(calls):
+            parameters = call.get("parameters")
+            expression = (
+                parameters.get("expression") if isinstance(parameters, dict) else None
+            )
+            result = calculator.calculate(expression)
+            used.calculations.append([expression, result])
+            name = f"calc-{used.rounds}-{number}"
+            arguments = {"expression": expression if isinstance(expression, str) else ""}
+            tool_calls.append(
+                {
+                    "id": name,
+                    "type": "function",
+                    "function": {"name": calculator.NAME, "arguments": arguments},
+                }
+            )
+            results.append({"role": "tool", "tool_call_id": name, "content": result})
+        turns += [
+            {"role": "assistant", "tool_plan": plan, "tool_calls": tool_calls},
+            *results,
+        ]
+        answer, stats, more = once(loaded, turns, pages, deterministic)
+        seconds += more
+        thinking += answer.thinking_tokens
+        used.log.append(answer.raw)
+    answer.thinking_tokens = max(answer.thinking_tokens, thinking)
+    return answer, stats, seconds, used
 
 
 def cited_pages(citations: list, answer: reader.Answer, pages: list) -> list[int]:
@@ -189,7 +290,20 @@ def summarise(cases: list[dict]) -> dict:
         "with_thinking": sum(c["thinking_tokens"] > 0 for c in cases),
         "truncated": sum(c["truncated"] for c in cases),
         "pages_dropped": sum(c["pages_dropped"] > 0 for c in cases),
+        **tool_counts(cases),
         **by_skill(answerable),
+    }
+
+
+def tool_counts(cases: list[dict]) -> dict:
+    """How often the calculator ran, and how often R7B was made to answer. Empty when
+    no tool was declared, so other summaries are as before."""
+    if not any("tool_rounds" in c for c in cases):
+        return {}
+    return {
+        "used_calculator": sum(c["tool_rounds"] > 0 for c in cases),
+        "calculations": sum(len(c["calculations"]) for c in cases),
+        "forced_answers": sum(c["forced"] for c in cases),
     }
 
 
@@ -220,10 +334,18 @@ def conversation(loaded, truth: dict, pages: list, out: Path) -> list[dict]:
     rows = []
     for turn, question in enumerate(truth["qa"], 1):
         history.append({"role": "user", "content": question["q"]})
-        answer, _, _ = ask(loaded, history, pages, False)
-        (out / f"turn-{turn}.txt").write_text(answer.raw, encoding="utf-8")
+        answer, _, _, used = ask(loaded, history, pages, False)
+        log = "\n[next round]\n".join(used.log)
+        (out / f"turn-{turn}.txt").write_text(log, encoding="utf-8")
         history.append({"role": "assistant", "content": answer.response})
-        rows.append({"turn": turn, "action": START_ACTION in answer.raw})
+        rows.append(
+            {
+                "turn": turn,
+                "action": START_ACTION in answer.raw,
+                "tool_rounds": used.rounds,
+                "forced": used.forced,
+            }
+        )
     return rows
 
 
@@ -237,9 +359,16 @@ def main() -> int:
     parser.add_argument(
         "--think", action="store_true", help="open the plan, not the answer"
     )
+    parser.add_argument(
+        "--calculator",
+        action="store_true",
+        help="declare the calculator, and open the plan so R7B can call it",
+    )
     args = parser.parse_args()
-    if args.think:
+    if args.think or args.calculator:
         r7b_format.OPENING = r7b_format.START_THINKING
+    if args.calculator:
+        r7b_format.TOOLS = [calculator.TOOL]
     if args.source == "nmv" and args.transcripts is None:
         parser.error("--source nmv needs --transcripts")
 
@@ -248,7 +377,9 @@ def main() -> int:
     name = f"{date.today().isoformat()}-{sha}-reader-r7b-{args.source}"
     if args.eval_set != "set-v1":
         name += f"-{args.eval_set}"
-    if args.think:
+    if args.calculator:
+        name += "-calculator"
+    elif args.think:
         name += "-think"
     if args.conversation:
         name += "-conversation"
@@ -275,9 +406,16 @@ def main() -> int:
             continue
         for number, question in enumerate(truth["qa"]):
             history = [{"role": "user", "content": question["q"]}]
-            answer, stats, seconds = ask(loaded, history, pages, True)
-            (out / f"q{number}.txt").write_text(answer.raw, encoding="utf-8")
+            answer, stats, seconds, used = ask(loaded, history, pages, True)
+            log = "\n[next round]\n".join(used.log)
+            (out / f"q{number}.txt").write_text(log, encoding="utf-8")
             case, citations = score(truth, question, answer, stats, seconds, pages)
+            if r7b_format.TOOLS:
+                case |= {
+                    "tool_rounds": used.rounds,
+                    "calculations": used.calculations,
+                    "forced": used.forced,
+                }
             if studio is not None and case["answerable"] and citations:
                 saved = out / f"locate-q{number}.txt"
                 case |= locate(
@@ -306,6 +444,8 @@ def main() -> int:
         "packages": {package: package_version(package) for package in PACKAGES},
         "settings": asdict(reader.reader_sampling(not args.conversation)),
         "opening": r7b_format.OPENING,
+        "tools": [tool["function"]["name"] for tool in r7b_format.TOOLS],
+        "max_tool_rounds": MAX_TOOL_ROUNDS,
         "seconds": round(time.monotonic() - started, 1),
     }
     if args.conversation:

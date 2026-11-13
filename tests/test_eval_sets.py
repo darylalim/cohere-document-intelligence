@@ -17,8 +17,11 @@ sys.path.insert(0, str(ROOT))
 
 from _check import check, finish  # noqa: E402
 
-from evals import make_set  # noqa: E402
+from evals import make_set, run_reader  # noqa: E402
+from evals.calculator import TOOL  # noqa: E402
 from evals.run_reader import summarise  # noqa: E402
+from nmv import r7b_format  # noqa: E402
+from nmv.reader import Answer  # noqa: E402
 
 print("committed sets match the generator")
 for name, build in make_set.BUILDERS.items():
@@ -87,5 +90,93 @@ check("distractor per skill", table["arithmetic"]["gave_distractor"] == 1)
 check("distractor overall", mixed["gave_distractor"] == 2)
 check("a right answer may still name the distractor", table["arithmetic"]["correct"] == 1)
 check("a dropped page is counted per question", mixed["pages_dropped"] == 1)
+
+
+print("the calculator loop, on scripted replies")
+CALL = (
+    "Plan {n}.<|END_THINKING|><|START_ACTION|>["
+    '{{"tool_call_id": "1", "tool_name": "{tool}", "parameters": {params}}}'
+    "]<|END_ACTION|>"
+)
+ANSWER = "Done.<|END_THINKING|><|START_RESPONSE|>It is 5.<|END_RESPONSE|>"
+
+
+def scripted(*raws: str):
+    """Stand in for R7B: each call returns the next reply and records its input."""
+    seen: list[tuple[list[dict], str]] = []
+    queue = list(raws)
+
+    def ask_once(loaded, history: list[dict], pages: list, deterministic: bool):
+        seen.append((list(history), r7b_format.OPENING))
+        raw = queue.pop(0)
+        response = raw.split("<|START_RESPONSE|>")[-1] if "RESPONSE" in raw else ""
+        answer = Answer(raw=raw, response=response.split("<|END")[0], thinking_tokens=3)
+        return answer, run_reader.model.RunStats(), 1.0
+
+    return seen, ask_once
+
+
+def calc(n: int, expression: str = "2+3") -> str:
+    params = f'{{"expression": "{expression}"}}'
+    return CALL.format(n=n, tool="calculate", params=params)
+
+
+r7b_format.TOOLS = [TOOL]
+r7b_format.OPENING = r7b_format.START_THINKING
+question = [{"role": "user", "content": "Q?"}]
+
+seen, once = scripted(calc(1), ANSWER)
+answer, _, seconds, used = run_reader.ask(None, question, [], True, once)
+check("a calculation then an answer", answer.response == "It is 5.")
+check("one round", used.rounds == 1 and not used.forced)
+check("the result is recorded", used.calculations == [["2+3", "5"]])
+turns = seen[1][0]
+check("the plan goes back as the call's plan", turns[1]["tool_plan"] == "Plan 1.")
+check(
+    "the result goes back as a tool turn",
+    turns[2] == {"role": "tool", "tool_call_id": "calc-1-0", "content": "5"},
+)
+check("time adds up", seconds == 2.0)
+check("thinking adds up", answer.thinking_tokens == 6)
+check(
+    "the history passed in is not changed",
+    question == [{"role": "user", "content": "Q?"}],
+)
+
+seen, once = scripted(
+    CALL.format(n=1, tool="direct-injected-document", params="{}"), "It is 5."
+)
+answer, _, _, used = run_reader.ask(None, question, [], True, once)
+check("another tool makes it answer", used.forced and used.rounds == 0)
+forced_opening = seen[1][1]
+check(
+    "from its plan, at the response",
+    forced_opening.endswith("Plan 1.<|END_THINKING|><|START_RESPONSE|>"),
+)
+check("the opening is put back", r7b_format.OPENING == r7b_format.START_THINKING)
+check("the forced reply is the answer", answer.raw == "It is 5.")
+
+seen, once = scripted(calc(1), calc(2), calc(3), "It is 5.")
+answer, _, _, used = run_reader.ask(None, question, [], True, once)
+check("two rounds at most", used.rounds == 2 and used.forced)
+check("four calls to R7B", len(seen) == 4)
+check("every round is logged", len(used.log) == 4)
+
+seen, once = scripted("Plan.<|END_THINKING|><|START_ACTION|>[not json", "It is 5.")
+answer, _, _, used = run_reader.ask(None, question, [], True, once)
+check("an unreadable call makes it answer", used.forced and used.calculations == [])
+
+seen, once = scripted(calc(1, "__import__('os')"), ANSWER)
+answer, _, _, used = run_reader.ask(None, question, [], True, once)
+check(
+    "a hostile expression is refused, not run",
+    used.calculations[0][1].startswith("error"),
+)
+
+r7b_format.TOOLS = []
+r7b_format.OPENING = r7b_format.START_RESPONSE
+seen, once = scripted(calc(1))
+answer, _, _, used = run_reader.ask(None, question, [], True, once)
+check("without tools a call is left alone", used.rounds == 0 and len(seen) == 1)
 
 finish()
