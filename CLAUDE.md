@@ -49,6 +49,20 @@ three, and `--with-weights` adds the last. A test declares its tier on its first
 `# tier: <name>`, and a file with no header is `fast`, so adding one needs no list edited.
 Tests are plain scripts with no pytest, so `uv run python tests/<file>.py` runs just one.
 
+The shell is zsh: an unquoted `$args` is not word-split, so `cmd $args` passes one
+argument. Write eval run commands out in full, or use `${=args}`.
+
+The reader eval reproduces byte for byte on the same commit at temperature 0. Reuse
+runs only match other reuse runs. Before a long rerun, replay the saved
+`evals/runs/` transcripts to predict the change. A run on an uncommitted tree records
+`dirty: true`; move its results to `local/` (gitignored) and never commit them.
+
+R7B's tokenizer loads without MLX for offline prompt checks:
+`snapshot_download(READER_REPO, revision=READER_REVISION, local_files_only=True,
+allow_patterns=reader._ALLOW_PATTERNS)`, then `AutoTokenizer.from_pretrained(path)`.
+Without `allow_patterns` it raises `IncompleteSnapshotError`, because `README.md` and
+`.gitattributes` are never fetched.
+
 ruff and ty are locked dev dependencies, so use `uv run ruff` / `uv run ty`, not the
 `uvx` forms — those resolve independently of `uv.lock` and will drift the day a new
 release ships. Reach for `uvx` only for tools the project does not declare.
@@ -58,6 +72,9 @@ annotations are narrower than their runtime behaviour (`apply_chat_template` ret
 `str` under the default `return_messages=False`; `image=` accepts PIL objects because
 `prepare_inputs` routes them through `process_image`). Keep the casts and their comments
 rather than replacing them with blanket ignores.
+
+Editor ty diagnostics shown straight after a write can be stale. `uv run ty check` is
+the authority.
 
 There are no `ty: ignore` suppressions. ty reports an unused one as a warning and exits
 1 on warnings, so if a false positive ever needs one, keep it targeted, explain it in a
@@ -176,6 +193,8 @@ Consequences:
 - Anything new that calls MLX goes through `runtime.call()` (blocking) or
   `runtime.iterate()` (streaming). Never call those *from* the worker: single worker,
   instant deadlock.
+- `Reader.prompt_cache` (opt-in KV reuse, `stream_answer(reuse_cache=True)`) is read
+  and written only inside `produce`, on the worker. It is dropped on any failure.
 
 **The same shape applies to SQLite: never share a `sqlite3` connection across threads.**
 Streamlit reruns on fresh threads and `sqlite3` refuses a connection from another one, so
@@ -194,7 +213,7 @@ Ask documents, which calls `transcripts.clear()`.
 | `nmv/trace.py` | One `RunRecord` per action: numbers and IDs only. **No MLX, no Streamlit.** |
 | `nmv/log.py` | Terminal logging, level from `NMV_LOG_LEVEL`. Metadata only, never content. |
 | `nmv/model.py` | Loading (`st.cache_resource`), `Sampling`, `RunStats`, streaming |
-| `nmv/reader.py` | Command R7B: loading, context budget, streaming answers |
+| `nmv/reader.py` | Command R7B: loading, context budget, streaming answers, opt-in KV reuse |
 | `nmv/r7b_format.py` | R7B's template and thinking/response phases. **No MLX import.** |
 | `nmv/prompts.py` | Every fixed prompt and its version. **No MLX, no Streamlit.** |
 | `nmv/domain.py` | The document pipeline's data model. **No MLX, no Streamlit.** |
