@@ -153,10 +153,41 @@ Raw output goes to `evals/runs/`, which is git-ignored. A numbers-only summary g
     plan causes them, not the calculator or the `tool_use` template. The gold reference
     flattens article-02's columns, and NMV text gets that question wrong in both runs.
     form-01's ticked contact method is newly right.
-  - It is slower: 2.4 times on set-v3 and 1.4 to 1.6 times on set-v1. 13 of 32
-    set-v3 questions had to be made to answer, and in conversation 81 of 105 turns
-    first asked for the document tool. Date questions stay at 0 of 2. Whether that
-    speed is worth it on the Ask page is still to decide.
+  - It is slower: 2.4 times on set-v3 and 1.4 to 1.6 times on set-v1, or 2.0 and 1.8
+    times when both sides reuse the KV cache (below). 13 of 32 set-v3 questions had to
+    be made to answer, and in conversation 81 of 105 turns first asked for the
+    document tool. Date questions stay at 0 of 2. Whether that speed is worth it on
+    the Ask page is still to decide.
+- **Timings and the KV cache (`--reuse-cache`):** every answer records, per call to R7B,
+  its step (`first`, `tool` after a result, or `forced`), the prompt tokens prefilled
+  and `cached_tokens` already held, generated tokens, prefill and decode seconds from
+  mlx's own rates, and `peak_gb`; the summary's `peak_gb` is the run's highest. Without
+  reuse, re-reading the whole prompt in tool and forced rounds was 70% of the
+  calculator's extra time on set-v3 gold and 52% on set-v1, although about 98% of each
+  of those prompts was what the previous call had read. `--reuse-cache` passes
+  `reuse_cache=True` to `reader.stream_answer`, which keeps the cache on the `Reader`
+  and prefills only what follows the longest shared prefix. The app does not use it.
+
+  On 8f7829e, gold text, in seconds:
+
+  | | plain | plain, reuse | calculator, reuse |
+  |---|---|---|---|
+  | set-v3 | 421 | 271 | 544 |
+  | set-v1 | 753 | 316 | 563 |
+
+  Consecutive questions on the same document share most of their prompt, so plain gains
+  too. With the calculator, NMV text runs in 0.51 (set-v3) and 0.46 (set-v1) of
+  489d2f9's time, and set-v1 still passes `--against baseline`. Every metric matches
+  the run without reuse, but the transcripts are not all byte-identical: reading from a
+  cache shifts the arithmetic enough to flip an occasional token. Gold with the
+  calculator matched all 145; plain differed on 1 of 40 set-v3 (the Ferncombe Energy
+  total, still correct, with shorter working and one citation fewer) and 1 of 105 set-v1
+  (a refusal's wording); NMV set-v3 with the calculator on 3 of 40. So compare a reuse
+  run with a reuse run. Peak memory is 5.92 GB plain and 5.93 GB with reuse on gold
+  (R7B alone), and 9.39 and 9.53 GB on NMV text, where North Micro Vision runs Locate
+  while R7B's cache is held; no run without reuse recorded a peak to compare. Held, the
+  cache is about 0.33 GB for a 2,500-token prompt and 0.55 GB at 4,500, worked out from
+  the config rather than measured; R7B's sliding-window layers cap it near 0.66 GB.
 - **Locate:** for answerable questions, the box Locate draws for the first cited span, with
   a hit at IoU 0.5 or above. A centre hit means the box's centre is inside the truth.
   A point has no box, so it scores neither. Each reply is saved as `locate-q<N>.txt`.

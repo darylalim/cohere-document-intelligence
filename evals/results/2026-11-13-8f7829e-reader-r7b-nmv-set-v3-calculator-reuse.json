@@ -1,0 +1,2507 @@
+{
+  "config": "reader-r7b",
+  "source": "nmv",
+  "set": "set-v3",
+  "only": "",
+  "repo": "mlx-community/c4ai-command-r7b-12-2024-4bit",
+  "revision": "2ae601b3d780410caacd2148c6c96e620144f22d",
+  "code": "8f7829ef37fb6b63d0fe6d947b7829caf7848b6d",
+  "dirty": false,
+  "packages": {
+    "mlx": "0.32.4",
+    "mlx-vlm": "0.7.11",
+    "mlx-lm": "0.32.2",
+    "pillow": "13.0.0"
+  },
+  "settings": {
+    "temperature": 0.0,
+    "top_p": 0.75,
+    "repetition_penalty": 1.0,
+    "max_tokens": 1024
+  },
+  "opening": "<|START_THINKING|>",
+  "tools": [
+    "calculate"
+  ],
+  "max_tool_rounds": 2,
+  "reuse_cache": true,
+  "seconds": 686.5,
+  "metrics": {
+    "answerable": 32,
+    "correct": 19,
+    "uncited": 0,
+    "citation_precision_mean": 0.9427083333333334,
+    "citation_recall_mean": 0.9375,
+    "off_evidence": 11,
+    "unanswerable": 8,
+    "refused": 1,
+    "located_cases": 10,
+    "locate_no_box": 7,
+    "locate_hits": 0,
+    "locate_centre_hits": 0,
+    "injection_cases": 0,
+    "injection_followed": 0,
+    "action_channel": 0,
+    "with_thinking": 40,
+    "truncated": 0,
+    "pages_dropped": 0,
+    "peak_gb": 9.39,
+    "used_calculator": 32,
+    "calculations": 44,
+    "forced_answers": 13,
+    "calculator_cites": 31,
+    "calculator_cites_unmapped": 0,
+    "gave_distractor": 6,
+    "by_skill": {
+      "arithmetic": {
+        "questions": 12,
+        "correct": 7,
+        "gave_distractor": 3
+      },
+      "chain": {
+        "questions": 10,
+        "correct": 7,
+        "gave_distractor": 1
+      },
+      "compare": {
+        "questions": 8,
+        "correct": 5,
+        "gave_distractor": 2
+      },
+      "date": {
+        "questions": 2,
+        "correct": 0,
+        "gave_distractor": 0
+      }
+    }
+  },
+  "answers": [
+    {
+      "doc": "contract-01",
+      "q": "What is the longest reference period in the agreement, in weeks?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        1,
+        1
+      ],
+      "thinking_tokens": 85,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 52,
+      "generated_tokens": 76,
+      "seconds": 19.06,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "compare",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "40",
+          "40"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 15.38,
+          "prompt_tokens": 3329,
+          "cached_tokens": 0,
+          "generated_tokens": 89,
+          "prefill_seconds": 10.61,
+          "decode_seconds": 3.81,
+          "peak_gb": 8.96
+        },
+        {
+          "step": "tool",
+          "seconds": 3.68,
+          "prompt_tokens": 52,
+          "cached_tokens": 3418,
+          "generated_tokens": 76,
+          "prefill_seconds": 0.39,
+          "decode_seconds": 3.24,
+          "peak_gb": 8.96
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "Which office is responsible for the clause with the longest reference period?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        1
+      ],
+      "thinking_tokens": 42,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 65,
+      "seconds": 11.23,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 0.5,
+      "recall": 1.0,
+      "off_evidence": 3,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.33,
+          "prompt_tokens": 1690,
+          "cached_tokens": 1639,
+          "generated_tokens": 77,
+          "prefill_seconds": 5.33,
+          "decode_seconds": 2.96,
+          "peak_gb": 9.03
+        },
+        {
+          "step": "forced",
+          "seconds": 2.89,
+          "prompt_tokens": 1,
+          "cached_tokens": 3371,
+          "generated_tokens": 65,
+          "prefill_seconds": 0.07,
+          "decode_seconds": 2.77,
+          "peak_gb": 9.03
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "What is the file reference of the clause with the shortest reference period?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 40,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1691,
+      "generated_tokens": 105,
+      "seconds": 10.07,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 10.07,
+          "prompt_tokens": 1691,
+          "cached_tokens": 1639,
+          "generated_tokens": 105,
+          "prefill_seconds": 5.8,
+          "decode_seconds": 4.23,
+          "peak_gb": 9.03
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "What is the total fee over the initial term?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 95,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 58,
+      "generated_tokens": 69,
+      "seconds": 13.14,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "# Total fee\n2563.72 * 36",
+          "92293.92"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 10.06,
+          "prompt_tokens": 1684,
+          "cached_tokens": 1642,
+          "generated_tokens": 105,
+          "prefill_seconds": 5.93,
+          "decode_seconds": 4.09,
+          "peak_gb": 9.03
+        },
+        {
+          "step": "tool",
+          "seconds": 3.07,
+          "prompt_tokens": 58,
+          "cached_tokens": 3431,
+          "generated_tokens": 69,
+          "prefill_seconds": 0.34,
+          "decode_seconds": 2.69,
+          "peak_gb": 9.03
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "What is the reference period for clause 22?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 114,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 46,
+      "seconds": 16.98,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.24,
+          "prompt_tokens": 1685,
+          "cached_tokens": 1642,
+          "generated_tokens": 71,
+          "prefill_seconds": 5.48,
+          "decode_seconds": 2.72,
+          "peak_gb": 9.03
+        },
+        {
+          "step": "tool",
+          "seconds": 3.15,
+          "prompt_tokens": 63,
+          "cached_tokens": 3398,
+          "generated_tokens": 71,
+          "prefill_seconds": 0.35,
+          "decode_seconds": 2.75,
+          "peak_gb": 9.03
+        },
+        {
+          "step": "tool",
+          "seconds": 3.39,
+          "prompt_tokens": 63,
+          "cached_tokens": 3532,
+          "generated_tokens": 71,
+          "prefill_seconds": 0.36,
+          "decode_seconds": 2.97,
+          "peak_gb": 9.03
+        },
+        {
+          "step": "forced",
+          "seconds": 2.2,
+          "prompt_tokens": 1,
+          "cached_tokens": 3633,
+          "generated_tokens": 46,
+          "prefill_seconds": 0.08,
+          "decode_seconds": 2.07,
+          "peak_gb": 9.03
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "What is the longest reference period in the agreement, in weeks?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        1,
+        2,
+        0,
+        1,
+        2
+      ],
+      "thinking_tokens": 126,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 4692,
+      "generated_tokens": 58,
+      "seconds": 37.99,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 0.3333333333333333,
+      "recall": 1.0,
+      "off_evidence": 4,
+      "skill": "compare",
+      "gave_distractor": true,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "37 weeks",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "37 weeks",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 14.64,
+          "prompt_tokens": 2725,
+          "cached_tokens": 1642,
+          "generated_tokens": 106,
+          "prefill_seconds": 9.57,
+          "decode_seconds": 5.0,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 3.17,
+          "prompt_tokens": 63,
+          "cached_tokens": 4473,
+          "generated_tokens": 64,
+          "prefill_seconds": 0.44,
+          "decode_seconds": 2.67,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 3.09,
+          "prompt_tokens": 63,
+          "cached_tokens": 4600,
+          "generated_tokens": 64,
+          "prefill_seconds": 0.4,
+          "decode_seconds": 2.63,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "forced",
+          "seconds": 17.09,
+          "prompt_tokens": 4692,
+          "cached_tokens": 0,
+          "generated_tokens": 58,
+          "prefill_seconds": 14.66,
+          "decode_seconds": 2.37,
+          "peak_gb": 9.14
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "Which office is responsible for the clause with the longest reference period?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        1,
+        2,
+        0,
+        1,
+        2,
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 103,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 4591,
+      "generated_tokens": 93,
+      "seconds": 42.8,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 0.3333333333333333,
+      "recall": 1.0,
+      "off_evidence": 4,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "#Calculate the total number of weeks for the Events beyond control clause\n\n34 + 29 + 37 + 37 + 11",
+          "148"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 18.88,
+          "prompt_tokens": 4367,
+          "cached_tokens": 0,
+          "generated_tokens": 111,
+          "prefill_seconds": 13.73,
+          "decode_seconds": 5.08,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 4.96,
+          "prompt_tokens": 53,
+          "cached_tokens": 4478,
+          "generated_tokens": 94,
+          "prefill_seconds": 0.43,
+          "decode_seconds": 4.46,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "forced",
+          "seconds": 18.97,
+          "prompt_tokens": 4591,
+          "cached_tokens": 0,
+          "generated_tokens": 93,
+          "prefill_seconds": 14.86,
+          "decode_seconds": 4.04,
+          "peak_gb": 9.14
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "What is the file reference of the clause with the shortest reference period?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        2,
+        2
+      ],
+      "thinking_tokens": 101,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 4676,
+      "generated_tokens": 48,
+      "seconds": 40.71,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "E182/58",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "E182/58",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 16.62,
+          "prompt_tokens": 4368,
+          "cached_tokens": 0,
+          "generated_tokens": 77,
+          "prefill_seconds": 13.4,
+          "decode_seconds": 3.15,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 3.41,
+          "prompt_tokens": 63,
+          "cached_tokens": 4445,
+          "generated_tokens": 72,
+          "prefill_seconds": 0.39,
+          "decode_seconds": 2.95,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 3.43,
+          "prompt_tokens": 63,
+          "cached_tokens": 4580,
+          "generated_tokens": 72,
+          "prefill_seconds": 0.4,
+          "decode_seconds": 2.97,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "forced",
+          "seconds": 17.26,
+          "prompt_tokens": 4676,
+          "cached_tokens": 0,
+          "generated_tokens": 48,
+          "prefill_seconds": 15.23,
+          "decode_seconds": 1.96,
+          "peak_gb": 9.14
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "What is the total fee over the initial term?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 95,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 69,
+      "seconds": 21.17,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "#Calculate total fee\n\n4499.75 * 18",
+          "80995.5"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 17.9,
+          "prompt_tokens": 4364,
+          "cached_tokens": 0,
+          "generated_tokens": 108,
+          "prefill_seconds": 13.4,
+          "decode_seconds": 4.44,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 3.27,
+          "prompt_tokens": 57,
+          "cached_tokens": 4472,
+          "generated_tokens": 69,
+          "prefill_seconds": 0.39,
+          "decode_seconds": 2.82,
+          "peak_gb": 9.14
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "What is the reference period for clause 34?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 40,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 4406,
+      "generated_tokens": 66,
+      "seconds": 32.84,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 16.55,
+          "prompt_tokens": 4365,
+          "cached_tokens": 0,
+          "generated_tokens": 75,
+          "prefill_seconds": 13.42,
+          "decode_seconds": 3.07,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "forced",
+          "seconds": 16.29,
+          "prompt_tokens": 4406,
+          "cached_tokens": 0,
+          "generated_tokens": 66,
+          "prefill_seconds": 13.53,
+          "decode_seconds": 2.69,
+          "peak_gb": 9.14
+        }
+      ]
+    },
+    {
+      "doc": "delivery-01",
+      "q": "How many units of \"Stainless fittings, box\" are still to be delivered?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        1
+      ],
+      "thinking_tokens": 88,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 52,
+      "generated_tokens": 64,
+      "seconds": 12.8,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 0.5,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "510 - 490",
+          "20"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 9.96,
+          "prompt_tokens": 2252,
+          "cached_tokens": 0,
+          "generated_tokens": 96,
+          "prefill_seconds": 6.59,
+          "decode_seconds": 3.33,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 2.84,
+          "prompt_tokens": 52,
+          "cached_tokens": 2348,
+          "generated_tokens": 64,
+          "prefill_seconds": 0.32,
+          "decode_seconds": 2.48,
+          "peak_gb": 9.14
+        }
+      ]
+    },
+    {
+      "doc": "delivery-01",
+      "q": "Which item was delivered short by the most units?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        1,
+        1
+      ],
+      "thinking_tokens": 85,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 52,
+      "generated_tokens": 77,
+      "seconds": 8.93,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "compare",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "77",
+          "77"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.89,
+          "prompt_tokens": 606,
+          "cached_tokens": 1639,
+          "generated_tokens": 97,
+          "prefill_seconds": 2.2,
+          "decode_seconds": 3.65,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 3.05,
+          "prompt_tokens": 52,
+          "cached_tokens": 2342,
+          "generated_tokens": 77,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 2.69,
+          "peak_gb": 9.14
+        }
+      ]
+    },
+    {
+      "doc": "delivery-01",
+      "q": "At the order's unit price, what are the undelivered \"Copper pipe, 2 m\" worth?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 39,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 619,
+      "generated_tokens": 76,
+      "seconds": 4.71,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 0.5,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": true,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.71,
+          "prompt_tokens": 619,
+          "cached_tokens": 1639,
+          "generated_tokens": 76,
+          "prefill_seconds": 2.06,
+          "decode_seconds": 2.62,
+          "peak_gb": 9.14
+        }
+      ]
+    },
+    {
+      "doc": "delivery-01",
+      "q": "What is the unit price of the item delivered short by the most units?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1
+      ],
+      "thinking_tokens": 142,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 138,
+      "seconds": 14.81,
+      "calculator_cites": 2,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "9.58",
+          "9.58"
+        ],
+        [
+          "77 * 9.58",
+          "737.66"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.66,
+          "prompt_tokens": 611,
+          "cached_tokens": 1639,
+          "generated_tokens": 103,
+          "prefill_seconds": 2.06,
+          "decode_seconds": 3.56,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 3.23,
+          "prompt_tokens": 54,
+          "cached_tokens": 2353,
+          "generated_tokens": 80,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 2.88,
+          "peak_gb": 9.14
+        },
+        {
+          "step": "tool",
+          "seconds": 5.92,
+          "prompt_tokens": 56,
+          "cached_tokens": 2487,
+          "generated_tokens": 138,
+          "prefill_seconds": 0.37,
+          "decode_seconds": 5.51,
+          "peak_gb": 9.14
+        }
+      ],
+      "located": true,
+      "locate_iou": 0.03367003367003367,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "delivery-01",
+      "q": "On what date will the missing items be delivered?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "thinking_tokens": 109,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 105,
+      "seconds": 16.3,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "dateadd(d, 10, \"2026-03-17\")",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "\"2026-03-17\" + 10d",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 6.13,
+          "prompt_tokens": 606,
+          "cached_tokens": 1639,
+          "generated_tokens": 117,
+          "prefill_seconds": 2.04,
+          "decode_seconds": 4.06,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "tool",
+          "seconds": 2.88,
+          "prompt_tokens": 63,
+          "cached_tokens": 2362,
+          "generated_tokens": 72,
+          "prefill_seconds": 0.32,
+          "decode_seconds": 2.53,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "tool",
+          "seconds": 2.89,
+          "prompt_tokens": 63,
+          "cached_tokens": 2497,
+          "generated_tokens": 71,
+          "prefill_seconds": 0.32,
+          "decode_seconds": 2.52,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "forced",
+          "seconds": 4.39,
+          "prompt_tokens": 1,
+          "cached_tokens": 2583,
+          "generated_tokens": 105,
+          "prefill_seconds": 0.06,
+          "decode_seconds": 4.28,
+          "peak_gb": 9.33
+        }
+      ]
+    },
+    {
+      "doc": "delivery-02",
+      "q": "How many units of \"Packing crates, large\" are still to be delivered?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        1
+      ],
+      "thinking_tokens": 86,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 52,
+      "generated_tokens": 62,
+      "seconds": 7.92,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 0.5,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "410 - 376",
+          "34"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.4,
+          "prompt_tokens": 608,
+          "cached_tokens": 1639,
+          "generated_tokens": 95,
+          "prefill_seconds": 2.07,
+          "decode_seconds": 3.3,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "tool",
+          "seconds": 2.52,
+          "prompt_tokens": 52,
+          "cached_tokens": 2342,
+          "generated_tokens": 62,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 2.16,
+          "peak_gb": 9.33
+        }
+      ]
+    },
+    {
+      "doc": "delivery-02",
+      "q": "Which item was delivered short by the most units?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1
+      ],
+      "thinking_tokens": 114,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 318,
+      "seconds": 30.71,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "compare",
+      "gave_distractor": true,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "# Brass hinges, pair\nqtyOrderedBrassHinges = 360\nqtyDeliveredBrassHinges = 309\ndiffBrassHinges = qtyOrderedBrassHinges - qtyDeliveredBrassHinges\n\n# Packing crates, large\nqtyOrderedPackingCrates = 410\nqtyDeliveredPackingCrates = 376\ndiffPackingCrates = qtyOrderedPackingCrates - qtyDeliveredPackingCrates\n\n# Pallet wrap, 500 mm\nqtyOrderedPalletWrap = 330\nqtyDeliveredPalletWrap = 330\ndiffPalletWrap = qtyOrderedPalletWrap - qtyDeliveredPalletWrap\n\n# Copper pipe, 2 m\nqtyOrderedCopperPipe = 550\nqtyDeliveredCopperPipe = 550\ndiffCopperPipe = qtyOrderedCopperPipe - qtyDeliveredCopperPipe\n\n# Stainless fittings, box\nqtyOrderedStainlessFittings = 190\nqtyDeliveredStainlessFittings = 190\ndiffStainlessFittings = qtyOrderedStainlessFittings - qtyDeliveredStainlessFittings",
+          "error: the expression is too long"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 17.06,
+          "prompt_tokens": 602,
+          "cached_tokens": 1639,
+          "generated_tokens": 378,
+          "prefill_seconds": 1.91,
+          "decode_seconds": 15.11,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "tool",
+          "seconds": 13.65,
+          "prompt_tokens": 57,
+          "cached_tokens": 2619,
+          "generated_tokens": 318,
+          "prefill_seconds": 0.34,
+          "decode_seconds": 13.27,
+          "peak_gb": 9.33
+        }
+      ]
+    },
+    {
+      "doc": "delivery-02",
+      "q": "At the order's unit price, what are the undelivered \"Brass hinges, pair\" worth?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 85,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 74,
+      "seconds": 8.78,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 0.5,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": true,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "# Calculating the value of the undelivered items\n\n(360 * 82.63)",
+          "29746.8"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.66,
+          "prompt_tokens": 613,
+          "cached_tokens": 1639,
+          "generated_tokens": 103,
+          "prefill_seconds": 2.06,
+          "decode_seconds": 3.56,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "tool",
+          "seconds": 3.13,
+          "prompt_tokens": 57,
+          "cached_tokens": 2355,
+          "generated_tokens": 74,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 2.77,
+          "peak_gb": 9.33
+        }
+      ]
+    },
+    {
+      "doc": "delivery-02",
+      "q": "What is the unit price of the item delivered short by the most units?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        1,
+        0,
+        1
+      ],
+      "thinking_tokens": 83,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 55,
+      "generated_tokens": 93,
+      "seconds": 8.89,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "82.63",
+          "82.63"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.28,
+          "prompt_tokens": 607,
+          "cached_tokens": 1639,
+          "generated_tokens": 80,
+          "prefill_seconds": 2.2,
+          "decode_seconds": 3.04,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "tool",
+          "seconds": 3.61,
+          "prompt_tokens": 55,
+          "cached_tokens": 2326,
+          "generated_tokens": 93,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 3.26,
+          "peak_gb": 9.33
+        }
+      ],
+      "located": false,
+      "locate_iou": null,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "delivery-02",
+      "q": "On what date will the missing items be delivered?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "thinking_tokens": 146,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 145,
+      "seconds": 18.06,
+      "calculator_cites": 4,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "19/03/2026 + 1",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "19/03/2026 + 1",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.73,
+          "prompt_tokens": 602,
+          "cached_tokens": 1639,
+          "generated_tokens": 108,
+          "prefill_seconds": 1.93,
+          "decode_seconds": 3.77,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "tool",
+          "seconds": 3.46,
+          "prompt_tokens": 63,
+          "cached_tokens": 2349,
+          "generated_tokens": 88,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 3.09,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "tool",
+          "seconds": 3.52,
+          "prompt_tokens": 63,
+          "cached_tokens": 2500,
+          "generated_tokens": 88,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 3.14,
+          "peak_gb": 9.33
+        },
+        {
+          "step": "forced",
+          "seconds": 5.36,
+          "prompt_tokens": 1,
+          "cached_tokens": 2605,
+          "generated_tokens": 145,
+          "prefill_seconds": 0.06,
+          "decode_seconds": 5.25,
+          "peak_gb": 9.33
+        }
+      ]
+    },
+    {
+      "doc": "invoice-01",
+      "q": "Which line item has the highest amount?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 45,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 400,
+      "generated_tokens": 91,
+      "seconds": 4.98,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "compare",
+      "gave_distractor": false,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.98,
+          "prompt_tokens": 400,
+          "cached_tokens": 1639,
+          "generated_tokens": 91,
+          "prefill_seconds": 1.42,
+          "decode_seconds": 3.52,
+          "peak_gb": 9.33
+        }
+      ],
+      "located": true,
+      "locate_iou": 0.020675323300109863,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "invoice-01",
+      "q": "How much more is the \"Packing crates, large\" line than the \"Pallet wrap, 500 mm\" line?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 156,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 128,
+      "seconds": 11.56,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "#Difference between the two figures\n\n231.94 - 35.88",
+          "196.06"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 6.76,
+          "prompt_tokens": 419,
+          "cached_tokens": 1639,
+          "generated_tokens": 146,
+          "prefill_seconds": 1.64,
+          "decode_seconds": 5.08,
+          "peak_gb": 9.29
+        },
+        {
+          "step": "tool",
+          "seconds": 4.8,
+          "prompt_tokens": 56,
+          "cached_tokens": 2204,
+          "generated_tokens": 128,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 4.45,
+          "peak_gb": 9.29
+        }
+      ]
+    },
+    {
+      "doc": "invoice-01",
+      "q": "On what date is payment due?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 99,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 26,
+      "seconds": 11.79,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "date",
+      "gave_distractor": false,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "date(2026, 3, 8) + 30 days",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "addDays(\"2026-03-08\", 30)",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.47,
+          "prompt_tokens": 399,
+          "cached_tokens": 1639,
+          "generated_tokens": 120,
+          "prefill_seconds": 1.36,
+          "decode_seconds": 4.07,
+          "peak_gb": 9.29
+        },
+        {
+          "step": "tool",
+          "seconds": 2.65,
+          "prompt_tokens": 63,
+          "cached_tokens": 2158,
+          "generated_tokens": 67,
+          "prefill_seconds": 0.32,
+          "decode_seconds": 2.29,
+          "peak_gb": 9.29
+        },
+        {
+          "step": "tool",
+          "seconds": 2.68,
+          "prompt_tokens": 84,
+          "cached_tokens": 2266,
+          "generated_tokens": 64,
+          "prefill_seconds": 0.42,
+          "decode_seconds": 2.22,
+          "peak_gb": 9.29
+        },
+        {
+          "step": "forced",
+          "seconds": 0.99,
+          "prompt_tokens": 1,
+          "cached_tokens": 2365,
+          "generated_tokens": 26,
+          "prefill_seconds": 0.06,
+          "decode_seconds": 0.89,
+          "peak_gb": 9.29
+        }
+      ]
+    },
+    {
+      "doc": "invoice-01",
+      "q": "What is the unit price of the item with the largest quantity?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 89,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 106,
+      "seconds": 8.65,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "chain",
+      "gave_distractor": true,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "231.94",
+          "231.94"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.62,
+          "prompt_tokens": 405,
+          "cached_tokens": 1639,
+          "generated_tokens": 95,
+          "prefill_seconds": 1.36,
+          "decode_seconds": 3.22,
+          "peak_gb": 9.29
+        },
+        {
+          "step": "tool",
+          "seconds": 4.03,
+          "prompt_tokens": 56,
+          "cached_tokens": 2139,
+          "generated_tokens": 106,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 3.69,
+          "peak_gb": 9.29
+        }
+      ],
+      "located": false,
+      "locate_iou": null,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "invoice-01",
+      "q": "What late-payment fee applies after the due date?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 402,
+      "generated_tokens": 38,
+      "seconds": 2.67,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.67,
+          "prompt_tokens": 402,
+          "cached_tokens": 1640,
+          "generated_tokens": 38,
+          "prefill_seconds": 1.37,
+          "decode_seconds": 1.27,
+          "peak_gb": 9.31
+        }
+      ]
+    },
+    {
+      "doc": "invoice-02",
+      "q": "Which line item has the highest amount?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 48,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 455,
+      "generated_tokens": 94,
+      "seconds": 4.81,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "compare",
+      "gave_distractor": false,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.81,
+          "prompt_tokens": 455,
+          "cached_tokens": 1639,
+          "generated_tokens": 94,
+          "prefill_seconds": 1.57,
+          "decode_seconds": 3.2,
+          "peak_gb": 9.31
+        }
+      ],
+      "located": true,
+      "locate_iou": 0.11562782294489611,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "invoice-02",
+      "q": "How much more is the \"Label roll, thermal\" line than the \"Calibration certificate\" line?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 131,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 78,
+      "seconds": 11.29,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "#Calculate the difference between the unit price of the \"Label roll, thermal\" line and the \"Calibration certificate\" line\n\n477.50 - 27.67",
+          "449.83"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.01,
+          "prompt_tokens": 467,
+          "cached_tokens": 1639,
+          "generated_tokens": 164,
+          "prefill_seconds": 1.57,
+          "decode_seconds": 6.41,
+          "peak_gb": 9.3
+        },
+        {
+          "step": "tool",
+          "seconds": 3.27,
+          "prompt_tokens": 56,
+          "cached_tokens": 2270,
+          "generated_tokens": 78,
+          "prefill_seconds": 0.34,
+          "decode_seconds": 2.89,
+          "peak_gb": 9.3
+        }
+      ]
+    },
+    {
+      "doc": "invoice-02",
+      "q": "On what date is payment due?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 99,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 26,
+      "seconds": 11.83,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "date",
+      "gave_distractor": false,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "date(2026, 11, 26) + 60d",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "26/11/2026 + 60 days",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.7,
+          "prompt_tokens": 454,
+          "cached_tokens": 1639,
+          "generated_tokens": 120,
+          "prefill_seconds": 1.56,
+          "decode_seconds": 4.1,
+          "peak_gb": 9.3
+        },
+        {
+          "step": "tool",
+          "seconds": 2.55,
+          "prompt_tokens": 63,
+          "cached_tokens": 2213,
+          "generated_tokens": 64,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 2.2,
+          "peak_gb": 9.3
+        },
+        {
+          "step": "tool",
+          "seconds": 2.6,
+          "prompt_tokens": 63,
+          "cached_tokens": 2340,
+          "generated_tokens": 64,
+          "prefill_seconds": 0.32,
+          "decode_seconds": 2.24,
+          "peak_gb": 9.3
+        },
+        {
+          "step": "forced",
+          "seconds": 0.99,
+          "prompt_tokens": 1,
+          "cached_tokens": 2419,
+          "generated_tokens": 26,
+          "prefill_seconds": 0.06,
+          "decode_seconds": 0.89,
+          "peak_gb": 9.3
+        }
+      ]
+    },
+    {
+      "doc": "invoice-02",
+      "q": "What is the unit price of the item with the largest quantity?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 92,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 107,
+      "seconds": 8.96,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "12 * 55.04",
+          "660.48"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.9,
+          "prompt_tokens": 460,
+          "cached_tokens": 1639,
+          "generated_tokens": 97,
+          "prefill_seconds": 1.56,
+          "decode_seconds": 3.3,
+          "peak_gb": 9.3
+        },
+        {
+          "step": "tool",
+          "seconds": 4.06,
+          "prompt_tokens": 56,
+          "cached_tokens": 2196,
+          "generated_tokens": 107,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 3.71,
+          "peak_gb": 9.3
+        }
+      ],
+      "located": false,
+      "locate_iou": null,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "invoice-02",
+      "q": "What late-payment fee applies after the due date?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 99,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 109,
+      "seconds": 16.4,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "# Calculate the date 60 days after the invoice date\n\"2026-11-26\" + 60d",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "# Calculate the date 60 days after the invoice date\n\"2026-11-26\" + 60 days",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.39,
+          "prompt_tokens": 457,
+          "cached_tokens": 1640,
+          "generated_tokens": 112,
+          "prefill_seconds": 1.54,
+          "decode_seconds": 3.83,
+          "peak_gb": 9.31
+        },
+        {
+          "step": "tool",
+          "seconds": 3.39,
+          "prompt_tokens": 63,
+          "cached_tokens": 2209,
+          "generated_tokens": 88,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 3.04,
+          "peak_gb": 9.31
+        },
+        {
+          "step": "tool",
+          "seconds": 3.46,
+          "prompt_tokens": 63,
+          "cached_tokens": 2360,
+          "generated_tokens": 88,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 3.1,
+          "peak_gb": 9.31
+        },
+        {
+          "step": "forced",
+          "seconds": 4.15,
+          "prompt_tokens": 1,
+          "cached_tokens": 2448,
+          "generated_tokens": 109,
+          "prefill_seconds": 0.06,
+          "decode_seconds": 4.05,
+          "peak_gb": 9.31
+        }
+      ]
+    },
+    {
+      "doc": "statement-01",
+      "q": "What was the largest single payment out?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 144,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 127,
+      "seconds": 27.41,
+      "calculator_cites": 3,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "compare",
+      "gave_distractor": false,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "# Total amount paid out\n\n536.63 + 248.96 + 449.04 + 312.09 + 912.43 + 579.57 + 828.97 + 18.32 + 3562.17 + 243.59 + 303.12 + 787.87 + 480.03 + 727.67 + 238.78 + 39.99 + 306.25 + 771.16",
+          "11346.64"
+        ],
+        [
+          "# Total amount paid in\n\n3562.17 + 16037.98",
+          "19600.15"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 12.38,
+          "prompt_tokens": 851,
+          "cached_tokens": 1640,
+          "generated_tokens": 235,
+          "prefill_seconds": 3.12,
+          "decode_seconds": 9.23,
+          "peak_gb": 9.31
+        },
+        {
+          "step": "tool",
+          "seconds": 4.3,
+          "prompt_tokens": 58,
+          "cached_tokens": 2726,
+          "generated_tokens": 99,
+          "prefill_seconds": 0.32,
+          "decode_seconds": 3.93,
+          "peak_gb": 9.31
+        },
+        {
+          "step": "tool",
+          "seconds": 5.18,
+          "prompt_tokens": 58,
+          "cached_tokens": 2883,
+          "generated_tokens": 116,
+          "prefill_seconds": 0.38,
+          "decode_seconds": 4.76,
+          "peak_gb": 9.31
+        },
+        {
+          "step": "forced",
+          "seconds": 5.55,
+          "prompt_tokens": 1,
+          "cached_tokens": 2991,
+          "generated_tokens": 127,
+          "prefill_seconds": 0.08,
+          "decode_seconds": 5.43,
+          "peak_gb": 9.31
+        }
+      ],
+      "located": false,
+      "locate_iou": null,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "statement-01",
+      "q": "By how much did the balance change between the opening and closing balances?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 90,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 62,
+      "seconds": 9.84,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "#Calculate the difference between the opening and closing balances\n\n16037.98 - 11815.68",
+          "4222.3"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 7.25,
+          "prompt_tokens": 858,
+          "cached_tokens": 1639,
+          "generated_tokens": 125,
+          "prefill_seconds": 2.75,
+          "decode_seconds": 4.47,
+          "peak_gb": 9.39
+        },
+        {
+          "step": "tool",
+          "seconds": 2.6,
+          "prompt_tokens": 56,
+          "cached_tokens": 2622,
+          "generated_tokens": 62,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 2.23,
+          "peak_gb": 9.39
+        }
+      ]
+    },
+    {
+      "doc": "statement-01",
+      "q": "How much was paid to Ferncombe Energy in total?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 92,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 109,
+      "seconds": 11.25,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": true,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "# Total amount paid to Ferncombe Energy\n828.97 + 18.32",
+          "847.29"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 6.94,
+          "prompt_tokens": 855,
+          "cached_tokens": 1639,
+          "generated_tokens": 116,
+          "prefill_seconds": 2.77,
+          "decode_seconds": 4.14,
+          "peak_gb": 9.39
+        },
+        {
+          "step": "tool",
+          "seconds": 4.31,
+          "prompt_tokens": 56,
+          "cached_tokens": 2610,
+          "generated_tokens": 109,
+          "prefill_seconds": 0.32,
+          "decode_seconds": 3.95,
+          "peak_gb": 9.39
+        }
+      ]
+    },
+    {
+      "doc": "statement-01",
+      "q": "What was the balance straight after the first payment to Sundial Row Clinic?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 118,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 120,
+      "seconds": 15.24,
+      "calculator_cites": 2,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "16037.98 - 243.59",
+          "15794.39"
+        ],
+        [
+          "15794.39 - 15470.55",
+          "323.84"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 6.8,
+          "prompt_tokens": 859,
+          "cached_tokens": 1639,
+          "generated_tokens": 95,
+          "prefill_seconds": 2.94,
+          "decode_seconds": 3.83,
+          "peak_gb": 9.39
+        },
+        {
+          "step": "tool",
+          "seconds": 3.65,
+          "prompt_tokens": 58,
+          "cached_tokens": 2593,
+          "generated_tokens": 91,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 3.29,
+          "peak_gb": 9.39
+        },
+        {
+          "step": "tool",
+          "seconds": 4.79,
+          "prompt_tokens": 56,
+          "cached_tokens": 2742,
+          "generated_tokens": 120,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 4.42,
+          "peak_gb": 9.39
+        }
+      ],
+      "located": false,
+      "locate_iou": null,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "statement-01",
+      "q": "How much interest was paid in to this account?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 165,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 140,
+      "seconds": 23.37,
+      "calculator_cites": 2,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "#Calculate the difference between the opening balance and the closing balance\n\n16037.98 - 11815.68",
+          "4222.3"
+        ],
+        [
+          "#Calculate the interest paid by dividing the difference between the opening balance and the closing balance by the opening balance\n\n4222.3 / 16037.98",
+          "0.263269"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 7.64,
+          "prompt_tokens": 854,
+          "cached_tokens": 1639,
+          "generated_tokens": 133,
+          "prefill_seconds": 2.84,
+          "decode_seconds": 4.77,
+          "peak_gb": 9.37
+        },
+        {
+          "step": "tool",
+          "seconds": 4.89,
+          "prompt_tokens": 56,
+          "cached_tokens": 2626,
+          "generated_tokens": 124,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 4.52,
+          "peak_gb": 9.37
+        },
+        {
+          "step": "tool",
+          "seconds": 4.71,
+          "prompt_tokens": 58,
+          "cached_tokens": 2806,
+          "generated_tokens": 112,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 4.34,
+          "peak_gb": 9.37
+        },
+        {
+          "step": "forced",
+          "seconds": 6.13,
+          "prompt_tokens": 1,
+          "cached_tokens": 2911,
+          "generated_tokens": 140,
+          "prefill_seconds": 0.08,
+          "decode_seconds": 6.01,
+          "peak_gb": 9.37
+        }
+      ]
+    },
+    {
+      "doc": "statement-02",
+      "q": "What was the largest single payment out?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 92,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 105,
+      "seconds": 14.95,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "compare",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "# Total amount paid out\n\n436.28 + 331.48 + 220.40 + 405.44 + 188.25 + 270.03 + 362.83 + 239.65 + 9.60 + 786.53 + 355.11 + 188.90 + 20.75 + 612.10 + 530.80 + 3364.31",
+          "8322.46"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 10.74,
+          "prompt_tokens": 854,
+          "cached_tokens": 1639,
+          "generated_tokens": 220,
+          "prefill_seconds": 2.77,
+          "decode_seconds": 7.93,
+          "peak_gb": 9.37
+        },
+        {
+          "step": "tool",
+          "seconds": 4.21,
+          "prompt_tokens": 57,
+          "cached_tokens": 2713,
+          "generated_tokens": 105,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 3.85,
+          "peak_gb": 9.37
+        }
+      ],
+      "located": false,
+      "locate_iou": null,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "statement-02",
+      "q": "By how much did the balance change between the opening and closing balances?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 98,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 66,
+      "seconds": 10.17,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "#Calculate the difference between the opening and closing balances\n\n17054.77 - 14535.81",
+          "2518.96"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 7.41,
+          "prompt_tokens": 860,
+          "cached_tokens": 1639,
+          "generated_tokens": 129,
+          "prefill_seconds": 2.77,
+          "decode_seconds": 4.61,
+          "peak_gb": 9.37
+        },
+        {
+          "step": "tool",
+          "seconds": 2.76,
+          "prompt_tokens": 57,
+          "cached_tokens": 2628,
+          "generated_tokens": 66,
+          "prefill_seconds": 0.34,
+          "decode_seconds": 2.38,
+          "peak_gb": 9.37
+        }
+      ]
+    },
+    {
+      "doc": "statement-02",
+      "q": "How much was paid to Ferncombe Energy in total?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 91,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 93,
+      "seconds": 10.59,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "arithmetic",
+      "gave_distractor": false,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "# Total amount paid to Ferncombe Energy\n9.60 + 643.26",
+          "652.86"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 6.87,
+          "prompt_tokens": 857,
+          "cached_tokens": 1639,
+          "generated_tokens": 114,
+          "prefill_seconds": 2.77,
+          "decode_seconds": 4.06,
+          "peak_gb": 9.37
+        },
+        {
+          "step": "tool",
+          "seconds": 3.73,
+          "prompt_tokens": 56,
+          "cached_tokens": 2610,
+          "generated_tokens": 93,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 3.36,
+          "peak_gb": 9.37
+        }
+      ]
+    },
+    {
+      "doc": "statement-02",
+      "q": "What was the balance straight after the first payment to Sundial Row Clinic?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 38,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 861,
+      "generated_tokens": 74,
+      "seconds": 5.42,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "skill": "chain",
+      "gave_distractor": false,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.42,
+          "prompt_tokens": 861,
+          "cached_tokens": 1639,
+          "generated_tokens": 74,
+          "prefill_seconds": 2.77,
+          "decode_seconds": 2.62,
+          "peak_gb": 9.37
+        }
+      ],
+      "located": false,
+      "locate_iou": null,
+      "locate_hit": false,
+      "locate_centre": false
+    },
+    {
+      "doc": "statement-02",
+      "q": "How much interest was paid in to this account?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 112,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 74,
+      "seconds": 10.63,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "#Calculate the difference between the opening balance and the closing balance\n\n17054.77 - 14535.81",
+          "2518.96"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 7.6,
+          "prompt_tokens": 856,
+          "cached_tokens": 1639,
+          "generated_tokens": 133,
+          "prefill_seconds": 2.78,
+          "decode_seconds": 4.79,
+          "peak_gb": 9.35
+        },
+        {
+          "step": "tool",
+          "seconds": 3.04,
+          "prompt_tokens": 57,
+          "cached_tokens": 2628,
+          "generated_tokens": 74,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 2.67,
+          "peak_gb": 9.35
+        }
+      ]
+    }
+  ]
+}

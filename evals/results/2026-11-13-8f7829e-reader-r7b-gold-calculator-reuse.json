@@ -1,0 +1,4250 @@
+{
+  "config": "reader-r7b",
+  "source": "gold",
+  "set": "set-v1",
+  "only": "",
+  "repo": "mlx-community/c4ai-command-r7b-12-2024-4bit",
+  "revision": "2ae601b3d780410caacd2148c6c96e620144f22d",
+  "code": "8f7829ef37fb6b63d0fe6d947b7829caf7848b6d",
+  "dirty": false,
+  "packages": {
+    "mlx": "0.32.4",
+    "mlx-vlm": "0.7.11",
+    "mlx-lm": "0.32.2",
+    "pillow": "13.0.0"
+  },
+  "settings": {
+    "temperature": 0.0,
+    "top_p": 0.75,
+    "repetition_penalty": 1.0,
+    "max_tokens": 1024
+  },
+  "opening": "<|START_THINKING|>",
+  "tools": [
+    "calculate"
+  ],
+  "max_tool_rounds": 2,
+  "reuse_cache": true,
+  "seconds": 566.3,
+  "metrics": {
+    "answerable": 84,
+    "correct": 76,
+    "uncited": 0,
+    "citation_precision_mean": 0.9940476190476191,
+    "citation_recall_mean": 1.0,
+    "off_evidence": 1,
+    "unanswerable": 21,
+    "refused": 19,
+    "located_cases": 0,
+    "locate_no_box": 0,
+    "locate_hits": 0,
+    "locate_centre_hits": 0,
+    "injection_cases": 0,
+    "injection_followed": 0,
+    "action_channel": 0,
+    "with_thinking": 105,
+    "truncated": 0,
+    "pages_dropped": 0,
+    "peak_gb": 5.97,
+    "used_calculator": 18,
+    "calculations": 21,
+    "forced_answers": 6,
+    "calculator_cites": 10,
+    "calculator_cites_unmapped": 0
+  },
+  "answers": [
+    {
+      "doc": "article-01",
+      "q": "Who wrote this article?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 2324,
+      "generated_tokens": 44,
+      "seconds": 8.57,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.57,
+          "prompt_tokens": 2324,
+          "cached_tokens": 0,
+          "generated_tokens": 44,
+          "prefill_seconds": 6.91,
+          "decode_seconds": 1.52,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-01",
+      "q": "What is the estimated cost, in thousands of pounds?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 73,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 53,
+      "generated_tokens": 59,
+      "seconds": 7.56,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "625000/1000",
+          "625"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.15,
+          "prompt_tokens": 691,
+          "cached_tokens": 1639,
+          "generated_tokens": 82,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 2.85,
+          "peak_gb": 5.73
+        },
+        {
+          "step": "tool",
+          "seconds": 2.41,
+          "prompt_tokens": 53,
+          "cached_tokens": 2412,
+          "generated_tokens": 59,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 2.07,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-01",
+      "q": "What is the headline?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 50,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 682,
+      "generated_tokens": 72,
+      "seconds": 5.06,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.06,
+          "prompt_tokens": 682,
+          "cached_tokens": 1642,
+          "generated_tokens": 72,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 2.76,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-01",
+      "q": "What is the second column's heading?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 33,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 685,
+      "generated_tokens": 57,
+      "seconds": 4.59,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.59,
+          "prompt_tokens": 685,
+          "cached_tokens": 1642,
+          "generated_tokens": 57,
+          "prefill_seconds": 2.55,
+          "decode_seconds": 2.0,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-01",
+      "q": "On what date will the public meeting be held?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 17,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 690,
+      "generated_tokens": 32,
+      "seconds": 3.38,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.38,
+          "prompt_tokens": 690,
+          "cached_tokens": 1639,
+          "generated_tokens": 32,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 1.09,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-02",
+      "q": "Who wrote this article?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 43,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 684,
+      "generated_tokens": 66,
+      "seconds": 4.58,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.58,
+          "prompt_tokens": 684,
+          "cached_tokens": 1639,
+          "generated_tokens": 66,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 2.29,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-02",
+      "q": "What is the estimated cost, in thousands of pounds?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 76,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 53,
+      "generated_tokens": 84,
+      "seconds": 9.08,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "725000/1000",
+          "725"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.6,
+          "prompt_tokens": 690,
+          "cached_tokens": 1639,
+          "generated_tokens": 82,
+          "prefill_seconds": 2.3,
+          "decode_seconds": 3.27,
+          "peak_gb": 5.73
+        },
+        {
+          "step": "tool",
+          "seconds": 3.48,
+          "prompt_tokens": 53,
+          "cached_tokens": 2411,
+          "generated_tokens": 84,
+          "prefill_seconds": 0.35,
+          "decode_seconds": 3.09,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-02",
+      "q": "What is the headline?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 42,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 681,
+      "generated_tokens": 75,
+      "seconds": 5.32,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.32,
+          "prompt_tokens": 681,
+          "cached_tokens": 1642,
+          "generated_tokens": 75,
+          "prefill_seconds": 2.3,
+          "decode_seconds": 2.98,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-02",
+      "q": "What is the second column's heading?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 25,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 684,
+      "generated_tokens": 47,
+      "seconds": 4.44,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.44,
+          "prompt_tokens": 684,
+          "cached_tokens": 1642,
+          "generated_tokens": 47,
+          "prefill_seconds": 2.55,
+          "decode_seconds": 1.85,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "article-02",
+      "q": "On what date will the public meeting be held?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 79,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 52,
+      "seconds": 10.05,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "",
+          "error: only numbers, + - * / and brackets are allowed"
+        ]
+      ],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.49,
+          "prompt_tokens": 689,
+          "cached_tokens": 1639,
+          "generated_tokens": 85,
+          "prefill_seconds": 2.51,
+          "decode_seconds": 2.95,
+          "peak_gb": 5.73
+        },
+        {
+          "step": "tool",
+          "seconds": 2.54,
+          "prompt_tokens": 63,
+          "cached_tokens": 2413,
+          "generated_tokens": 62,
+          "prefill_seconds": 0.33,
+          "decode_seconds": 2.18,
+          "peak_gb": 5.73
+        },
+        {
+          "step": "forced",
+          "seconds": 2.03,
+          "prompt_tokens": 1,
+          "cached_tokens": 2503,
+          "generated_tokens": 52,
+          "prefill_seconds": 0.06,
+          "decode_seconds": 1.92,
+          "peak_gb": 5.73
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "What is the monthly fee?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 37,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1666,
+      "generated_tokens": 63,
+      "seconds": 8.42,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.42,
+          "prompt_tokens": 1666,
+          "cached_tokens": 1639,
+          "generated_tokens": 63,
+          "prefill_seconds": 5.94,
+          "decode_seconds": 2.43,
+          "peak_gb": 5.82
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "How many days of notice does termination require?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        1
+      ],
+      "thinking_tokens": 67,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 52,
+      "generated_tokens": 56,
+      "seconds": 11.32,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "90",
+          "90"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.77,
+          "prompt_tokens": 1669,
+          "cached_tokens": 1639,
+          "generated_tokens": 71,
+          "prefill_seconds": 6.01,
+          "decode_seconds": 2.71,
+          "peak_gb": 5.85
+        },
+        {
+          "step": "tool",
+          "seconds": 2.55,
+          "prompt_tokens": 52,
+          "cached_tokens": 3379,
+          "generated_tokens": 56,
+          "prefill_seconds": 0.34,
+          "decode_seconds": 2.16,
+          "peak_gb": 5.85
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "How long is the initial term, in months?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 79,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 52,
+      "generated_tokens": 51,
+      "seconds": 12.88,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "12 months",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "12",
+          "12"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.16,
+          "prompt_tokens": 1669,
+          "cached_tokens": 1640,
+          "generated_tokens": 69,
+          "prefill_seconds": 5.48,
+          "decode_seconds": 2.63,
+          "peak_gb": 5.87
+        },
+        {
+          "step": "tool",
+          "seconds": 2.34,
+          "prompt_tokens": 63,
+          "cached_tokens": 3378,
+          "generated_tokens": 51,
+          "prefill_seconds": 0.34,
+          "decode_seconds": 1.96,
+          "peak_gb": 5.87
+        },
+        {
+          "step": "tool",
+          "seconds": 2.38,
+          "prompt_tokens": 52,
+          "cached_tokens": 3492,
+          "generated_tokens": 51,
+          "prefill_seconds": 0.35,
+          "decode_seconds": 1.98,
+          "peak_gb": 5.87
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "Who signed for the Supplier?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        1,
+        1
+      ],
+      "thinking_tokens": 47,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 36,
+      "seconds": 10.14,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.66,
+          "prompt_tokens": 1666,
+          "cached_tokens": 1639,
+          "generated_tokens": 82,
+          "prefill_seconds": 5.48,
+          "decode_seconds": 3.14,
+          "peak_gb": 5.88
+        },
+        {
+          "step": "forced",
+          "seconds": 1.48,
+          "prompt_tokens": 1,
+          "cached_tokens": 3352,
+          "generated_tokens": 36,
+          "prefill_seconds": 0.07,
+          "decode_seconds": 1.36,
+          "peak_gb": 5.88
+        }
+      ]
+    },
+    {
+      "doc": "contract-01",
+      "q": "Which court has jurisdiction over disputes?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 33,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 20,
+      "seconds": 8.96,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 8.11,
+          "prompt_tokens": 1667,
+          "cached_tokens": 1639,
+          "generated_tokens": 68,
+          "prefill_seconds": 5.48,
+          "decode_seconds": 2.59,
+          "peak_gb": 5.88
+        },
+        {
+          "step": "forced",
+          "seconds": 0.85,
+          "prompt_tokens": 1,
+          "cached_tokens": 3339,
+          "generated_tokens": 20,
+          "prefill_seconds": 0.07,
+          "decode_seconds": 0.73,
+          "peak_gb": 5.88
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "What is the monthly fee?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 82,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 61,
+      "generated_tokens": 90,
+      "seconds": 16.89,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "2205.91 / 1.36",
+          "1621.992647"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 12.73,
+          "prompt_tokens": 2715,
+          "cached_tokens": 1639,
+          "generated_tokens": 85,
+          "prefill_seconds": 9.2,
+          "decode_seconds": 3.47,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 4.16,
+          "prompt_tokens": 61,
+          "cached_tokens": 4439,
+          "generated_tokens": 90,
+          "prefill_seconds": 0.4,
+          "decode_seconds": 3.69,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "How many days of notice does termination require?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        2
+      ],
+      "thinking_tokens": 67,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 52,
+      "generated_tokens": 56,
+      "seconds": 19.08,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "45",
+          "45"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 16.35,
+          "prompt_tokens": 4357,
+          "cached_tokens": 0,
+          "generated_tokens": 71,
+          "prefill_seconds": 13.4,
+          "decode_seconds": 2.89,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.73,
+          "prompt_tokens": 52,
+          "cached_tokens": 4428,
+          "generated_tokens": 56,
+          "prefill_seconds": 0.4,
+          "decode_seconds": 2.27,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "How long is the initial term, in months?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 85,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 52,
+      "generated_tokens": 56,
+      "seconds": 21.63,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "18 months",
+          "error: only numbers, + - * / and brackets are allowed"
+        ],
+        [
+          "18",
+          "18"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 16.3,
+          "prompt_tokens": 4358,
+          "cached_tokens": 0,
+          "generated_tokens": 70,
+          "prefill_seconds": 13.4,
+          "decode_seconds": 2.85,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.57,
+          "prompt_tokens": 63,
+          "cached_tokens": 4428,
+          "generated_tokens": 52,
+          "prefill_seconds": 0.4,
+          "decode_seconds": 2.11,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.75,
+          "prompt_tokens": 52,
+          "cached_tokens": 4543,
+          "generated_tokens": 56,
+          "prefill_seconds": 0.4,
+          "decode_seconds": 2.3,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "Who signed for the Supplier?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        2,
+        0,
+        2
+      ],
+      "thinking_tokens": 46,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 4401,
+      "generated_tokens": 42,
+      "seconds": 32.03,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 0.5,
+      "recall": 1.0,
+      "off_evidence": 1,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 16.77,
+          "prompt_tokens": 4354,
+          "cached_tokens": 0,
+          "generated_tokens": 81,
+          "prefill_seconds": 13.4,
+          "decode_seconds": 3.31,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "forced",
+          "seconds": 15.26,
+          "prompt_tokens": 4401,
+          "cached_tokens": 0,
+          "generated_tokens": 42,
+          "prefill_seconds": 13.5,
+          "decode_seconds": 1.69,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "contract-02",
+      "q": "Which court has jurisdiction over disputes?",
+      "kind": null,
+      "answerable": false,
+      "cited": [
+        0,
+        1,
+        2,
+        0
+      ],
+      "thinking_tokens": 77,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 4433,
+      "generated_tokens": 64,
+      "seconds": 36.24,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": false,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 19.28,
+          "prompt_tokens": 4355,
+          "cached_tokens": 0,
+          "generated_tokens": 112,
+          "prefill_seconds": 14.6,
+          "decode_seconds": 4.62,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "forced",
+          "seconds": 16.97,
+          "prompt_tokens": 4433,
+          "cached_tokens": 0,
+          "generated_tokens": 64,
+          "prefill_seconds": 14.29,
+          "decode_seconds": 2.62,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-01",
+      "q": "What is the applicant's full name?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 25,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1849,
+      "generated_tokens": 48,
+      "seconds": 7.68,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 7.68,
+          "prompt_tokens": 1849,
+          "cached_tokens": 0,
+          "generated_tokens": 48,
+          "prefill_seconds": 5.85,
+          "decode_seconds": 1.79,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-01",
+      "q": "Which plot number is preferred?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 37,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 208,
+      "generated_tokens": 72,
+      "seconds": 3.34,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.34,
+          "prompt_tokens": 208,
+          "cached_tokens": 1639,
+          "generated_tokens": 72,
+          "prefill_seconds": 0.88,
+          "decode_seconds": 2.43,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-01",
+      "q": "Which contact method is ticked?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 94,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 51,
+      "generated_tokens": 103,
+      "seconds": 7.49,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "1 + 0 + 0",
+          "1"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.68,
+          "prompt_tokens": 208,
+          "cached_tokens": 1640,
+          "generated_tokens": 86,
+          "prefill_seconds": 0.79,
+          "decode_seconds": 2.86,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 3.81,
+          "prompt_tokens": 51,
+          "cached_tokens": 1934,
+          "generated_tokens": 103,
+          "prefill_seconds": 0.29,
+          "decode_seconds": 3.48,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-01",
+      "q": "Which town does the applicant live in?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 18,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 209,
+      "generated_tokens": 38,
+      "seconds": 2.06,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.06,
+          "prompt_tokens": 209,
+          "cached_tokens": 1640,
+          "generated_tokens": 38,
+          "prefill_seconds": 0.79,
+          "decode_seconds": 1.24,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-01",
+      "q": "What is the applicant's date of birth?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 18,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 211,
+      "generated_tokens": 30,
+      "seconds": 1.79,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 1.79,
+          "prompt_tokens": 211,
+          "cached_tokens": 1639,
+          "generated_tokens": 30,
+          "prefill_seconds": 0.79,
+          "decode_seconds": 0.97,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-02",
+      "q": "What is the applicant's full name?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 25,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 207,
+      "generated_tokens": 48,
+      "seconds": 2.39,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.39,
+          "prompt_tokens": 207,
+          "cached_tokens": 1644,
+          "generated_tokens": 48,
+          "prefill_seconds": 0.79,
+          "decode_seconds": 1.58,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-02",
+      "q": "Which plot number is preferred?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 24,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 210,
+      "generated_tokens": 46,
+      "seconds": 2.33,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.33,
+          "prompt_tokens": 210,
+          "cached_tokens": 1639,
+          "generated_tokens": 46,
+          "prefill_seconds": 0.79,
+          "decode_seconds": 1.5,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-02",
+      "q": "Which contact method is ticked?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 101,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 51,
+      "generated_tokens": 57,
+      "seconds": 6.62,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "1 + 0 + 0",
+          "1"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.37,
+          "prompt_tokens": 210,
+          "cached_tokens": 1640,
+          "generated_tokens": 107,
+          "prefill_seconds": 0.79,
+          "decode_seconds": 3.55,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.25,
+          "prompt_tokens": 51,
+          "cached_tokens": 1957,
+          "generated_tokens": 57,
+          "prefill_seconds": 0.3,
+          "decode_seconds": 1.91,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-02",
+      "q": "Which town does the applicant live in?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 51,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 211,
+      "generated_tokens": 88,
+      "seconds": 3.73,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.73,
+          "prompt_tokens": 211,
+          "cached_tokens": 1640,
+          "generated_tokens": 88,
+          "prefill_seconds": 0.79,
+          "decode_seconds": 2.91,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "form-02",
+      "q": "What is the applicant's date of birth?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 21,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 213,
+      "generated_tokens": 38,
+      "seconds": 2.05,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.05,
+          "prompt_tokens": 213,
+          "cached_tokens": 1639,
+          "generated_tokens": 38,
+          "prefill_seconds": 0.79,
+          "decode_seconds": 1.23,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-01",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 332,
+      "generated_tokens": 54,
+      "seconds": 2.99,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.99,
+          "prompt_tokens": 332,
+          "cached_tokens": 1642,
+          "generated_tokens": 54,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 1.79,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-01",
+      "q": "Which company was billed on invoice 7311-63?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 34,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 344,
+      "generated_tokens": 66,
+      "seconds": 3.41,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.41,
+          "prompt_tokens": 344,
+          "cached_tokens": 1639,
+          "generated_tokens": 66,
+          "prefill_seconds": 1.17,
+          "decode_seconds": 2.21,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-01",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 335,
+      "generated_tokens": 58,
+      "seconds": 3.13,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.13,
+          "prompt_tokens": 335,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 1.94,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-01",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 337,
+      "generated_tokens": 56,
+      "seconds": 3.07,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.07,
+          "prompt_tokens": 337,
+          "cached_tokens": 1639,
+          "generated_tokens": 56,
+          "prefill_seconds": 1.17,
+          "decode_seconds": 1.87,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-01",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 333,
+      "generated_tokens": 41,
+      "seconds": 2.56,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.56,
+          "prompt_tokens": 333,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 1.36,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-02",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 307,
+      "generated_tokens": 54,
+      "seconds": 2.89,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.89,
+          "prompt_tokens": 307,
+          "cached_tokens": 1642,
+          "generated_tokens": 54,
+          "prefill_seconds": 1.07,
+          "decode_seconds": 1.79,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-02",
+      "q": "Which company was billed on invoice 3201-82?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 76,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 63,
+      "seconds": 6.41,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "6679.74",
+          "6679.74"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.95,
+          "prompt_tokens": 319,
+          "cached_tokens": 1639,
+          "generated_tokens": 85,
+          "prefill_seconds": 1.07,
+          "decode_seconds": 2.85,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.47,
+          "prompt_tokens": 57,
+          "cached_tokens": 2043,
+          "generated_tokens": 63,
+          "prefill_seconds": 0.3,
+          "decode_seconds": 2.13,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-02",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 310,
+      "generated_tokens": 56,
+      "seconds": 2.96,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.96,
+          "prompt_tokens": 310,
+          "cached_tokens": 1639,
+          "generated_tokens": 56,
+          "prefill_seconds": 1.06,
+          "decode_seconds": 1.86,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-02",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 312,
+      "generated_tokens": 58,
+      "seconds": 3.03,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.03,
+          "prompt_tokens": 312,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.07,
+          "decode_seconds": 1.93,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-02",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 21,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 308,
+      "generated_tokens": 40,
+      "seconds": 2.52,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.52,
+          "prompt_tokens": 308,
+          "cached_tokens": 1642,
+          "generated_tokens": 40,
+          "prefill_seconds": 1.07,
+          "decode_seconds": 1.43,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-03",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 367,
+      "generated_tokens": 56,
+      "seconds": 3.6,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.6,
+          "prompt_tokens": 367,
+          "cached_tokens": 1642,
+          "generated_tokens": 56,
+          "prefill_seconds": 1.42,
+          "decode_seconds": 2.14,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-03",
+      "q": "Which company was billed on invoice 1926-21?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 35,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 379,
+      "generated_tokens": 66,
+      "seconds": 3.57,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.57,
+          "prompt_tokens": 379,
+          "cached_tokens": 1639,
+          "generated_tokens": 66,
+          "prefill_seconds": 1.32,
+          "decode_seconds": 2.21,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-03",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 370,
+      "generated_tokens": 58,
+      "seconds": 3.24,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.24,
+          "prompt_tokens": 370,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.27,
+          "decode_seconds": 1.94,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-03",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 372,
+      "generated_tokens": 56,
+      "seconds": 3.18,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.18,
+          "prompt_tokens": 372,
+          "cached_tokens": 1639,
+          "generated_tokens": 56,
+          "prefill_seconds": 1.27,
+          "decode_seconds": 1.88,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-03",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 368,
+      "generated_tokens": 41,
+      "seconds": 2.66,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.66,
+          "prompt_tokens": 368,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.27,
+          "decode_seconds": 1.36,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-04",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 368,
+      "generated_tokens": 57,
+      "seconds": 3.21,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.21,
+          "prompt_tokens": 368,
+          "cached_tokens": 1642,
+          "generated_tokens": 57,
+          "prefill_seconds": 1.26,
+          "decode_seconds": 1.91,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-04",
+      "q": "Which company was billed on invoice 4898-85?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 34,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 380,
+      "generated_tokens": 66,
+      "seconds": 3.53,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.53,
+          "prompt_tokens": 380,
+          "cached_tokens": 1639,
+          "generated_tokens": 66,
+          "prefill_seconds": 1.27,
+          "decode_seconds": 2.23,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-04",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 371,
+      "generated_tokens": 58,
+      "seconds": 3.56,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.56,
+          "prompt_tokens": 371,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.29,
+          "decode_seconds": 2.23,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-04",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 373,
+      "generated_tokens": 58,
+      "seconds": 3.55,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.55,
+          "prompt_tokens": 373,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.42,
+          "decode_seconds": 2.09,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-04",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 369,
+      "generated_tokens": 41,
+      "seconds": 2.67,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.67,
+          "prompt_tokens": 369,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.26,
+          "decode_seconds": 1.37,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-05",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 322,
+      "generated_tokens": 54,
+      "seconds": 3.0,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.0,
+          "prompt_tokens": 322,
+          "cached_tokens": 1642,
+          "generated_tokens": 54,
+          "prefill_seconds": 1.17,
+          "decode_seconds": 1.8,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-05",
+      "q": "Which company was billed on invoice 4867-48?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        0,
+        0
+      ],
+      "thinking_tokens": 75,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 98,
+      "seconds": 8.37,
+      "calculator_cites": 2,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "7776.61",
+          "7776.61"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.35,
+          "prompt_tokens": 334,
+          "cached_tokens": 1639,
+          "generated_tokens": 85,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 3.16,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 4.01,
+          "prompt_tokens": 57,
+          "cached_tokens": 2058,
+          "generated_tokens": 98,
+          "prefill_seconds": 0.34,
+          "decode_seconds": 3.64,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-05",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 325,
+      "generated_tokens": 58,
+      "seconds": 3.35,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.35,
+          "prompt_tokens": 325,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.17,
+          "decode_seconds": 2.15,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-05",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 327,
+      "generated_tokens": 56,
+      "seconds": 3.45,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.45,
+          "prompt_tokens": 327,
+          "cached_tokens": 1639,
+          "generated_tokens": 56,
+          "prefill_seconds": 1.3,
+          "decode_seconds": 2.12,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-05",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 323,
+      "generated_tokens": 41,
+      "seconds": 2.56,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.56,
+          "prompt_tokens": 323,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 1.37,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-es",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 331,
+      "generated_tokens": 58,
+      "seconds": 3.15,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.15,
+          "prompt_tokens": 331,
+          "cached_tokens": 1642,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.18,
+          "decode_seconds": 1.94,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-es",
+      "q": "Which company was billed on invoice 8585-88?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 34,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 343,
+      "generated_tokens": 66,
+      "seconds": 3.65,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.65,
+          "prompt_tokens": 343,
+          "cached_tokens": 1639,
+          "generated_tokens": 66,
+          "prefill_seconds": 1.17,
+          "decode_seconds": 2.45,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-es",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 75,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 57,
+      "generated_tokens": 61,
+      "seconds": 7.07,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "9638.16 - 8031.80",
+          "1606.36"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.66,
+          "prompt_tokens": 334,
+          "cached_tokens": 1639,
+          "generated_tokens": 92,
+          "prefill_seconds": 1.31,
+          "decode_seconds": 3.32,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.4,
+          "prompt_tokens": 57,
+          "cached_tokens": 2065,
+          "generated_tokens": 61,
+          "prefill_seconds": 0.3,
+          "decode_seconds": 2.07,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-es",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 336,
+      "generated_tokens": 56,
+      "seconds": 3.07,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.07,
+          "prompt_tokens": 336,
+          "cached_tokens": 1639,
+          "generated_tokens": 56,
+          "prefill_seconds": 1.17,
+          "decode_seconds": 1.87,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-es",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 332,
+      "generated_tokens": 41,
+      "seconds": 2.55,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.55,
+          "prompt_tokens": 332,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 1.36,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-fr",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 86,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 58,
+      "generated_tokens": 67,
+      "seconds": 7.11,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "12158.55",
+          "12158.55"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.47,
+          "prompt_tokens": 389,
+          "cached_tokens": 1642,
+          "generated_tokens": 91,
+          "prefill_seconds": 1.36,
+          "decode_seconds": 3.08,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.64,
+          "prompt_tokens": 58,
+          "cached_tokens": 2122,
+          "generated_tokens": 67,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 2.3,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-fr",
+      "q": "Which company was billed on invoice 4714-57?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 36,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 401,
+      "generated_tokens": 67,
+      "seconds": 3.65,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": false,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.65,
+          "prompt_tokens": 401,
+          "cached_tokens": 1639,
+          "generated_tokens": 67,
+          "prefill_seconds": 1.36,
+          "decode_seconds": 2.26,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-fr",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 392,
+      "generated_tokens": 56,
+      "seconds": 3.28,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.28,
+          "prompt_tokens": 392,
+          "cached_tokens": 1639,
+          "generated_tokens": 56,
+          "prefill_seconds": 1.36,
+          "decode_seconds": 1.88,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-fr",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 394,
+      "generated_tokens": 58,
+      "seconds": 3.49,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.49,
+          "prompt_tokens": 394,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.33,
+          "decode_seconds": 2.12,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "invoice-fr",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 390,
+      "generated_tokens": 41,
+      "seconds": 3.12,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.12,
+          "prompt_tokens": 390,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.53,
+          "decode_seconds": 1.56,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-01",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 314,
+      "generated_tokens": 55,
+      "seconds": 3.16,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.16,
+          "prompt_tokens": 314,
+          "cached_tokens": 1642,
+          "generated_tokens": 55,
+          "prefill_seconds": 1.19,
+          "decode_seconds": 1.94,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-01",
+      "q": "Which company was billed on invoice 5584-25?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 35,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 326,
+      "generated_tokens": 66,
+      "seconds": 3.39,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.39,
+          "prompt_tokens": 326,
+          "cached_tokens": 1639,
+          "generated_tokens": 66,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 2.2,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-01",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 317,
+      "generated_tokens": 58,
+      "seconds": 3.03,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.03,
+          "prompt_tokens": 317,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.07,
+          "decode_seconds": 1.93,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-01",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 319,
+      "generated_tokens": 58,
+      "seconds": 3.03,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.03,
+          "prompt_tokens": 319,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.07,
+          "decode_seconds": 1.93,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-01",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 315,
+      "generated_tokens": 41,
+      "seconds": 2.53,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.53,
+          "prompt_tokens": 315,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.07,
+          "decode_seconds": 1.43,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-02",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 320,
+      "generated_tokens": 54,
+      "seconds": 3.29,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.29,
+          "prompt_tokens": 320,
+          "cached_tokens": 1642,
+          "generated_tokens": 54,
+          "prefill_seconds": 1.19,
+          "decode_seconds": 2.06,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-02",
+      "q": "Which company was billed on invoice 9442-24?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 44,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 332,
+      "generated_tokens": 75,
+      "seconds": 4.23,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.23,
+          "prompt_tokens": 332,
+          "cached_tokens": 1639,
+          "generated_tokens": 75,
+          "prefill_seconds": 1.31,
+          "decode_seconds": 2.88,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-02",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 323,
+      "generated_tokens": 58,
+      "seconds": 3.55,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.55,
+          "prompt_tokens": 323,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.31,
+          "decode_seconds": 2.21,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-02",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 325,
+      "generated_tokens": 58,
+      "seconds": 3.35,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.35,
+          "prompt_tokens": 325,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.18,
+          "decode_seconds": 2.13,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photo-02",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 321,
+      "generated_tokens": 41,
+      "seconds": 2.78,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.78,
+          "prompt_tokens": 321,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.19,
+          "decode_seconds": 1.56,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-01",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 311,
+      "generated_tokens": 54,
+      "seconds": 2.93,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.93,
+          "prompt_tokens": 311,
+          "cached_tokens": 1642,
+          "generated_tokens": 54,
+          "prefill_seconds": 1.11,
+          "decode_seconds": 1.79,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-01",
+      "q": "Which company was billed on invoice 2320-72?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 35,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 323,
+      "generated_tokens": 66,
+      "seconds": 3.5,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.5,
+          "prompt_tokens": 323,
+          "cached_tokens": 1639,
+          "generated_tokens": 66,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 2.3,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-01",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 314,
+      "generated_tokens": 58,
+      "seconds": 3.42,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.42,
+          "prompt_tokens": 314,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.17,
+          "decode_seconds": 2.21,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-01",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 316,
+      "generated_tokens": 58,
+      "seconds": 3.46,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.46,
+          "prompt_tokens": 316,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.2,
+          "decode_seconds": 2.22,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-01",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 312,
+      "generated_tokens": 44,
+      "seconds": 2.88,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.88,
+          "prompt_tokens": 312,
+          "cached_tokens": 1642,
+          "generated_tokens": 44,
+          "prefill_seconds": 1.19,
+          "decode_seconds": 1.66,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-02",
+      "q": "What is the total due?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 352,
+      "generated_tokens": 54,
+      "seconds": 3.0,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.0,
+          "prompt_tokens": 352,
+          "cached_tokens": 1642,
+          "generated_tokens": 54,
+          "prefill_seconds": 1.17,
+          "decode_seconds": 1.8,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-02",
+      "q": "Which company was billed on invoice 6305-29?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 35,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 364,
+      "generated_tokens": 66,
+      "seconds": 3.51,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.51,
+          "prompt_tokens": 364,
+          "cached_tokens": 1639,
+          "generated_tokens": 66,
+          "prefill_seconds": 1.26,
+          "decode_seconds": 2.22,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-02",
+      "q": "How much tax was charged?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 28,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 355,
+      "generated_tokens": 54,
+      "seconds": 3.1,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.1,
+          "prompt_tokens": 355,
+          "cached_tokens": 1639,
+          "generated_tokens": 54,
+          "prefill_seconds": 1.26,
+          "decode_seconds": 1.8,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-02",
+      "q": "What is the date of the invoice?",
+      "kind": "date",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 30,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 357,
+      "generated_tokens": 58,
+      "seconds": 3.24,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.24,
+          "prompt_tokens": 357,
+          "cached_tokens": 1639,
+          "generated_tokens": 58,
+          "prefill_seconds": 1.26,
+          "decode_seconds": 1.94,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "photocopy-02",
+      "q": "What is the purchase order number?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 22,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 353,
+      "generated_tokens": 41,
+      "seconds": 2.55,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.55,
+          "prompt_tokens": 353,
+          "cached_tokens": 1642,
+          "generated_tokens": 41,
+          "prefill_seconds": 1.16,
+          "decode_seconds": 1.36,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-01",
+      "q": "What was the total paid?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 26,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 269,
+      "generated_tokens": 49,
+      "seconds": 2.62,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.62,
+          "prompt_tokens": 269,
+          "cached_tokens": 1640,
+          "generated_tokens": 49,
+          "prefill_seconds": 0.97,
+          "decode_seconds": 1.62,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-01",
+      "q": "Which shop issued this receipt?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 44,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 270,
+      "generated_tokens": 67,
+      "seconds": 3.22,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.22,
+          "prompt_tokens": 270,
+          "cached_tokens": 1639,
+          "generated_tokens": 67,
+          "prefill_seconds": 0.97,
+          "decode_seconds": 2.23,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-01",
+      "q": "What are the last four digits of the card?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 74,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 54,
+      "generated_tokens": 59,
+      "seconds": 5.91,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "6224",
+          "6224"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.6,
+          "prompt_tokens": 274,
+          "cached_tokens": 1639,
+          "generated_tokens": 78,
+          "prefill_seconds": 0.97,
+          "decode_seconds": 2.59,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.31,
+          "prompt_tokens": 54,
+          "cached_tokens": 1991,
+          "generated_tokens": 59,
+          "prefill_seconds": 0.3,
+          "decode_seconds": 1.98,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-01",
+      "q": "How much was COFFEE BEANS?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 65,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 55,
+      "generated_tokens": 56,
+      "seconds": 6.25,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "53.82 - 12.75",
+          "41.07"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.71,
+          "prompt_tokens": 273,
+          "cached_tokens": 1639,
+          "generated_tokens": 79,
+          "prefill_seconds": 0.97,
+          "decode_seconds": 2.7,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.54,
+          "prompt_tokens": 55,
+          "cached_tokens": 1991,
+          "generated_tokens": 56,
+          "prefill_seconds": 0.35,
+          "decode_seconds": 2.15,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-01",
+      "q": "What is the name of the cashier?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 19,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 272,
+      "generated_tokens": 36,
+      "seconds": 2.47,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.47,
+          "prompt_tokens": 272,
+          "cached_tokens": 1639,
+          "generated_tokens": 36,
+          "prefill_seconds": 1.08,
+          "decode_seconds": 1.35,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-02",
+      "q": "What was the total paid?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 26,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 269,
+      "generated_tokens": 49,
+      "seconds": 2.89,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.89,
+          "prompt_tokens": 269,
+          "cached_tokens": 1640,
+          "generated_tokens": 49,
+          "prefill_seconds": 1.08,
+          "decode_seconds": 1.77,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-02",
+      "q": "Which shop issued this receipt?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 37,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 1,
+      "generated_tokens": 43,
+      "seconds": 4.89,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": true,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.39,
+          "prompt_tokens": 270,
+          "cached_tokens": 1639,
+          "generated_tokens": 72,
+          "prefill_seconds": 0.97,
+          "decode_seconds": 2.39,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "forced",
+          "seconds": 1.5,
+          "prompt_tokens": 1,
+          "cached_tokens": 1946,
+          "generated_tokens": 43,
+          "prefill_seconds": 0.06,
+          "decode_seconds": 1.42,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-02",
+      "q": "What are the last four digits of the card?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 74,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 54,
+      "generated_tokens": 59,
+      "seconds": 5.91,
+      "calculator_cites": 1,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 1,
+      "calculations": [
+        [
+          "1434",
+          "1434"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.59,
+          "prompt_tokens": 274,
+          "cached_tokens": 1639,
+          "generated_tokens": 78,
+          "prefill_seconds": 0.97,
+          "decode_seconds": 2.6,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 2.32,
+          "prompt_tokens": 54,
+          "cached_tokens": 1991,
+          "generated_tokens": 59,
+          "prefill_seconds": 0.3,
+          "decode_seconds": 1.98,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-02",
+      "q": "How much was RYE LOAF?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 25,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 272,
+      "generated_tokens": 48,
+      "seconds": 2.59,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.59,
+          "prompt_tokens": 272,
+          "cached_tokens": 1639,
+          "generated_tokens": 48,
+          "prefill_seconds": 0.97,
+          "decode_seconds": 1.58,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "receipt-02",
+      "q": "What is the name of the cashier?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 19,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 272,
+      "generated_tokens": 36,
+      "seconds": 2.38,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 2.38,
+          "prompt_tokens": 272,
+          "cached_tokens": 1639,
+          "generated_tokens": 36,
+          "prefill_seconds": 0.99,
+          "decode_seconds": 1.35,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-01",
+      "q": "What is the closing balance?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 40,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 690,
+      "generated_tokens": 67,
+      "seconds": 5.16,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.16,
+          "prompt_tokens": 690,
+          "cached_tokens": 1642,
+          "generated_tokens": 67,
+          "prefill_seconds": 2.54,
+          "decode_seconds": 2.6,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-01",
+      "q": "What is the opening balance?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 690,
+      "generated_tokens": 56,
+      "seconds": 4.67,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.67,
+          "prompt_tokens": 690,
+          "cached_tokens": 1642,
+          "generated_tokens": 56,
+          "prefill_seconds": 2.54,
+          "decode_seconds": 2.09,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-01",
+      "q": "How much was paid to Sundial Row Clinic the first time it appears?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0,
+        0
+      ],
+      "thinking_tokens": 54,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 702,
+      "generated_tokens": 100,
+      "seconds": 5.79,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.79,
+          "prompt_tokens": 702,
+          "cached_tokens": 1639,
+          "generated_tokens": 100,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 3.49,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-01",
+      "q": "Who holds this account?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 31,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 692,
+      "generated_tokens": 53,
+      "seconds": 4.12,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.12,
+          "prompt_tokens": 692,
+          "cached_tokens": 1639,
+          "generated_tokens": 53,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 1.82,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-01",
+      "q": "What is the overdraft limit on this account?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 21,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 697,
+      "generated_tokens": 40,
+      "seconds": 3.67,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.67,
+          "prompt_tokens": 697,
+          "cached_tokens": 1639,
+          "generated_tokens": 40,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 1.37,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-02",
+      "q": "What is the closing balance?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 677,
+      "generated_tokens": 56,
+      "seconds": 4.22,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.22,
+          "prompt_tokens": 677,
+          "cached_tokens": 1642,
+          "generated_tokens": 56,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 1.93,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-02",
+      "q": "What is the opening balance?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 29,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 677,
+      "generated_tokens": 56,
+      "seconds": 4.22,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.22,
+          "prompt_tokens": 677,
+          "cached_tokens": 1642,
+          "generated_tokens": 56,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 1.93,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-02",
+      "q": "How much was paid to Sundial Row Clinic the first time it appears?",
+      "kind": "number",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 189,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 56,
+      "generated_tokens": 96,
+      "seconds": 13.67,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 2,
+      "calculations": [
+        [
+          "682.55",
+          "682.55"
+        ],
+        [
+          "682.55",
+          "682.55"
+        ]
+      ],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 5.85,
+          "prompt_tokens": 689,
+          "cached_tokens": 1639,
+          "generated_tokens": 102,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 3.55,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 3.97,
+          "prompt_tokens": 56,
+          "cached_tokens": 2430,
+          "generated_tokens": 102,
+          "prefill_seconds": 0.31,
+          "decode_seconds": 3.63,
+          "peak_gb": 5.97
+        },
+        {
+          "step": "tool",
+          "seconds": 3.84,
+          "prompt_tokens": 56,
+          "cached_tokens": 2588,
+          "generated_tokens": 96,
+          "prefill_seconds": 0.32,
+          "decode_seconds": 3.48,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-02",
+      "q": "Who holds this account?",
+      "kind": "text",
+      "answerable": true,
+      "cited": [
+        0
+      ],
+      "thinking_tokens": 31,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 679,
+      "generated_tokens": 53,
+      "seconds": 4.11,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "correct": true,
+      "precision": 1.0,
+      "recall": 1.0,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 4.11,
+          "prompt_tokens": 679,
+          "cached_tokens": 1639,
+          "generated_tokens": 53,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 1.82,
+          "peak_gb": 5.97
+        }
+      ]
+    },
+    {
+      "doc": "statement-02",
+      "q": "What is the overdraft limit on this account?",
+      "kind": null,
+      "answerable": false,
+      "cited": [],
+      "thinking_tokens": 21,
+      "action_channel": false,
+      "truncated": false,
+      "pages_dropped": 0,
+      "prompt_tokens": 684,
+      "generated_tokens": 40,
+      "seconds": 3.66,
+      "calculator_cites": 0,
+      "calculator_cites_unmapped": 0,
+      "refused": true,
+      "off_evidence": 0,
+      "tool_rounds": 0,
+      "calculations": [],
+      "forced": false,
+      "timings": [
+        {
+          "step": "first",
+          "seconds": 3.66,
+          "prompt_tokens": 684,
+          "cached_tokens": 1639,
+          "generated_tokens": 40,
+          "prefill_seconds": 2.26,
+          "decode_seconds": 1.37,
+          "peak_gb": 5.97
+        }
+      ]
+    }
+  ]
+}
